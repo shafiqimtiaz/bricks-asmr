@@ -6,3 +6,6 @@ CREATE TABLE IF NOT EXISTS leaderboard_times (
   updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
   PRIMARY KEY (board_key, player_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_leaderboard_times_ranking
+ON leaderboard_times(board_key, best_ms ASC, updated_at ASC, player_id ASC);
