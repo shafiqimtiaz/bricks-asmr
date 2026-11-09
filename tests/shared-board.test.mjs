@@ -271,7 +271,7 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
   const game = JSON.parse(solo.slice(start,end));
   assert.match(game, /id="multi" href="\/multiplayer"/);
   assert.match(game, /aria-label="Play multiplayer"/);
-  assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,1);
+  assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,2);
   assert.equal(solo.includes("new HTMLRewriter()"),false);
   assert.equal(solo.includes("4P</a>"),false);
   assert.equal((game.match(/id="wrap"/g)||[]).length,1);
@@ -417,4 +417,62 @@ test("multiplayer copied invites use path URLs and accept rename routes",()=>{
  assert.ok(solo.includes("||/^\\/multiplayer\\/[A-Z2-9]{6}\\/?$/i.test(path)"));
  assert.ok(source.includes("(join|rename|state|socket|action|leave)"));
  assert.match(html,/location\.origin\+"\/multiplayer\/"\+roomCode/);
+});
+
+test("each multiplayer player has a bottom-edge camera and consistent left-right controls",()=>{
+ const js=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=js.indexOf("const BOARD_W=348,BOARD_H=504;"),to=js.indexOf("const tiles=",from);
+ assert.ok(from>=0&&to>from);
+ const getCamera=new Function("SX0","SX1",js.slice(from,to)+"return {viewPoint,applyBoardView,paddleInputPos,localPaddlePos};");
+ const {viewPoint,applyBoardView,paddleInputPos,localPaddlePos}=getCamera(40,320);
+ const paddles=[{seat:0,x:180,y:535},{seat:1,x:12,y:292},{seat:2,x:180,y:36},{seat:3,x:348,y:292}];
+ for(const {seat,x,y} of paddles){
+  const pos=viewPoint(seat,x,y);
+  assert.ok(Math.abs(pos.x-180)<1,"seat "+seat+" centers its own paddle");
+  assert.ok(pos.y>=529&&pos.y<=553,"seat "+seat+" shows own paddle at bottom: "+pos.y);
+  assert.ok(Math.abs(viewPoint(seat,180,292).x-180)<1e-9);
+  assert.ok(Math.abs(viewPoint(seat,180,292).y-292)<1e-9);
+  assert.equal(localPaddlePos(seat,paddleInputPos(seat,40)),0);
+  assert.equal(localPaddlePos(seat,paddleInputPos(seat,320)),1);
+  assert.equal(paddleInputPos(seat,40)>=0&&paddleInputPos(seat,40)<=1,true);
+  const transforms=[];
+  applyBoardView({transform(...args){transforms.push(args);}},seat);
+  assert.equal(transforms.length,seat===0?0:1);
+ }
+ assert.match(js,/const relativeSide=\(p\.seat-cameraSeat\+4\)%4/);
+ assert.match(js,/send\(paddleInputPos\(side,x\)\)/);
+ assert.match(js,/side===2\|\|side===3\?-1:1/);
+ assert.match(js,/ctx\.save\(\);applyBoardView\(ctx,cameraSeat\)/);
+});
+
+test("side paddle collision reach is proportional to a top or bottom paddle",()=>{
+ const s=source;
+ assert.match(s,/half=\(\(r\.effects\?\.wideUntil\|\|0\)>Date\.now\(\)\?49:36\)\*\(horizontal\?1:504\/348\)/);
+ const room=roomForPlayers(4),p=room.players.find(player=>player.seat===1);
+ p.pos=.5;const edge={x:15,y:292+48,vx:-330,vy:0,owner:null};
+ room.balls=[edge];advanceBall(room,edge,.01);
+ assert.equal(p.score,2);
+ assert.equal(p.lives,3);
+});
+
+test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=>{
+ const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
+ const start=solo.indexOf("const GAME=")+"const GAME=".length,end=solo.indexOf(";\nconst LEADERBOARD=",start);
+ const game=JSON.parse(solo.slice(start,end));
+ for(const page of [game,html]){
+  assert.match(page,/BRICKS ASMR<\/h1>/);
+  assert.match(page,/<em>by Shafiq 😉<\/em>/);
+  assert.match(page,/>LOBBY<\/h2>/);
+  assert.match(page,/id="hudMenuToggle"/);
+  assert.match(page,/id="hudMenu" hidden/);
+ }
+ assert.match(game,/id="playSolo"/);
+ assert.match(game,/id="multi" href="\/multiplayer"/);
+ assert.match(html,/id="create"/);
+ assert.match(html,/id="join"/);
+ assert.match(html,/id="playerName"/);
+ assert.doesNotMatch(html,/>SHARED BOARD</);
+ assert.equal((game.match(/id="wrap"/g)||[]).length,1);
+ assert.equal((html.match(/id="wrap"/g)||[]).length,1);
+ assert.match(game,/#homeLobby\[hidden\],#hudMenu\[hidden\]\{display:none!important\}/);
 });
