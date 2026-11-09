@@ -85,7 +85,7 @@ test("crusher uses one shared cadence and advances toward occupied edges",()=>{
 });
 
 test("multiplayer crusher advances once per Solo interval and preserves brick collisions",()=>{
- const room=roomForPlayers(2),now=Date.now();
+ const room=roomForPlayers(2),now=room.startedAt+5000;
  room.crushClock=crusherInterval(room.level)-.01;
  const handler={room,stopLoop(){},save:async()=>{}};
  BrickRoom.prototype.step.call(handler,.05,now);
