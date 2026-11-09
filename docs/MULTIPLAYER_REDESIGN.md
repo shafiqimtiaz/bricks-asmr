@@ -37,13 +37,13 @@
 
 These are the intended balanced paddle arrangements, not separate boards. Player positions may be assigned/remapped **only while waiting**; freeze the assignment for the active round. Occupied sides get one paddle and player label; unoccupied sides behave as ordinary reflective boundaries without decorative or artificial paddles.
 
-The board has one fixed, shared orientation, matching the Solo game's portrait geometry. Each player sees the **same board**, rather than rotating it into multiple arenas. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
+The board remains one authoritative portrait-coordinate game world. **Each client rotates and fits that same world to its own portrait viewport**, placing its assigned paddle at the bottom. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
 
 One ball or multiple balls from power-ups all belong to the shared simulation. All balls collide with the same bricks and each active paddle. Retain Solo collision feel and existing power-ups; adapt edge collision rules to active paddles vs inactive walls. Nobody should see a different brick being destroyed on their screen.
 
 ### Lobby and home
 
-The Solo screen remains the home presentation. A lightweight mode control opens Multiplayer within the same visual system. Creating a room, entering a player name, copying the six-character code, joining, selecting a theme, waiting and starting all reuse Solo-style overlays and controls.
+The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and matching Clean / CRT / Vapor styling. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
 
 The host may start when **at least two players are connected**. While waiting, the same board remains visible with only joined paddles. Starting locks the round's paddle assignments and shared level state. Late joins to an active round are not allowed unless joining as an authenticated reconnect to an existing seat.
 
