@@ -408,7 +408,14 @@ export class BrickRoom extends DurableObject{
    startRound(r);await this.save();this.broadcast();this.ensureLoop();return reply({ok:true});
   }
   if(action==="leave"&&req.method==="POST"){
-   if(r.status==="playing")return reply({ok:true,note:"Seat reserved for reconnection"});
+   if(r.status==="playing"){
+    if(r.hostId===existing.id){
+     const online=this.liveIds();
+     const nextHost=r.players.find(p=>p.id!==existing.id&&online.has(p.id))||r.players.find(p=>p.id!==existing.id);
+     if(nextHost){r.hostId=nextHost.id;await this.save();this.broadcast();}
+    }
+    return reply({ok:true,note:"Seat reserved for reconnection"});
+   }
    r.players=r.players.filter(p=>p.id!==existing.id);if(r.status==="waiting")assignSides(r.players);
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;

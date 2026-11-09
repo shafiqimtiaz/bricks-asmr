@@ -606,3 +606,22 @@ test("rapid repeated join or create clicks cannot reserve duplicate players", as
  release();await second;
  assert.equal(flow.isJoining(),false);
 });
+
+test("host explicitly leaving a live round hands control to an online player without moving seats", async () => {
+ const room=roomForPlayers(3);
+ room.hostId="p0";room.lastActivity=Date.now();
+ for(let i=0;i<room.players.length;i++)room.players[i].token="token-"+i;
+ let saves=0,broadcasts=0;
+ const handler={room,liveIds:()=>new Set(["p0","p2"]),
+  save:async()=>{saves++;},broadcast:()=>{broadcasts++;}};
+ const request=new Request("https://qa.test/api/rooms/BRICKS/leave",{
+  method:"POST",headers:{cookie:"brick_room_BRICKS=token-0"}
+ });
+ const response=await BrickRoom.prototype.fetch.call(handler,request);
+ assert.equal(response.status,200);
+ assert.equal(room.hostId,"p2");
+ assert.deepEqual(room.players.map(p=>p.seat),[0,2,1]);
+ assert.equal(room.players.length,3);
+ assert.equal(saves,1);
+ assert.equal(broadcasts,1);
+});
