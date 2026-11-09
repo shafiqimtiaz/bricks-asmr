@@ -345,3 +345,19 @@ test("multiplayer rendering uses bounded GPU resolution and persistent textures"
   assert.match(client,/const remaining=42-\(performance\.now\(\)-lastInputSent\)/);
   assert.match(source,/clamp\(\(now-this\.lastTick\)\/1000,0,\.25\)/);
 });
+
+
+test("connecting players update online counts immediately without waiting for the HUD throttle", () => {
+  const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+  const from=client.indexOf("function accept(s){"),to=client.indexOf("function renderSeat(",from);
+  assert.ok(from>=0&&to>from);
+  const initial={code:"ABCDE2",round:0,status:"waiting",players:[{id:"p0",pos:.5,online:false}],hits:0};
+  const incoming={...initial,players:[{id:"p0",pos:.5,online:true}]};
+  let renders=0;
+  const fn=new Function("performance","render","oldState","newState",
+    "let state=oldState,you='p0',lastHP=null,lastHits=0,lastUiRender=100,lastEventSeq=-1,lastStateAt=0,drawnHP=null,localPos=.5;"
+    +"function clearFx(){}function sparkle(){}function beep(){}function showPower(){}"
+    +client.slice(from,to)+"accept(newState);");
+  fn({now:()=>101},()=>{renders++},initial,incoming);
+  assert.equal(renders,1);
+});
