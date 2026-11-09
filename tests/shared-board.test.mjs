@@ -278,30 +278,30 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
 });
 
 
-test("shared invite links auto-join before considering an older remembered room", () => {
-  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
-  const start = client.lastIndexOf("const invite=new URL(location.href)");
-  const end = client.lastIndexOf("})();");
-  assert.ok(start >= 0 && end > start);
-  const initialize = new Function("location", "localStorage", "autoJoin", "enter", "error", "URL", client.slice(start, end));
-  const MockURL = class {
-    constructor(href){
-      const query=href.split("?")[1]||"";
-      this.searchParams={get:key=>query.split("&").map(part=>part.split("=")).find(pair=>pair[0]===key)?.[1]??null};
-    }
-  };
-  const activity = [];
-  const location = {href: "https://example.com/multiplayer?room=ABCD23"};
-  const storage = {getItem: () => "ZXY789"};
-  initialize(location, storage, code => activity.push(["join",code]), code => activity.push(["resume",code]), error => activity.push(["error",error]), MockURL);
-  assert.deepEqual(activity, [["join","ABCD23"]]);
-  location.href = "https://example.com/multiplayer";
-  activity.length = 0;
-  initialize(location, storage, code => activity.push(["join",code]), code => {activity.push(["resume",code]);return {catch(){}};},error => activity.push(["error",error]), MockURL);
-  assert.deepEqual(activity, [["resume","ZXY789"]]);
+test("path invites auto-join, query invites remain compatible, and refresh resumes a seat", () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const start=client.lastIndexOf("const invitedPath=location.pathname"),end=client.lastIndexOf("})();");
+ assert.ok(start>=0&&end>start);
+ const initialize=new Function("location","localStorage","autoJoin","enter","error","URL",client.slice(start,end));
+ const MockURL=class{constructor(href){const query=href.split("?")[1]||"";this.searchParams={get:key=>query.split("&").map(part=>part.split("=")).find(pair=>pair[0]===key)?.[1]??null};}};
+ const activity=[],storage={getItem:()=> "ZXY789"};
+ const location={pathname:"/multiplayer/ABCD23",href:"https://example.com/multiplayer/ABCD23"};
+ const join=code=>activity.push(["join",code]);
+ const resume=code=>{activity.push(["resume",code]);return {catch(){}};};
+ const fail=reason=>activity.push(["error",reason]);
+ initialize(location,storage,join,resume,fail,MockURL);
+ assert.deepEqual(activity,[["join","ABCD23"]]);
+ location.pathname="/multiplayer";location.href="https://example.com/multiplayer?room=abcd23";activity.length=0;
+ initialize(location,storage,join,resume,fail,MockURL);
+ assert.deepEqual(activity,[["join","ABCD23"]]);
+ location.href="https://example.com/multiplayer";activity.length=0;
+ initialize(location,storage,join,resume,fail,MockURL);
+ assert.deepEqual(activity,[["resume","ZXY789"]]);
+ assert.match(client,/if\(!joined\.resumed\)openNicknamePrompt\(\)/);
+ assert.match(client,/history\.replaceState/);
 });
 
-test("random invite names are valid and generated with secure randomness", () => {
+test("random invite names are validtest("random invite names are valid and generated with secure randomness", () => {
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   const start = client.indexOf("function randomGuestName(){");
   const end = client.indexOf("function waiting(b)",start);
@@ -363,4 +363,46 @@ test("connecting players update online counts immediately without waiting for th
     +client.slice(from,to)+"accept(newState);");
   fn({now:()=>101},()=>{renders++},initial,incoming);
   assert.equal(renders,1);
+});
+
+test("invited players resume an authenticated seat and can rename without duplicating it",async()=>{
+ const code="ABCD23",player={id:"player-one",token:"session-secret",name:"PixelFox23",seat:0,pos:.5,score:0,lives:3};
+ const room={code,players:[player],status:"waiting",lastActivity:Date.now(),round:0};
+ let broadcasts=0,saves=0;
+ const handler={room,save:async()=>{saves++;},broadcast:()=>{broadcasts++;}};
+ const call=(action,body,cookie="brick_room_"+code+"=session-secret")=>BrickRoom.prototype.fetch.call(handler,new Request("https://game.example/api/rooms/"+code+"/"+action,{
+  method:"POST",headers:{"cookie":cookie,"content-type":"application/json"},body:JSON.stringify(body)
+ }));
+ const resumed=await call("join",{name:"AnotherPlayer"});
+ assert.equal(resumed.status,200);
+ assert.equal((await resumed.json()).resumed,true);
+ assert.equal(room.players.length,1);
+ const renamed=await call("rename",{name:"New Gamer"});
+ assert.equal(renamed.status,200);
+ assert.equal((await renamed.json()).name,"New Gamer");
+ assert.equal(player.name,"New Gamer");
+ assert.equal(saves,1);assert.equal(broadcasts,1);
+ assert.equal((await call("rename",{name:"!"})).status,400);
+ assert.equal((await call("rename",{name:"Intruder"},"")).status,401);
+ assert.equal(player.name,"New Gamer");
+});
+
+test("new invite joins reserve exactly one seat and set a session cookie",async()=>{
+ const code="ABCD23",host={id:"host",token:"host-token",name:"Host",seat:0,pos:.5,score:0,lives:3};
+ const room={code,players:[host],status:"waiting",lastActivity:Date.now(),round:0};
+ const handler={room,save:async()=>{},broadcast:()=>{}};
+ const response=await BrickRoom.prototype.fetch.call(handler,new Request("https://game.example/api/rooms/"+code+"/join",{
+  method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name:"GuestGamer"})
+ }));
+ assert.equal(response.status,201);
+ assert.equal((await response.json()).resumed,false);
+ assert.equal(room.players.length,2);
+ assert.match(response.headers.get("set-cookie"),/HttpOnly/);
+});
+
+test("multiplayer copied invites use path URLs and accept rename routes",()=>{
+ const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
+ assert.ok(solo.includes("||/^\\/multiplayer\\/[A-Z2-9]{6}\\/?$/i.test(path)"));
+ assert.ok(source.includes("(join|rename|state|socket|action|leave)"));
+ assert.match(html,/location\.origin\+"\/multiplayer\/"\+roomCode/);
 });
