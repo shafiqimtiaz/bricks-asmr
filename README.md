@@ -5,7 +5,7 @@ A browser-based brick-breaker with Solo mode, a global leaderboard, and a live, 
 **Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
 **Shared-board multiplayer:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-Multiplayer reuses the Solo game's portrait board and Clean, CRT, and Vapor aesthetics. All players see one authoritative game world with paddles activated on occupied edges (bottom/top/left/right). The original Solo HUD now includes a **2P+** multiplayer shortcut. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL automatically joins with a randomized guest name, then offers an optional gamer-name edit. Existing members resume their authenticated seat without duplicating it. Older `?room=CODE` invite links continue to work. Manual joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
+Multiplayer reuses the Solo game's portrait board and Clean, CRT, and Vapor aesthetics. All players see one authoritative game world with paddles activated on occupied edges (bottom/top/left/right). The original Solo HUD now includes a **2P+** multiplayer shortcut. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
 
 ## Development and deployment
 

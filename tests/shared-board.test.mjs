@@ -278,42 +278,54 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
 });
 
 
-test("path invites auto-join, query invites remain compatible, and refresh resumes a seat", () => {
+test("room-specific invitations take priority, legacy query invites do not join", () => {
  const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
  const start=client.lastIndexOf("const invitedPath=location.pathname"),end=client.lastIndexOf("})();");
  assert.ok(start>=0&&end>start);
- const initialize=new Function("location","localStorage","autoJoin","enter","error","URL",client.slice(start,end));
- const MockURL=class{constructor(href){const query=href.split("?")[1]||"";this.searchParams={get:key=>query.split("&").map(part=>part.split("=")).find(pair=>pair[0]===key)?.[1]??null};}};
- const activity=[],storage={getItem:()=> "ZXY789"};
- const location={pathname:"/multiplayer/ABCD23",href:"https://example.com/multiplayer/ABCD23"};
- const join=code=>activity.push(["join",code]);
- const resume=code=>{activity.push(["resume",code]);return {catch(){}};};
- const fail=reason=>activity.push(["error",reason]);
- initialize(location,storage,join,resume,fail,MockURL);
- assert.deepEqual(activity,[["join","ABCD23"]]);
- location.pathname="/multiplayer";location.href="https://example.com/multiplayer?room=abcd23";activity.length=0;
- initialize(location,storage,join,resume,fail,MockURL);
- assert.deepEqual(activity,[["join","ABCD23"]]);
- location.href="https://example.com/multiplayer";activity.length=0;
- initialize(location,storage,join,resume,fail,MockURL);
- assert.deepEqual(activity,[["resume","ZXY789"]]);
- assert.match(client,/if\(!joined\.resumed\)openNicknamePrompt\(\)/);
- assert.match(client,/history\.replaceState/);
+ const initialize=new Function("location","localStorage","loadInvite","enter",client.slice(start,end));
+ const events=[],storage={getItem:()=>null};
+ const location={pathname:"/multiplayer/ABCD23"};
+ const resume=code=>{events.push(["resume",code]);return {catch(){}};};
+ initialize(location,storage,code=>events.push(["invite",code]),resume);
+ assert.deepEqual(events,[["invite","ABCD23"]]);
+ location.pathname="/multiplayer";events.length=0;
+ initialize(location,storage,code=>events.push(["invite",code]),resume);
+ assert.deepEqual(events,[]);
+ const saved={getItem:()=> "ZYX987"};
+ initialize(location,saved,code=>events.push(["invite",code]),resume);
+ assert.deepEqual(events,[["resume","ZYX987"]]);
+ assert.doesNotMatch(client,/searchParams\.get\(["']room["']\)|randomGuestName\(|autoJoin\(/);
+ assert.match(html,/id="acceptInvite"/);
 });
 
-test("random invite names are validtest("random invite names are valid and generated with secure randomness", () => {
-  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
-  const start = client.indexOf("function randomGuestName(){");
-  const end = client.indexOf("function waiting(b)",start);
-  assert.ok(start >= 0 && end > start);
-  const factory = new Function("crypto",client.slice(start,end)+"return randomGuestName;");
-  const guestName = factory({getRandomValues(arr){arr[0]=4;arr[1]=8;arr[2]=27;return arr;}});
-  assert.match(guestName(),/^[A-Za-z0-9]{2,18}$/);
-  assert.equal(guestName(),"LunarKoala37");
-  assert.match(client,/await joinRoom\(code,\$\("playerName"\)\.value\)/);
+test("invited player must enter a real gamer name before joining", async () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const nameStart=client.indexOf("function name(){"),nameEnd=client.indexOf("function waiting(",nameStart);
+ const $=()=>({value:""});
+ const readName=new Function("$",client.slice(nameStart,nameEnd)+"return name;");
+ assert.throws(()=>readName($)(),/gamer name/);
+ assert.throws(()=>readName(()=>({value:"!"}))(),/gamer name/);
+ assert.equal(readName(()=>({value:"  Brick Master  "}))(),"Brick Master");
+ const from=client.indexOf("function showInvitePrompt("),to=client.indexOf("function openNicknamePrompt(",from);
+ const ui={joinCode:{},inviteCode:{},playerName:{value:"StoredName",focus(){}},roomActions:{},inviteDetails:{},panel:{},intro:{},room:{}};
+ const build=new Function("$","enter","error",client.slice(from,to)+"return {showInvitePrompt,loadInvite};");
+ const events=[],gate=build(id=>ui[id],async code=>{events.push(["check",code]);throw Object.assign(new Error("Join the lobby first"),{status:401});},message=>events.push(["error",message]));
+ await gate.loadInvite("ABCD23");
+ assert.deepEqual(events,[["check","ABCD23"]]);
+ assert.equal(ui.playerName.value,"");
+ assert.equal(ui.inviteDetails.hidden,false);
+ assert.equal(ui.roomActions.hidden,true);
+ assert.equal(ui.joinCode.value,"ABCD23");
+ const returning=build(id=>ui[id],async code=>events.push(["resumed",code]),message=>events.push(["error",message]));
+ ui.inviteDetails.hidden=true;events.length=0;
+ await returning.loadInvite("ABCD23");
+ assert.deepEqual(events,[["resumed","ABCD23"]]);
+ assert.equal(ui.inviteDetails.hidden,true);
+ assert.match(client,/await joinRoom\(code,displayName\)/);
+ assert.match(client,/const displayName=name\(\)/);
 });
 
-test("brick changes redraw only changed cells rather than all tiles", () => {
+test("brick changes redraw only changed cellstest("brick changes redraw only changed cells rather than all tiles", () => {
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   const start = client.indexOf("let drawnPalette=null,drawnVaporPalette=null;");
   const end = client.indexOf("function draw(now){",start);
