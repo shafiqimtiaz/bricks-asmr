@@ -12,7 +12,7 @@
 2. **One shared board, always.** With 1 waiting player or 2, 3 or 4 joined players, render **exactly one** game arena. Never render 2–4 separate Solo arenas or mini previews.
 3. **One paddle per participating player.** Place paddles on the **bottom, top, left and/or right edges** of that same arena. Each player controls their own paddle and cannot move another player's.
 4. **Shared gameplay.** Every player sees the same bricks, balls, collisions, power-ups, destruction, effects and match state in real time. This is one cooperative/shared simulation, **not** independent runs with a common seed.
-5. **Solo visual fidelity.** Preserve the original logical 360×640 game world and recognizable brick art, ball physics feel, break effects, synthesized ASMR, HUD language, Clean / CRT-Vintage / Vapor themes, and pixel animations. Add only the boundary and paddle logic necessary for additional players.
+5. **Solo visual fidelity.** Preserve the recognizable brick art, square tiles, ball physics feel and ASMR effects while allowing the shared logical arena dimensions to follow the selected screen aspect ratio, ball physics feel, break effects, synthesized ASMR, HUD language, Clean / CRT-Vintage / Vapor themes, and pixel animations. Add only the boundary and paddle logic necessary for additional players.
 6. **Mobile first.** The single board must fill the available viewport on phones, tablets, laptops, desktops and TVs, with no horizontal scrolling, clipped paddles or inaccessible controls.
 7. **Preserve Solo and its D1 leaderboard.** Multiplayer match results stay room-scoped and do not post unverified scores to the global Solo leaderboard.
 8. **TypeScript migration.** Use a shared typed engine and renderer, with runtime-validated network messages, by migrating the existing application incrementally rather than rewriting an unrelated game.
@@ -37,7 +37,7 @@
 
 These are progressive paddle assignments on one board, not separate boards. Seats are allocated in bottom → top → left → right order. **A new arrival or departure must never relocate a player already seated or reset their paddle position.** A new player fills the first available edge; all assignments remain fixed during the active round. Occupied sides get one paddle and player label; unoccupied sides behave as ordinary reflective boundaries without decorative or artificial paddles.
 
-The shared brick formation compresses into the middle as players join, leaving approach lanes for the occupied top/bottom and left/right paddles. More participants mean fewer bricks, not extra boards. During a round the authoritative crusher progressively expands that formation toward occupied sides, using Solo's crusher cadence: top and bottom for two players, then left and right as those seats become occupied. The board remains one authoritative 360×640 logical game world. **Each client renders that same world into its available viewport**, rotating its player POV to put its own paddle at the bottom. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
+The shared brick formation compresses into the middle as players join, leaving approach lanes for the occupied top/bottom and left/right paddles. More participants mean fewer bricks, not extra boards. During a round the authoritative crusher progressively expands that formation toward occupied sides, using Solo's crusher cadence: top and bottom for two players, then left and right as those seats become occupied. The board remains one authoritative room-specific logical game world. The host's device aspect selects its dimensions when the room is created. **Every client renders that same world**, rotating its player POV to put its own paddle at the bottom without stretching any axis. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
 
 Every connected player launches their own ball inward from their assigned edge. Each ball retains its original player identity after other paddle deflections; a living player gets a new ball when their last ball is missed. Power-ups may split balls within the shared cap. All balls collide with the same bricks and active paddles. Retain Solo collision feel and existing power-ups; adapt edge collision rules to active paddles vs inactive walls. Nobody should see a different brick being destroyed on their screen.
 
@@ -49,7 +49,7 @@ The host may start when **at least two players are connected**. While waiting, t
 
 ### Responsive presentation
 
-There is **one** shared logical 360×640 board at every viewport width. **Always preserve its 9:16 aspect ratio:** scale uniformly to the available width or height without stretching bricks, paddles, balls or typography. On wide screens, center the board and visible Lobby together as a balanced two-column layout; during play, center the board on its own. On portrait and narrower screens, overlay the Lobby on the board with vertical scrolling as needed. Keep HUD, player labels, paddles and touch targets usable, including TV-sized focus targets and mobile safe margins. Cap the canvas backing resolution for performance. Unused landscape space is preferable to distorting the game or adding separate game boards; never add horizontal scrolling.
+The same shared arena geometry works at tall-mobile, square, landscape, ultrawide, and TV aspect ratios. Instead of stretching a fixed portrait canvas, the game selects a logical arena width from the display aspect ratio, **reflows the shared brick generator into an appropriately sized grid of square cells**, and uses matching collision boundaries and paddle positions. Uniform canvas scaling preserves brick, ball, and paddle proportions. On desktop, the Lobby docks beside a landscape arena when space permits; on mobile it overlays the playfield. The host selects the Multiplayer room's authoritative dimensions at creation, so participants on different devices share identical bricks, hits, physics and power-ups. Side-seat camera rotation preserves geometry and puts the assigned paddle at the bottom even where the rotated room appears portrait. Canvas backing resolution remains capped. Never create additional boards or horizontally scrolling gameplay.
 
 Themes are a **local display preference**: Clean, CRT-Vintage and Vapor change how the same shared state is rendered, not the physics or authoritative state. A user changing their theme must not change other players' themes.
 
@@ -128,7 +128,7 @@ Introduce TypeScript types and runtime validation. Migrate the original Solo phy
 ### Phase 2 — One unified home and lobby
 Replace the separate green Multiplayer landing page with the original Solo visual system. Reuse room creation/joining, labels, invites and Solo-style overlays. Always render one board.
 
-**Gate:** 1, 2, 3 and 4 joined players all see exactly one portrait arena with the correct number of paddle edges; no unoccupied paddles.
+**Gate:** 1, 2, 3 and 4 joined players all see exactly one shared arena with the correct number of paddle edges; no unoccupied paddles.
 
 ### Phase 3 — Shared authoritative multiplayer
 Replace the current square-arena simulation with one shared instance of the common engine in the room Durable Object. Synchronize paddle inputs and world snapshots while keeping each client read-only except for its own paddle.
@@ -136,7 +136,7 @@ Replace the current square-arena simulation with one shared instance of the comm
 **Gate:** 2–4 concurrent clients see the same ball positions, bricks and power-ups; only their own paddles respond to their controls.
 
 ### Phase 4 — Polish and resilience
-Adapt portrait-board side inputs, collision balance, sound, postprocessing, HUD, joined-player names, reconnect handling and touch controls. Verify host/rejoin/start/end behavior, including player count changes in the lobby.
+Adapt rotated side-seat inputs, collision balance, sound, postprocessing, HUD, joined-player names, reconnect handling and touch controls. Verify host/rejoin/start/end behavior, including player count changes in the lobby.
 
 **Gate:** Mobile tests at 320, 375 and 768px and desktop show the entire board without scrolling or clipped controls, with all three themes intact.
 
@@ -152,7 +152,7 @@ Review a focused PR with visual comparisons and tests. Merge only when accepted,
 - [x] One waiting player = 1 paddle; two players = 2 paddles; three = 3; four = 4
 - [x] Bottom/top/left/right edge paddles assigned only to participating players
 - [x] No independent player boards, remote thumbnails or four-sided replacement game
-- [ ] Same portrait Solo brick field, renderer, physics feel, power-ups, ASMR and effects
+- [ ] Same responsive Solo brick field, renderer, physics feel, power-ups, ASMR and effects
 - [ ] All players see the same shared balls, brick destruction and game events
 - [x] Each player controls exactly their assigned paddle, with side-appropriate touch and keyboard input
 - [ ] Host start requires two online players; authenticated reconnects do not duplicate seats
@@ -169,7 +169,7 @@ The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz
 ## 8. Implementation progress (November 8, 2026)
 
 **Implemented and checked:**
-- One shared portrait arena, reusing the Solo HUD and Clean/CRT/Vapor presentation.
+- One shared responsive arena, reusing the Solo HUD and Clean/CRT/Vapor presentation.
 - Occupied paddle positions for one through four joined players; no decorative player boards.
 - Shared authoritative ball, brick and paddle state through Cloudflare Durable Objects.
 - Original Solo deterministic brick patterns and palettes for equivalent seed and level.

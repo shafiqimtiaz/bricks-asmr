@@ -1,8 +1,16 @@
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-function bricks(seed,level,playerCount=2){
- const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;
- const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS;
+function arenaLayout(aspect=9/16){
+ const ratio=Number.isFinite(aspect)?Math.max(0.4,Math.min(32/9,aspect)):9/16;
+ const width=Math.round(640*ratio),height=640;
+ const cell=Math.max(6,Math.round(6*Math.pow(width/360,.65)));
+ const cols=Math.max(16,2*Math.floor((width-12)/cell/2));
+ const rows=Math.max(18,2*Math.floor(Math.min(64,384/cell)/2));
+ return {width,height,cell,cols,rows,gridX:(width-cols*cell)/2,gridY:40};
+}
+function bricks(seed,level,playerCount=2,arena=arenaLayout()){
+ const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
+ const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
  const SCALES=[[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8],[0,2,4,6,7,9,11],[0,2,3,5,7,9,10],[0,4,5,7,11]];
  const PU_W=[14,12,10,9,8,8,8,7,6,6],PU_WSUM=PU_W.reduce((a,b)=>a+b,0);
  const pickPU=u=>{let x=u*PU_WSUM;for(let j=0;j<PU_W.length;j++){x-=PU_W[j];if(x<0)return j+1;}return 10;};
@@ -63,9 +71,9 @@ function genLevel(){
   const setCell = (c, r, reg, wall, hol) => { const i = r * COLS + c; region[i] = reg; isWall[i] = wall; hollow[i] = hol; };
   if (archetype === 0) { // scattered nested shapes
     const nTop = RI(1, 4);
-    for (let k = 0; k < nTop; k++) { const w = R(6, 22), h = R(6, 22); place({t: RI(0, 3), cx: R(w + 1, COLS - w - 1), cy: R(h + 1, ROWS - h - 1), w, h}, 0); }
+    for (let k = 0; k < nTop; k++) { const w = originalPortrait ? R(6, 22) : R(4, Math.min(22, COLS / 3)), h = originalPortrait ? R(6, 22) : R(4, Math.min(22, ROWS / 3)); place({t: RI(0, 3), cx: R(w + 1, COLS - w - 1), cy: R(h + 1, ROWS - h - 1), w, h}, 0); }
   } else if (archetype === 1) { // concentric rings
-    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + R(-6, 6), w = R(20, 30), h = R(22, 34), k = RI(3, 7);
+    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + (originalPortrait ? R(-6, 6) : R(-3, 3)), w = originalPortrait ? R(20, 30) : R(COLS * .32, COLS * .47), h = originalPortrait ? R(22, 34) : R(ROWS * .33, ROWS * .48), k = RI(3, 7);
     const metric = (dx, dy) => t === 0 ? Math.max(Math.abs(dx), Math.abs(dy)) : t === 1 ? Math.hypot(dx, dy) : t === 2 ? Math.abs(dx) + Math.abs(dy) : Math.max(Math.max(Math.abs(dx), Math.abs(dy)), (Math.abs(dx) + Math.abs(dy)) / 1.45);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const d = metric((c + .5 - cx) / w, (r + .5 - cy) / h); if (d > 1) continue;
@@ -164,9 +172,9 @@ function genLevel(){
   for (let i = 0; i < topGap * COLS; i++) { hollow[i] = 1; isWall[i] = 0; }
 
   if(playerCount>1){
-   const sideInset=playerCount>=4?13:playerCount===3?11:7;
-   const topRow=playerCount>=4?28:playerCount===3?26:24;
-   const bottomRow=playerCount>=4?54:playerCount===3?56:58;
+   const sideInset=Math.round(COLS*(playerCount>=4?13/58:playerCount===3?11/58:7/58));
+   const topRow=Math.round(ROWS*(playerCount>=4?28/64:playerCount===3?26/64:24/64));
+   const bottomRow=Math.round(ROWS*(playerCount>=4?54/64:playerCount===3?56/64:58/64));
    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
     if(c<sideInset||c>=COLS-sideInset||r<topRow||r>bottomRow||c%4>=2||r%4>=2){
      hollow[r*COLS+c]=1;isWall[r*COLS+c]=0;
@@ -213,7 +221,7 @@ function genLevel(){
   rootSemi,scale:scale_,wave,decay,archetype,quad,
   centerX:GRID_X+(minC+maxC+1)*GRID_SIZE/2,
   centerY:GRID_Y+(minR+maxR+1)*GRID_SIZE/2,
-  total,remaining
+  total,remaining,arena
  };
 }
 
@@ -287,7 +295,7 @@ function crusherPoint(transform,x,y){
 function uncrushPoint(transform,x,y){
  return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
 }
-export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
+export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval].map(fn=>fn.toString()).join("\n");
