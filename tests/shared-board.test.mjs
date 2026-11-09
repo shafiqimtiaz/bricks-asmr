@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bricks, bounceBall, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource } from "../src/game-core.mjs";
+import { bricks, bounceBall, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource, crusherInterval, crusherTransform, crusherPoint, uncrushPoint } from "../src/game-core.mjs";
 
 const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
 const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
   .replace(/^import .*?;\s*/gm, "")
   .replace("export class BrickRoom", "class BrickRoom");
 const { assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
-  new Function("DurableObject","bricks","bounceBall", server + ";return {assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {},bricks,bounceBall);
+  new Function("DurableObject","bricks","bounceBall","crusherInterval","crusherTransform","uncrushPoint", server + ";return {assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {},bricks,bounceBall,crusherInterval,crusherTransform,uncrushPoint);
 const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
 const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
@@ -64,6 +64,46 @@ test("paddle rotations use Solo's exact angular response and ball speed",()=>{
  normalizeBallVelocity(ball,330);
  assert.ok(Math.abs(Math.hypot(ball.vx,ball.vy)-330)<1e-9);
  assert.ok(Math.abs(ball.vy)>=330*.22);
+});
+
+
+test("crusher uses one shared cadence and advances toward occupied edges",()=>{
+ const a=crusherTransform(6,[{seat:0},{seat:2}],180,286);
+ const b=crusherTransform(6,[{seat:0},{seat:2},{seat:1}],180,286);
+ const c=crusherTransform(6,[{seat:0},{seat:2},{seat:1},{seat:3}],180,286);
+ assert.equal(crusherInterval(1),8);
+ assert.equal(crusherInterval(1,true),5);
+ assert.equal(a.sx,1);
+ assert.ok(a.sy>1&&b.sy===a.sy&&c.sy===a.sy);
+ assert.ok(b.sx>1&&c.sx===b.sx);
+ const top=crusherPoint(a,180,190),bottom=crusherPoint(a,180,380);
+ assert.ok(top.y<190&&bottom.y>380);
+ const point=uncrushPoint(c,...Object.values(crusherPoint(c,130,220)));
+ assert.ok(Math.abs(point.x-130)<1e-9&&Math.abs(point.y-220)<1e-9);
+ assert.match(source,/r\.crushClock=\(r\.crushClock\?\?-10\)\+dt/);
+ assert.match(html,/ctx\.transform\(transform\.sx,0,0,transform\.sy/);
+});
+
+test("multiplayer crusher advances once per Solo interval and preserves brick collisions",()=>{
+ const room=roomForPlayers(2),now=Date.now();
+ room.crushClock=crusherInterval(room.level)-.01;
+ const handler={room,stopLoop(){},save:async()=>{}};
+ BrickRoom.prototype.step.call(handler,.05,now);
+ assert.equal(room.crushSteps,1);
+ const target=room.board.hp.indexOf("1");
+ assert.ok(target>=0);
+ room.board.hp="0".repeat(target)+"1"+"0".repeat(58*64-target-1);
+ room.board.remaining=1;
+ room.board.powerups="0".repeat(58*64);
+ room.balls=[];
+ const c=target%58,r=Math.floor(target/58);
+ const transform=crusherTransform(room.crushSteps,room.players,room.board.centerX,room.board.centerY);
+ const location=crusherPoint(transform,6+(c+.5)*6,40+(r+.5)*6);
+ const ball={x:location.x,y:location.y+6,vx:0,vy:-330,owner:"p0",source:"p0"};
+ room.balls=[ball];
+ advanceBall(room,ball,.01);
+ assert.equal(room.board.hp[target],"0");
+ assert.equal(room.board.remaining,0);
 });
 
 test("multiplayer uses Solo's grid size and a deterministic level", () => {
