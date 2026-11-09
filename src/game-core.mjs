@@ -1,7 +1,7 @@
-const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function bricks(seed,level,playerCount=2){
+ const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;
  const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS;
  const SCALES=[[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8],[0,2,4,6,7,9,11],[0,2,3,5,7,9,10],[0,4,5,7,11]];
  const PU_W=[14,12,10,9,8,8,8,7,6,6],PU_WSUM=PU_W.reduce((a,b)=>a+b,0);
@@ -289,4 +289,4 @@ function uncrushPoint(transform,x,y){
 }
 export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
 export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource="const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;\n"+[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
