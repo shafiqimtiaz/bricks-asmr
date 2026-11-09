@@ -1,6 +1,6 @@
 # Bricks ASMR — Unified Solo & Shared-Board Multiplayer Plan
 
-**Status:** Corrected and approved design direction; implementation pending  
+**Status:** Shared-board multiplayer deployed; remaining parity and validation work tracked below  
 **Updated:** 2026-11-08  
 **Repository:** [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr)
 
@@ -164,4 +164,22 @@ Review a focused PR with visual comparisons and tests. Merge only when accepted,
 
 ## 7. Deployment policy
 
-This commit corrects the plan. **It does not implement or deploy the multiplayer redesign.** Make gameplay changes only in a separate reviewed implementation, test them before updating production, and keep the existing Cloudflare Worker and D1 data intact until validated.
+The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz/bricks-asmr/pull/1) and deployed to the existing Cloudflare Worker. Solo, D1, and the production Durable Object namespace were retained. Further gameplay parity changes still require tests and review before release.
+
+## 8. Implementation progress (November 8, 2026)
+
+**Implemented and checked:**
+- One shared portrait arena, reusing the Solo HUD and Clean/CRT/Vapor presentation.
+- Occupied paddle positions for one through four joined players; no decorative player boards.
+- Shared authoritative ball, brick and paddle state through Cloudflare Durable Objects.
+- Original Solo deterministic brick patterns and palettes for equivalent seed and level.
+- Validated, sequenced paddle input tied to authenticated room seats.
+- Six focused regression tests and staging room joins from one to four participants.
+- Preserved D1 bindings and the existing Solo/global leaderboard.
+
+**Not yet fully verified or ported:**
+- Complete Solo power-up and physics parity, and extraction of the original engine/rendering into shared TypeScript modules.
+- Four simultaneous online clients throughout a complete round (Cloudflare browser testing reached a rate limit).
+- Comprehensive mobile checks at all specified viewport sizes and reconnection under real network disruption.
+
+The deployed gameplay should be treated as the **first functional shared-board release**, not completion of every acceptance criterion in this document.
