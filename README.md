@@ -1,42 +1,65 @@
 # Bricks ASMR
 
-A browser-based brick-breaking game with retro effects, a global leaderboard, and real-time four-sided multiplayer.
+A browser-based brick-breaker with Solo mode, a leaderboard, and the existing experimental multiplayer mode.
 
-**Live game:** https://bricks-asmr.shafiqimtiaz.workers.dev
-**Multiplayer:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
+**Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
+**Multiplayer (current):** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-## Modes
+The planned **unified 2–4 Solo-board multiplayer** experience is documented in [docs/MULTIPLAYER_REDESIGN.md](docs/MULTIPLAYER_REDESIGN.md). It has **not been implemented**; the current multiplayer uses the earlier shared arena.
 
-- **Solo:** The original brick-breaking game, with selectable themes and daily challenges.
-- **Leaderboard:** Personal best times per challenge in the existing Cloudflare D1 database.
-- **Multiplayer:** Rooms for 2–4 people, joined by a six-character code. Each player views their own paddle at the bottom. The authoritative game loop runs in a Cloudflare Durable Object over WebSockets.
+## Development and deployment
 
-## Development
-
-Requires Node.js 22.18 or newer and a Cloudflare account authorized for Workers, D1, and Durable Objects.
+Requires Node.js 22.18 or later. Cloudflare Workers serves production requests; no always-running Node server is required.
 
 ```sh
 npm install
-npm run dev
+npm run dev      # Run locally
+npm run build    # Build/validate without uploading
+npm run check    # Equivalent dry-run validation
+npm run deploy   # Deploy to Cloudflare
 ```
 
-Deploy the same Worker:
+For a manual deployment, log in once with `npx wrangler login` or set `CLOUDFLARE_API_TOKEN`.
 
-```sh
-npm run deploy
-```
+### Cloudflare Workers Builds (GitHub)
 
-`cloudflare.config.ts` is the source of the runtime bindings and deployment target. The `cf` CLI builds this project through Wrangler; Wrangler is used as a bundler, not as the deployment CLI.
+The existing Worker `bricks-asmr` is linked to [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr). Workers Builds watches `main` and deploys from the repository root.
 
-## Source files
+| Setting | Value |
+| --- | --- |
+| Production branch | `main` |
+| Root directory | `/` |
+| Build command | `npm run build` |
+| Deploy command | `npm run deploy` |
+| Preview builds | Disabled |
+| Build Node.js version | 24 (Cloudflare's default) |
 
-- `src/index.mjs` — solo gameplay, leaderboard, and multiplayer routing
-- `src/multi.mjs` — multiplayer UI and Durable Object room/game state
-- `cloudflare.config.ts` — Worker configuration and existing D1 / Durable Object bindings
-- `schema.sql` — reference schema for the leaderboard (do not apply blindly to production)
+The Build system uses an existing **user-scoped Cloudflare build token**; replace it with a dedicated Bricks token when one can be provisioned. Keep credentials in Cloudflare, never in GitHub source.
 
-The source was exported from the live Worker to initialize this repository. Production D1 records and Durable Object state are not stored here.
+### Configuration and bindings
 
-## Deployment
+[wrangler.jsonc](wrangler.jsonc) is the **only** Worker deployment configuration. Cloudflare's beta `cf deploy` CLI currently rejects the first unattended deployment of a Worker that was previously uploaded via Cloudflare's script API; we switched to the supported Wrangler CLI to avoid that problem.
 
-To connect automated deployment, select this repository and branch `main` under **Cloudflare → Workers & Pages → bricks-asmr → Settings → Builds**. Use `npm run deploy` as the deploy command. The build system requires a Cloudflare build token with permission to deploy this Worker.
+| Binding | Resource |
+| --- | --- |
+| `DB` | Existing D1 `786779d1-68ed-49d0-a6ee-434d76143b85` |
+| `ROOMS` | Existing SQLite Durable Object class `BrickRoom`, migration `v1` |
+
+Do not change, clear, or recreate these resources as part of app deployment. `schema.sql` is reference-only and must not be automatically applied to production.
+
+### Current source
+
+- `src/index.mjs` — original Solo game, leaderboard and routing
+- `src/multi.mjs` — existing experimental multiplayer UI, room and WebSockets
+- `docs/MULTIPLAYER_REDESIGN.md` — planned shared TypeScript engine, renderer and dynamic boards
+
+The future TypeScript migration is described in the design document, not implemented by this build-system change.
+
+### After each deployment
+
+Verify:
+
+1. `/` — original Solo game
+2. `/leaderboard` — leaderboard
+3. `/multiplayer` — current room UI
+4. D1 and Durable Object bindings still resolve correctly
