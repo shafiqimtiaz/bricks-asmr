@@ -1,7 +1,7 @@
 # Bricks ASMR — Unified Solo & Shared-Board Multiplayer Plan
 
-**Status:** Shared-board multiplayer, power-ups, and unified Solo entry deployed; remaining TypeScript parity and multi-client endurance verification tracked below  
-**Updated:** 2026-11-08  
+**Status:** Shared level generator, bounce/velocity helpers, brick art, ASMR synth, and crusher cadence now reused across Solo and Multiplayer; full effect and input-flow parity remains open  
+**Updated:** 2026-11-09  
 **Repository:** [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr)
 
 > This document specifies the intended design, not a completed implementation. It supersedes the earlier "one Solo board per player" plan and the existing separate green multiplayer page. **Multiplayer has exactly one shared game board, regardless of player count.** Only the occupied sides gain player-controlled paddles. Do not deploy a partial visual-only change as the finished design.
@@ -37,7 +37,7 @@
 
 These are progressive paddle assignments on one board, not separate boards. Seats are allocated in bottom → top → left → right order. **A new arrival or departure must never relocate a player already seated or reset their paddle position.** A new player fills the first available edge; all assignments remain fixed during the active round. Occupied sides get one paddle and player label; unoccupied sides behave as ordinary reflective boundaries without decorative or artificial paddles.
 
-The shared brick formation compresses into the middle as players join, leaving approach lanes for the occupied top/bottom and left/right paddles. More participants mean fewer bricks, not extra boards. The board remains one authoritative portrait-coordinate game world. **Each client rotates and fits that same world to its own portrait viewport**, placing its assigned paddle at the bottom. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
+The shared brick formation compresses into the middle as players join, leaving approach lanes for the occupied top/bottom and left/right paddles. More participants mean fewer bricks, not extra boards. During a round the authoritative crusher progressively expands that formation toward occupied sides, using Solo's crusher cadence: top and bottom for two players, then left and right as those seats become occupied. The board remains one authoritative portrait-coordinate game world. **Each client rotates and fits that same world to its own portrait viewport**, placing its assigned paddle at the bottom. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
 
 Every connected player launches their own ball inward from their assigned edge. Each ball retains its original player identity after other paddle deflections; a living player gets a new ball when their last ball is missed. Power-ups may split balls within the shared cap. All balls collide with the same bricks and active paddles. Retain Solo collision feel and existing power-ups; adapt edge collision rules to active paddles vs inactive walls. Nobody should see a different brick being destroyed on their screen.
 
@@ -189,3 +189,9 @@ The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz
 - Full visual/device checks at every specified viewport size and reconnect testing under real network interruption.
 
 The multiplayer release includes the core shared-board gameplay, synchronized boosts and reliable input fixes. It is deployed and regression-tested, but the full common TypeScript engine extraction, exact Solo effect parity, and the real four-client complete-match gate remain open.
+
+## 9. Shared JavaScript gameplay foundation (November 9, 2026)
+
+Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seeded brick generator, brick/palette metadata, velocity normalization, equivalent Solo-angle paddle bounce, per-cell pixel drawing, the compressed ASMR oscillator, brick-note scale, and crusher timing. Solo calls the level generator without multiplayer pruning; Multiplayer keeps one server-authoritative world and removes bricks to make space for extra players. The multiplayer crusher applies a synchronized 2D transform toward all occupied sides, with physics coordinates inverted through the same transform. Each client then rotates that single world into its personal bottom-paddle view.
+
+**Remaining gameplay parity gaps:** Solo still includes theme-specific power-ups (and falling pickups), manual aiming/launch, a stopwatch and extra visual feedback that Multiplayer has not completely adopted. Multiplayer currently uses a room-timed round and simplified immediate power-ups. Those differences must not be described as full Solo/Multiplayer mechanic parity. The new shared core is JavaScript, not the planned TypeScript migration. Browser-based live 2–4-player endurance verification also remains outstanding.
