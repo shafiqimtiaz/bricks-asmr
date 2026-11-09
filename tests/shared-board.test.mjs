@@ -53,7 +53,7 @@ test("all four active paddles bounce their own ball", () => {
     const ball = side === 0
       ? { x: 180, y: 531, vx: 0, vy: 330, owner: null }
       : side === 2
-        ? { x: 180, y: 53, vx: 0, vy: -330, owner: null }
+        ? { x: 180, y: 39, vx: 0, vy: -330, owner: null }
         : side === 1
           ? { x: 15, y: 500, vx: -330, vy: 0, owner: null }
           : { x: 345, y: 500, vx: 330, vy: 0, owner: null };
@@ -68,7 +68,7 @@ test("all four active paddles bounce their own ball", () => {
 test("a missed occupied paddle loses a life, an empty side acts as a wall", () => {
   const room = roomForPlayers(2);
   const top = room.players.find(p => p.seat === 2);
-  const miss = { x: 30, y: 53, vx: 0, vy: -330, owner: null };
+  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: null };
   room.balls = [miss];
   advanceBall(room, miss, .01);
   assert.equal(top.lives, 2);
