@@ -271,6 +271,9 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
   const game = JSON.parse(solo.slice(start,end));
   assert.match(game, /id="multi" href="\/multiplayer"/);
   assert.match(game, /aria-label="Play multiplayer"/);
+  assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,1);
+  assert.equal(solo.includes("new HTMLRewriter()"),false);
+  assert.equal(solo.includes("4P</a>"),false);
   assert.equal((game.match(/id="wrap"/g)||[]).length,1);
 });
 

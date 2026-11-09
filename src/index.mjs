@@ -33,7 +33,7 @@ export default {async fetch(req,env){
  if(path.startsWith('/api/multiplayer/rooms')){const u=new URL(req.url);u.pathname=path.replace('/api/multiplayer','/api');return multiplayer.fetch(new Request(u,req),env);}
  if(path==='/api/leaderboard')return api(req,env,url);
  if(req.method!=='GET'&&req.method!=='HEAD')return new Response('Method not allowed',{status:405});
- if(path==='/'||path==='/index.html'){const page=new Response(req.method==='HEAD'?null:GAME,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});return req.method==='HEAD'?page:new HTMLRewriter().on('#hud',{element(el){el.append("<a href=\"/multiplayer\" title=\"Play live with up to four players\" style=\"pointer-events:auto;background:#2a2a2a;color:#b9ef83;border:1px solid #52694a;border-radius:calc(var(--u)*1.4);padding:calc(var(--u)*1) calc(var(--u)*1.2);font:inherit;white-space:nowrap;text-decoration:none;flex-shrink:0\">4P</a>",{html:true});}}).transform(page);}
+ if(path==='/'||path==='/index.html')return new Response(req.method==='HEAD'?null:GAME,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
  if(path==='/leaderboard'||path==='/leaderboard/')return new Response(req.method==='HEAD'?null:LEADERBOARD,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
  return new Response('Not found',{status:404});
 }};
