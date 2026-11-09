@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { bricks, bounceBall, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource } from "../src/game-core.mjs";
 
 const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
 const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
-  .replace(/^import .*?;\s*/, "")
+  .replace(/^import .*?;\s*/gm, "")
   .replace("export class BrickRoom", "class BrickRoom");
-const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
-  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {});
+const { assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
+  new Function("DurableObject","bricks","bounceBall", server + ";return {assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {},bricks,bounceBall);
 const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
 const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
@@ -23,6 +24,46 @@ test("there is one board and each occupied player gets a unique side", () => {
   }
   assert.equal((html.match(/<div id="wrap">/g) || []).length, 1);
   assert.equal((html.match(/id="c"/g) || []).length, 1);
+});
+
+
+test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",()=>{
+ const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
+ assert.match(solo,/import \{ soloCoreSource \} from "\.\/game-core\.mjs"/);
+ assert.match(source,/import \{ bricks, bounceBall, browserCoreSource \} from "\.\/game-core\.mjs"/);
+ assert.match(solo,/bricks\(seed,level,1\)/);
+ assert.match(solo,/drawBrickTile\(bctx/);
+ assert.match(source,/bounceBall\(ball,side,deflect,330\)/);
+ assert.match(source,/drawBrickTile\(tileCtx/);
+ assert.match(solo,/GAME\.replace\('<script>'/);
+ assert.match(source,/MULTIPLAYER_HTML\.replace\("<script>"/);
+ assert.match(soloCoreSource,/function bricks\(/);
+ assert.match(browserCoreSource,/function drawBrickTile\(/);
+ for(const [seed,total] of [["ALPHA",3184],["TEST123",3476],["BRICKS",3226]]){
+  const board=bricks(seed,1,1);
+  assert.equal(board.total,total);
+  assert.equal(board.hp.length,58*64);
+  assert.equal(board.total,[...board.hp].filter(c=>c!=="0").length);
+  assert.ok(board.scale.length>=5);
+ }
+});
+
+test("paddle rotations use Solo's exact angular response and ball speed",()=>{
+ for(const off of [-1,-.5,0,.4,1]){
+  const bottom=bounceBall({vx:0,vy:0},0,off,330);
+  const top=bounceBall({vx:0,vy:0},2,off,330);
+  const left=bounceBall({vx:0,vy:0},1,off,330);
+  const right=bounceBall({vx:0,vy:0},3,off,330);
+  assert.ok(Math.abs(bottom.vx-330*Math.sin(off*1.05))<1e-9);
+  assert.ok(Math.abs(bottom.vy+330*Math.cos(off*1.05))<1e-9);
+  assert.ok(Math.abs(bottom.vx+top.vx)<1e-9&&Math.abs(bottom.vy+top.vy)<1e-9);
+  assert.ok(Math.abs(left.vx+right.vx)<1e-9&&Math.abs(left.vy+right.vy)<1e-9);
+  assert.ok(Math.abs(Math.hypot(bottom.vx,bottom.vy)-330)<1e-9);
+ }
+ const ball={vx:300,vy:10};
+ normalizeBallVelocity(ball,330);
+ assert.ok(Math.abs(Math.hypot(ball.vx,ball.vy)-330)<1e-9);
+ assert.ok(Math.abs(ball.vy)>=330*.22);
 });
 
 test("multiplayer uses Solo's grid size and a deterministic level", () => {
@@ -390,9 +431,9 @@ test("brick changes redraw only changed cells rather than all tiles", () => {
     set fillStyle(v){}
   };
   const palette = Array(16).fill("#777");
-  const renderer = new Function("tileCtx","PALETTE",
+  const renderer = new Function("tileCtx","PALETTE","drawBrickTile",
     "const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6;let style='clean',drawnHP=null,drawnStyle=null;"
-    + client.slice(start,end) + "return paintTiles;")(tileCtx,{clean:palette,vintage:palette,vapor:palette});
+    + client.slice(start,end) + "return paintTiles;")(tileCtx,{clean:palette,vintage:palette,vapor:palette},drawBrickTile);
   const board = {hp:"1".repeat(58*64),colors:"0".repeat(58*64),palette,vaporPalette:palette};
   renderer(board);
   assert.equal(tileOperations.clear,58*64);
