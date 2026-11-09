@@ -6,7 +6,8 @@
     "dev": "wrangler dev",
     "build": "wrangler deploy --dry-run",
     "check": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22.18.0"
