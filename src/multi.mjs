@@ -24,7 +24,7 @@ function bricks(seed,level){
   else {const ring=Math.hypot(dx*1.8,dy*1.8);fill=ring<.92;wall=Math.floor(ring*20)%5===0;}
   if(rng()<.035)fill=false;
   hp.push(fill?(wall?"2":"1"):"0");
-  colors.push((Math.floor(rng()*12)+Math.floor((col+row)/8))%16 .toString(16));
+  colors.push(((Math.floor(rng()*12)+Math.floor((col+row)/8))%16).toString(16));
  }
  const count=hp.reduce((n,x)=>n+(x!=="0"),0);
  return {hp:hp.join(""),colors:colors.join(""),total:count,remaining:count};
@@ -130,7 +130,7 @@ export class BrickRoom extends DurableObject{
   if(action==="state"&&req.method==="GET")return reply({you:existing.id,state:this.snapshot()});
   if(action==="socket"&&req.method==="GET"){
    if((req.headers.get("upgrade")||"").toLowerCase()!=="websocket")return reply({error:"WebSocket required"},426);
-   const pair=new WebSocketPair(),[client,server]=Object.values(pair);for(const old of this.ctx.getWebSockets())if(old.deserializeAttachment()?.id===existing.id)try{old.close(1000,"Reconnected");}catch{}this.ctx.acceptWebSocket(server);server.serializeAttachment({id:existing.id});existing.lastSeq=-1;
+   const pair=new WebSocketPair(),[client,server]=Object.values(pair);for(const old of this.ctx.getWebSockets())if(old.deserializeAttachment()?.id===existing.id)try{old.close(1000,"Reconnected");}catch{}this.ctx.acceptWebSocket(server);server.serializeAttachment({id:existing.id});existing.lastSeq=-1;existing.online=true;
    server.send(JSON.stringify({type:"hello",you:existing.id,state:this.snapshot()}));this.broadcast();if(r.status==="playing")this.ensureLoop();
    return new Response(null,{status:101,webSocket:client});
   }
@@ -162,8 +162,8 @@ export class BrickRoom extends DurableObject{
    if(!this.loop)this.ensureLoop();
   }else if(v?.type==="ping")ws.send(JSON.stringify({type:"pong"}));
  }
- async webSocketClose(ws,code,reason){try{ws.close(code,reason);}catch{}if(this.room){this.broadcast();if(this.liveIds().size===0){this.stopLoop();await this.save();}}}
- async webSocketError(ws){try{ws.close(1011,"Connection error");}catch{}if(this.room)this.broadcast();}
+ async webSocketClose(ws,code,reason){try{ws.close(code,reason);}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id))p.online=false;this.broadcast();if(this.liveIds().size===0){this.stopLoop();await this.save();}}}
+ async webSocketError(ws){try{ws.close(1011,"Connection error");}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id))p.online=false;this.broadcast();}}
  stopLoop(){if(this.loop!==null){clearInterval(this.loop);this.loop=null;}}
  ensureLoop(){
   if(this.loop!==null||!this.room||this.room.status!=="playing"||this.liveIds().size===0)return;
