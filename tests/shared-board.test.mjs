@@ -476,3 +476,19 @@ test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=
  assert.equal((html.match(/id="wrap"/g)||[]).length,1);
  assert.match(game,/#homeLobby\[hidden\],#hudMenu\[hidden\]\{display:none!important\}/);
 });
+
+test("multiplayer lobby maps the current player to the bottom slot",()=>{
+ const js=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=js.indexOf("function render(){"),to=js.indexOf("const GRID_X=",from);
+ const ids=["bottom","top","left","right"];
+ assert.ok(from>=0&&to>from);
+ const players=[{id:"p0",name:"Host",seat:0,online:true,lives:3},{id:"p1",name:"Guest",seat:2,online:true,lives:3}];
+ const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false});return nodes.get(id);};
+ const calls=[],state={code:"ABCD23",players,hostId:"p0",status:"waiting",round:0,remaining:90,balls:[],board:{hp:"0",remaining:0,total:1}};
+ const fn=new Function("$","state","you","renderSeat",js.slice(from,to)+"return render;");
+ const render=fn($,state,"p1",(side,p,mine)=>calls.push({side,id:p?.id,mine}));
+ render();
+ assert.equal(calls.length,4);
+ assert.deepEqual(calls[0],{side:0,id:"p1",mine:true});
+ assert.deepEqual(calls[2],{side:2,id:"p0",mine:false});
+});
