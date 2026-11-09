@@ -235,7 +235,7 @@ function markEvent(r,type,x,y,owner=null){
  r.lastEvent={seq:r.eventSeq,type,x,y,owner};
 }
 function spawnPlayerBall(room,p){
- const a=((room.hits*47+p.seat*19+19)%61-30)*Math.PI/180,speed=330;
+ const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=330;
  const sideways=Math.sin(a)*speed,forward=Math.cos(a)*speed;
  const coord=p.seat===0||p.seat===2?42+p.pos*276:84+p.pos*416;
  if(p.seat===0)return {x:coord,y:484,vx:sideways,vy:-forward,owner:p.id,source:p.id};
@@ -405,7 +405,7 @@ export class BrickRoom extends DurableObject{
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:3};r.players.push(player);assignSides(r.players);
-   r.board=bricks(r.seed,r.level,r.players.length);resetBall(r);this.lastBroadcastHP=null;
+   r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length);resetBall(r);this.lastBroadcastHP=null;
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }
   if(!existing)return reply({error:"Join the lobby first"},401);
@@ -441,7 +441,7 @@ export class BrickRoom extends DurableObject{
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
-    assignSides(r.players);r.board=bricks(r.seed,r.level,Math.max(2,r.players.length));resetBall(r);this.lastBroadcastHP=null;
+    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,Math.max(2,r.players.length));resetBall(r);this.lastBroadcastHP=null;
    }
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;
