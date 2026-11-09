@@ -1,7 +1,7 @@
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function arenaLayout(aspect=9/16){
- const ratio=Number.isFinite(aspect)?Math.max(9/16,Math.min(32/9,aspect)):9/16;
+ const ratio=Number.isFinite(aspect)?Math.max(0.4,Math.min(32/9,aspect)):9/16;
  const width=Math.round(640*ratio),height=640;
  const cell=Math.max(6,Math.round(6*Math.pow(width/360,.65)));
  const cols=Math.max(16,2*Math.floor((width-12)/cell/2));
