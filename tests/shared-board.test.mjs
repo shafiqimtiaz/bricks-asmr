@@ -13,7 +13,7 @@ const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
 
 test("there is one board and each occupied player gets a unique side", () => {
-  const expected = { 1: [0], 2: [0, 2], 3: [0, 1, 3], 4: [0, 1, 2, 3] };
+  const expected = { 1: [0], 2: [0, 2], 3: [0, 2, 1], 4: [0, 2, 1, 3] };
   for (const count of [1, 2, 3, 4]) {
     const players = Array.from({ length: count }, (_, index) =>
       ({ id: "player-" + index, seat: -1, pos: .5, lives: 3, online: true }));
@@ -490,4 +490,53 @@ test("multiplayer lobby maps the current player to the bottom slot",()=>{
  assert.equal(calls.length,4);
  assert.deepEqual(calls[0],{side:0,id:"p1",mine:true});
  assert.deepEqual(calls[2],{side:2,id:"p0",mine:false});
+});
+
+test("joining and leaving never reassigns existing players or resets their controls", () => {
+ const players=[{id:"host",seat:-1,pos:.18}];
+ assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0]);
+ const second={id:"second",seat:0,pos:.5};
+ players.push(second);assignSides(players);
+ assert.equal(second.seat,2);
+ second.pos=.29;
+ const third={id:"third",seat:0,pos:.5};
+ players.push(third);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,2,1]);
+ assert.equal(players[0].pos,.18);
+ assert.equal(second.pos,.29);
+ third.pos=.71;
+ const fourth={id:"fourth",seat:0,pos:.5};
+ players.push(fourth);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,2,1,3]);
+ assert.equal(third.pos,.71);
+ players.splice(players.indexOf(second),1);
+ assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,1,3]);
+ const newGuest={id:"replacement",seat:0,pos:.5};
+ players.push(newGuest);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,1,3,2]);
+ assert.equal(third.pos,.71);
+ assert.equal(players[0].pos,.18);
+});
+
+test("a third room join keeps the second player's camera seat unchanged", async () => {
+ const code="ABCD23",host={id:"host",token:"host-token",name:"Host",seat:0,pos:.2,score:0,lives:3};
+ const room={code,players:[host],status:"waiting",lastActivity:Date.now(),round:0};
+ const handler={room,save:async()=>{},broadcast:()=>{}};
+ const join=async name=>{
+  const response=await BrickRoom.prototype.fetch.call(handler,new Request("https://game.example/api/rooms/"+code+"/join",{
+   method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})
+  }));
+  assert.equal(response.status,201);
+  return room.players.at(-1);
+ };
+ const guest=await join("GuestTwo");
+ assert.equal(guest.seat,2);
+ guest.pos=.37;
+ await join("GuestThree");
+ assert.equal(guest.seat,2);
+ assert.equal(guest.pos,.37);
+ assert.equal(host.pos,.2);
+ assert.deepEqual(room.players.map(p=>p.seat),[0,2,1]);
 });
