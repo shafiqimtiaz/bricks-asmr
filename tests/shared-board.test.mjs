@@ -540,3 +540,40 @@ test("a third room join keeps the second player's camera seat unchanged", async 
  assert.equal(host.pos,.2);
  assert.deepEqual(room.players.map(p=>p.seat),[0,2,1]);
 });
+
+test("an old tab does not repeatedly reconnect after another tab takes the same seat", () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("function connect(){"),to=client.indexOf("let lastUiRender=",from);
+ assert.ok(from>=0&&to>from);
+ const sockets=[],nodes={connection:{},panel:{hidden:true},room:{hidden:true},statusText:{},roomTitle:{},glass:{hidden:true},glassTitle:{},glassText:{},start:{hidden:false}};
+ let scheduled=0;
+ const WebSocket=class{constructor(url){this.url=url;sockets.push(this);}};
+ const setup=new Function("WebSocket","location","$","clearTimeout","setTimeout",
+  'const API="/api/multiplayer/rooms";let closed=false,roomCode="ABCD23",socket=null,retry=null,inputSeq=0,lastInputSent=0,pendingInput=null;'
+  +client.slice(from,to)+'return {connect,getRetry:()=>retry};');
+ const conn=setup(WebSocket,{protocol:"https:",host:"game.example"},id=>nodes[id],()=>{},()=>{scheduled++;return scheduled;});
+ conn.connect();
+ assert.equal(sockets.length,1);
+ sockets[0].onclose({code:1000,reason:"Reconnected"});
+ assert.equal(conn.getRetry(),null);
+ assert.equal(scheduled,0);
+ assert.equal(nodes.connection.textContent,"Opened elsewhere");
+ assert.equal(nodes.panel.hidden,false);
+ assert.equal(nodes.start.hidden,true);
+ assert.match(nodes.glassText.textContent,/other tab/);
+ const again=setup(WebSocket,{protocol:"https:",host:"game.example"},id=>nodes[id],()=>{},()=>{scheduled++;return scheduled;});
+ again.connect();const socket=sockets.at(-1);
+ socket.onclose({code:1006,reason:""});
+ assert.equal(scheduled,1);
+});
+
+test("lobby pointer movement cannot move a paddle before a round starts", () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("function send(pos){"),to=client.indexOf("function pointer(",from);
+ assert.ok(from>=0&&to>from);
+ const setup=new Function("socket","state","WebSocket","clearTimeout","setTimeout","performance","flushInput",
+  'let localPos=.5,lastInputSent=0,pendingInput=null;'+client.slice(from,to)+'return {send,getPos:()=>localPos};');
+ const controller=setup({readyState:1},{status:"waiting"},{OPEN:1},()=>{},()=>{}, {now:()=>100},()=>{});
+ controller.send(.08);
+ assert.equal(controller.getPos(),.5);
+});
