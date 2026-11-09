@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "cf dev",
     "build": "cf build",
-    "deploy": "cf deploy"
+    "check": "cf deploy --dry-run",
+    "deploy": "cf deploy",
+    "deploy:ci": "cf deploy --prebuilt"
   },
   "engines": {
     "node": ">=22.18.0"
