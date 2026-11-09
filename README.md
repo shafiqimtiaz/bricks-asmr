@@ -5,7 +5,7 @@ A browser-based brick-breaker with Solo mode, a global leaderboard, and a live, 
 **Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
 **Multiplayer Lobby:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-The Bricks ASMR home screen now opens a unified **Lobby** with **Single Player** and **Multiplayer** choices, consistent Clean / CRT / Vapor themes and a compact in-game menu. Multiplayer keeps one authoritative game world, but rotates the board locally so **every player sees their own paddle at the bottom**. Side paddles are proportionally balanced against top/bottom paddles; all four seats continue sharing the same bricks, balls and power-ups. Players keep their side as friends join or leave, without snapping to a new camera. Reopening a seat in another tab moves control to that tab rather than endlessly reconnecting the original tab. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
+The Bricks ASMR home screen now opens a unified **Lobby** with **Single Player** and **Multiplayer** choices, consistent Clean / CRT / Vapor themes and a compact in-game menu. Multiplayer keeps one authoritative room-shaped game world, chosen from the host's aspect ratio, and rotates the board locally so **every player sees their own paddle at the bottom**. The shared brick generator reflows square cells across portrait, tablet, desktop and TV layouts without stretching the game. Side paddles are proportionally balanced against top/bottom paddles; all four seats continue sharing the same bricks, balls and power-ups. Players keep their side as friends join or leave, without snapping to a new camera. Reopening a seat in another tab moves control to that tab rather than endlessly reconnecting the original tab. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
 
 ## Development and deployment
 
@@ -62,5 +62,5 @@ Verify:
 
 1. `/` — original Solo game
 2. `/leaderboard` — leaderboard
-3. `/multiplayer` — one portrait board, live room and occupied edge paddles
+3. `/multiplayer` — one responsive shared board, live room and occupied edge paddles
 4. D1 and Durable Object bindings still resolve correctly
