@@ -6,8 +6,8 @@ const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8"
 const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
   .replace(/^import .*?;\s*/, "")
   .replace("export class BrickRoom", "class BrickRoom");
-const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, BrickRoom } =
-  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,BrickRoom};")(class {});
+const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
+  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {});
 const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
 const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
@@ -72,6 +72,27 @@ test("two to four players each launch an inward ball from their own edge",()=>{
    assert.ok(seat===0?b.vy<0:seat===2?b.vy>0:seat===1?b.vx>0:b.vx<0);
   }
  }
+});
+
+test("opponent deflections do not change which player a ball belongs to",()=>{
+ const room=roomForPlayers(2);
+ const ball=room.balls.find(b=>b.source==="p1");
+ Object.assign(ball,{x:180,y:531,vx:0,vy:330});
+ advanceBall(room,ball,.01);
+ assert.equal(ball.source,"p1");
+ assert.equal(ball.owner,"p0");
+ assert.ok(ball.vy<0);
+});
+
+test("reconnecting players regain their ball without duplicating others",()=>{
+ const room=roomForPlayers(3);
+ room.balls=room.balls.filter(b=>b.source!=="p1");
+ replenishBalls(room);
+ assert.equal(room.balls.length,3);
+ assert.equal(room.balls.filter(b=>b.source==="p1").length,1);
+ replenishBalls(room);
+ assert.equal(room.balls.length,3);
+ assert.match(source,/if\(r\.status==="playing"\)replenishBalls\(r\)/);
 });
 
 test("all four active paddles bounce their own ball", () => {
