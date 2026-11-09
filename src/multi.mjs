@@ -117,10 +117,10 @@ function advanceBall(r,ball,dt){
  };
  const oldX=ball.x,oldY=ball.y;
  let nx=oldX+ball.vx*dt;
- if(impact(nx+Math.sign(ball.vx)*edge,oldY,"vx"))nx=oldX;
+ if(ball.vx!==0&&impact(nx+Math.sign(ball.vx)*edge,oldY,"vx"))nx=oldX;
  ball.x=nx;
  let ny=oldY+ball.vy*dt;
- if(impact(nx,ny+Math.sign(ball.vy)*edge,"vy"))ny=oldY;
+ if(ball.vy!==0&&impact(nx,ny+Math.sign(ball.vy)*edge,"vy"))ny=oldY;
  ball.y=ny;
  const hit=(side,coord)=>{
   const p=paddleFor(r,side);if(!p)return false;
