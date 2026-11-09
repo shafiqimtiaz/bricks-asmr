@@ -242,6 +242,24 @@ function soloBrickNote(row,scale,root,wave,decay,combo=0){
  return {frequency:196*Math.pow(2,semi/12),volume:wave==="square"?.08:.22,duration:decay,wave};
 }
 
-export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote};
-export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource="const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;\n"+[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote].map(fn=>fn.toString()).join("\n");
+function createASMR(host){
+ const Context=host.AudioContext||host.webkitAudioContext;
+ const audio=new Context();
+ const compressor=audio.createDynamicsCompressor();compressor.threshold.value=-20;compressor.ratio.value=6;
+ const master=audio.createGain();master.gain.value=.35;
+ master.connect(compressor);compressor.connect(audio.destination);
+ return {
+  context:audio,
+  resume(){if(audio.state==="suspended")audio.resume();},
+  blip(freq,vol,dur,type="triangle"){
+   const t=audio.currentTime,o=audio.createOscillator(),g=audio.createGain();
+   o.type=type;o.frequency.value=freq;
+   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.003);
+   g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+   o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
+  }
+ };
+}
+export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR};
+export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource="const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;\n"+[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
