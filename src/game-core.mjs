@@ -73,7 +73,7 @@ function genLevel(){
     const nTop = RI(1, 4);
     for (let k = 0; k < nTop; k++) { const w = originalPortrait ? R(6, 22) : R(4, Math.min(22, COLS / 3)), h = originalPortrait ? R(6, 22) : R(4, Math.min(22, ROWS / 3)); place({t: RI(0, 3), cx: R(w + 1, COLS - w - 1), cy: R(h + 1, ROWS - h - 1), w, h}, 0); }
   } else if (archetype === 1) { // concentric rings
-    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + R(-3, 3), w = originalPortrait ? R(20, 30) : R(COLS * .32, COLS * .47), h = originalPortrait ? R(22, 34) : R(ROWS * .33, ROWS * .48), k = RI(3, 7);
+    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + (originalPortrait ? R(-6, 6) : R(-3, 3)), w = originalPortrait ? R(20, 30) : R(COLS * .32, COLS * .47), h = originalPortrait ? R(22, 34) : R(ROWS * .33, ROWS * .48), k = RI(3, 7);
     const metric = (dx, dy) => t === 0 ? Math.max(Math.abs(dx), Math.abs(dy)) : t === 1 ? Math.hypot(dx, dy) : t === 2 ? Math.abs(dx) + Math.abs(dy) : Math.max(Math.max(Math.abs(dx), Math.abs(dy)), (Math.abs(dx) + Math.abs(dy)) / 1.45);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const d = metric((c + .5 - cx) / w, (r + .5 - cy) / h); if (d > 1) continue;
