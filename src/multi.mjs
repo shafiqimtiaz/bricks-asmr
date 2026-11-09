@@ -419,7 +419,8 @@ export class BrickRoom extends DurableObject{
   if(action==="socket"&&req.method==="GET"){
    if((req.headers.get("upgrade")||"").toLowerCase()!=="websocket")return reply({error:"WebSocket required"},426);
    const pair=new WebSocketPair(),[client,server]=Object.values(pair);for(const old of this.ctx.getWebSockets())if(old.deserializeAttachment()?.id===existing.id)try{old.close(1000,"Reconnected");}catch{}this.ctx.acceptWebSocket(server);server.serializeAttachment({id:existing.id});existing.lastSeq=-1;existing.online=true;
-   server.send(JSON.stringify({type:"hello",version:1,you:existing.id,state:this.snapshot()}));this.broadcast();if(r.status==="playing")this.ensureLoop();
+   if(r.status==="playing")replenishBalls(r);
+    server.send(JSON.stringify({type:"hello",version:1,you:existing.id,state:this.snapshot()}));this.broadcast();if(r.status==="playing")this.ensureLoop();
    return new Response(null,{status:101,webSocket:client});
   }
   if(action==="action"&&req.method==="POST"){
@@ -484,7 +485,7 @@ export class BrickRoom extends DurableObject{
   const count=Math.max(1,Math.ceil(dt/(1/120))),t=dt/count;
   for(let tick=0;tick<count;tick++){
    const effects=r.effects||{},slow=effects.slowUntil>now?.72:1,hyper=effects.hyperUntil>now?1.2:1;
-   for(const ball of [...r.balls]){advanceBall(r,ball,t*slow*hyper);}
+   for(const ball of [...r.balls])if(r.balls.includes(ball))advanceBall(r,ball,t*slow*hyper);
   }
   if(r.board.remaining===0||r.players.every(p=>p.lives===0)){
    r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));
