@@ -1,11 +1,11 @@
 # Bricks ASMR
 
-A browser-based brick-breaker with Solo mode, a leaderboard, and the existing experimental multiplayer mode.
+A browser-based brick-breaker with Solo mode, a global leaderboard, and a live, single-board multiplayer mode.
 
 **Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
-**Multiplayer (current):** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
+**Shared-board multiplayer:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-The planned **unified 2–4 Solo-board multiplayer** experience is documented in [docs/MULTIPLAYER_REDESIGN.md](docs/MULTIPLAYER_REDESIGN.md). It has **not been implemented**; the current multiplayer uses the earlier shared arena.
+Multiplayer reuses the Solo game's portrait board and Clean, CRT, and Vapor aesthetics. All players see one authoritative game world with paddles activated on occupied edges (bottom/top/left/right). The original Solo HUD now includes a **2P+** multiplayer shortcut. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
 
 ## Development and deployment
 
@@ -16,6 +16,7 @@ npm install
 npm run dev      # Run locally
 npm run build    # Build/validate without uploading
 npm run check    # Equivalent dry-run validation
+npm test         # Shared-board regression tests
 npm run deploy   # Deploy to Cloudflare
 ```
 
@@ -50,8 +51,8 @@ Do not change, clear, or recreate these resources as part of app deployment. `sc
 ### Current source
 
 - `src/index.mjs` — original Solo game, leaderboard and routing
-- `src/multi.mjs` — existing experimental multiplayer UI, room and WebSockets
-- `docs/MULTIPLAYER_REDESIGN.md` — planned shared TypeScript engine, renderer and dynamic boards
+- `src/multi.mjs` — single shared multiplayer arena, power-ups, WebSocket inputs and authoritative Durable Object game state
+- `docs/MULTIPLAYER_REDESIGN.md` — shared-board implementation, accepted layout and remaining TypeScript/physics parity tasks
 
 The future TypeScript migration is described in the design document, not implemented by this build-system change.
 
@@ -61,5 +62,5 @@ Verify:
 
 1. `/` — original Solo game
 2. `/leaderboard` — leaderboard
-3. `/multiplayer` — current room UI
+3. `/multiplayer` — one portrait board, live room and occupied edge paddles
 4. D1 and Durable Object bindings still resolve correctly
