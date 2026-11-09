@@ -30,9 +30,9 @@ for (const page of pages) {
   const source = readFileSync(new URL(page, import.meta.url), "utf8");
 
   test(page + ": desktop lobby sits beside the playfield", () => {
-    assert.match(source, /@media \\(min-width:1024px\\) and \\(min-aspect-ratio:4\\/3\\)/);
-    assert.match(source, /body:has\\(#panel:not\\(\\[hidden\\]\\)\\) #wrap/);
-    assert.match(source, /left:calc\\(100% \\+ var\\(--desktop-gap\\)\\)/);
+    assert.ok(source.includes("@media (min-width:1024px) and (min-aspect-ratio:4/3)"));
+    assert.ok(source.includes("body:has(#panel:not([hidden])) #wrap"));
+    assert.ok(source.includes("left:calc(100% + var(--desktop-gap))"));
   });
 
   test(page + ": preserves 9:16 board and fits laptop through ultrawide", () => {
