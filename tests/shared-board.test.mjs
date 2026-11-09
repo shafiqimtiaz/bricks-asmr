@@ -493,8 +493,9 @@ test("multiplayer lobby maps the current player to the bottom slot",()=>{
 });
 
 test("joining and leaving never reassigns existing players or resets their controls", () => {
- const players=[{id:"host",seat:-1,pos:.18}];
+ const players=[{id:"host",seat:-1,pos:.5}];
  assignSides(players);
+ players[0].pos=.18;
  assert.deepEqual(players.map(p=>p.seat),[0]);
  const second={id:"second",seat:0,pos:.5};
  players.push(second);assignSides(players);
