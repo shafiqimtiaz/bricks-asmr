@@ -255,7 +255,7 @@ test("all four authenticated players receive the same authoritative world", asyn
       type:"paddle-input",version:1,seq:1,pos:.15+i*.2
     }));
   }
-  assert.deepEqual(room.players.map(p=>p.pos), [.15,.35,.55,.75]);
+  for(const [i,p] of room.players.entries())assert.ok(Math.abs(p.pos-(.15+i*.2))<1e-8);
   BrickRoom.prototype.broadcast.call(handler);
   const worlds = Array.from(packets.values()).map(p=>p.state);
   for(let i=1;i<worlds.length;i++)assert.deepEqual(worlds[0],worlds[i]);
