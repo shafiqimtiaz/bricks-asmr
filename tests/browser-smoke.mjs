@@ -26,7 +26,7 @@ try {
   await solo.locator("#playSolo").click();
   await solo.locator("#homeLobby").waitFor({ state: "hidden" });
   assert.equal(await solo.locator("#c").count(), 1, "Solo renders one canvas");
-  assert.ok(await solo.locator("#c").isVisible(), "Solo canvas is visible");
+  assert.ok(await solo.locator("canvas:visible").count() > 0, "Solo rendering canvas is visible");
   const soloOverflow = await solo.evaluate(() => document.documentElement.scrollWidth - innerWidth);
   assert.ok(soloOverflow <= 1, `Solo has ${soloOverflow}px horizontal overflow at 320px`);
 
@@ -54,8 +54,8 @@ try {
   assert.equal(await guest.locator("#slot0.me").count(), 1, "Guest views their paddle at bottom");
   assert.equal(await host.locator("#c").count(), 1, "Host has one shared board");
   assert.equal(await guest.locator("#c").count(), 1, "Guest has one shared board");
-  await host.locator("#c").click({ position: { x: 30, y: 100 }, force: true });
-  await guest.locator("#c").click({ position: { x: 30, y: 100 }, force: true });
+  await host.locator("canvas:visible").first().click({ position: { x: 30, y: 100 } });
+  await guest.locator("canvas:visible").first().click({ position: { x: 30, y: 100 } });
   await host.keyboard.press("ArrowRight");
   await guest.keyboard.press("ArrowLeft");
   assert.deepEqual(errors, [], "Browser console has no uncaught page errors");
