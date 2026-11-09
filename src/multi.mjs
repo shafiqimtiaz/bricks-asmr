@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint } from "./game-core.mjs";
+import { arenaLayout, bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint } from "./game-core.mjs";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
 function reply(body,status=200,extra={}){return new Response(JSON.stringify(body),{status,headers:{...JSON_HEADERS,...extra}});}
@@ -29,13 +29,13 @@ function markEvent(r,type,x,y,owner=null){
  r.lastEvent={seq:r.eventSeq,type,x,y,owner};
 }
 function spawnPlayerBall(room,p){
- const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=330;
+ const arena=room.arena||arenaLayout();\n const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=Math.round(330*Math.pow(arena.width/360,.35));
  const sideways=Math.sin(a)*speed,forward=Math.cos(a)*speed;
- const coord=p.seat===0||p.seat===2?42+p.pos*276:84+p.pos*416;
+ const coord=p.seat===0||p.seat===2?arena.width*42/360+p.pos*arena.width*276/360:84+p.pos*416;
  if(p.seat===0)return {x:coord,y:484,vx:sideways,vy:-forward,owner:p.id,source:p.id};
  if(p.seat===2)return {x:coord,y:100,vx:-sideways,vy:forward,owner:p.id,source:p.id};
- if(p.seat===1)return {x:56,y:coord,vx:forward,vy:sideways,owner:p.id,source:p.id};
- return {x:304,y:coord,vx:-forward,vy:-sideways,owner:p.id,source:p.id};
+ if(p.seat===1)return {x:arena.gridX+50,y:coord,vx:forward,vy:sideways,owner:p.id,source:p.id};
+ return {x:arena.width-arena.gridX-50,y:coord,vx:-forward,vy:-sideways,owner:p.id,source:p.id};
 }
 function resetBall(room){
  room.balls=room.players.filter(p=>p.lives>0&&p.online!==false).slice(0,MAX_BALLS).map(p=>spawnPlayerBall(room,p));
@@ -46,7 +46,7 @@ function replenishBalls(room){
 function startRound(r){
  r.status="playing";r.round=(r.round||0)+1;r.seed=r.code.toLowerCase();r.level=1;
  r.startedAt=Date.now()+3000;r.endsAt=r.startedAt+90000;
- r.board=bricks(r.seed,r.level,r.players.length);r.hits=0;r.lastTouch=null;
+ r.board=bricks(r.seed,r.level,r.players.length,r.arena||arenaLayout());r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;
  for(const p of r.players){p.score=0;p.lives=3;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
@@ -126,13 +126,13 @@ function advanceBall(r,ball,dt){
  const hit=(side,coord)=>{
   const p=paddleFor(r,side);if(!p)return false;
   const horizontal=side===0||side===2;
-  const half=((r.effects?.wideUntil||0)>Date.now()?49:36)*(horizontal?1:504/348);
-  const initial=horizontal?42+p.pos*276:84+p.pos*416;
+  const half=((r.effects?.wideUntil||0)>Date.now()?49:36)*(horizontal?width/360:504/348);
+  const initial=horizontal?width*(42+p.pos*276)/360:84+p.pos*416;
   const center=horizontal?clamp(initial,BOARD.x+half,BOARD.right-half):clamp(initial,BOARD.y+half,BOARD.bottom-half);
   if(Math.abs(coord-center)>half+edge){miss(r,p,ball);return true;}
   const deflect=clamp((coord-center)/half,-1,1);
   ball.owner=p.id;p.score+=2;
-  bounceBall(ball,side,deflect,330);
+  bounceBall(ball,side,deflect,Math.round(330*Math.pow(width/360,.35)));
   return false;
  };
  if(ball.y>=BOARD.paddleBottom-edge&&ball.vy>0){
@@ -159,7 +159,7 @@ export class BrickRoom extends DurableObject{
  liveIds(){return new Set(this.ctx.getWebSockets().filter(w=>w.readyState===1).map(w=>w.deserializeAttachment()?.id).filter(Boolean));}
  snapshot(includeBoard=true){
   const r=this.room,live=this.liveIds();
-  const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,
+  const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,arena:r.arena||arenaLayout(),
    seed:r.seed,level:r.level,startedAt:r.startedAt,
    remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Math.max(Date.now(),r.startedAt||0))/1000)):90,
    players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),
@@ -184,7 +184,7 @@ export class BrickRoom extends DurableObject{
    if(this.room&&Date.now()-(this.room.lastActivity||0)<TTL)return reply({error:"Room already exists"},409);
    const data=await req.json().catch(()=>({})),name=nameOf(data.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:3};
-   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],board:bricks(code.toLowerCase(),1,2),seed:code.toLowerCase(),level:1,startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
+   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],arena,board:bricks(code.toLowerCase(),1,2,arena),seed:code.toLowerCase(),level:1,startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
    await this.save();return reply({code,you:p.id},201,{"set-cookie":cookieFor(code,p.token)});
   }
   if(!this.room||this.room.code!==code||Date.now()-this.room.lastActivity>TTL)return reply({error:"Room not found or expired"},404);
@@ -195,7 +195,7 @@ export class BrickRoom extends DurableObject{
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:3};r.players.push(player);assignSides(r.players);
-   r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length);resetBall(r);this.lastBroadcastHP=null;
+   r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }
   if(!existing)return reply({error:"Join the lobby first"},401);
@@ -232,7 +232,7 @@ export class BrickRoom extends DurableObject{
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
-    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,Math.max(2,r.players.length));resetBall(r);this.lastBroadcastHP=null;
+    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,Math.max(2,r.players.length),r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;
    }
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;
@@ -267,7 +267,7 @@ export class BrickRoom extends DurableObject{
  }
  step(dt,now){
   const r=this.room;
-  if(!r.board||!r.balls?.length){if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length);if(!r.balls?.length)resetBall(r);}
+  if(!r.board||!r.balls?.length){if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());if(!r.balls?.length)resetBall(r);}
   if(now>=r.endsAt||r.board.remaining===0||r.players.every(p=>p.lives===0)){
    r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;
   }
