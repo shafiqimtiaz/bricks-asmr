@@ -3,9 +3,9 @@
 A browser-based brick-breaker with Solo mode, a global leaderboard, and a live, single-board multiplayer mode.
 
 **Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
-**Shared-board multiplayer:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
+**Multiplayer Lobby:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-Multiplayer reuses the Solo game's portrait board and Clean, CRT, and Vapor aesthetics. All players see one authoritative game world with paddles activated on occupied edges (bottom/top/left/right). The original Solo HUD now includes a **2P+** multiplayer shortcut. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
+The Bricks ASMR home screen now opens a unified **Lobby** with **Single Player** and **Multiplayer** choices, consistent Clean / CRT / Vapor themes and a compact in-game menu. Multiplayer keeps one authoritative game world, but rotates the board locally so **every player sees their own paddle at the bottom**. Side paddles are proportionally balanced against top/bottom paddles; all four seats continue sharing the same bricks, balls and power-ups. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
 
 ## Development and deployment
 
