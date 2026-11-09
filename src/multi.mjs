@@ -207,8 +207,18 @@ function genLevel(){
   total,remaining
  };
 }
-function assignedSides(n){return n===1?[0]:n===2?[0,2]:n===3?[0,1,3]:[0,1,2,3];}
-function assignSides(players){const sides=assignedSides(players.length);players.forEach((p,i)=>{p.seat=sides[i];p.pos=.5;});}
+const SEAT_ORDER=[0,2,1,3];
+function assignedSides(n){return SEAT_ORDER.slice(0,n);}
+function assignSides(players){
+ const used=new Set();
+ for(const p of players){
+  if(!SEAT_ORDER.includes(p.seat)||used.has(p.seat)){
+   p.seat=SEAT_ORDER.find(side=>!used.has(side));
+   p.pos=.5;
+  }
+  used.add(p.seat);
+ }
+}
 
 const POWER_LABELS={1:"MULTIBALL",2:"BALL SPLIT",3:"WIDE PADDLES",4:"PIERCE",5:"SHOCKWAVE",6:"+1 LIFE",7:"HYPER",8:"SLOW TIME",9:"CHAIN BLAST",10:"+8 SECONDS",11:"STARTER SPLIT"};
 function markEvent(r,type,x,y,owner=null){
