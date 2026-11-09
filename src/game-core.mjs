@@ -10,7 +10,7 @@ function arenaLayout(aspect=9/16){
 }
 function bricks(seed,level,playerCount=2,arena=arenaLayout()){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
- const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS;
+ const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
  const SCALES=[[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8],[0,2,4,6,7,9,11],[0,2,3,5,7,9,10],[0,4,5,7,11]];
  const PU_W=[14,12,10,9,8,8,8,7,6,6],PU_WSUM=PU_W.reduce((a,b)=>a+b,0);
  const pickPU=u=>{let x=u*PU_WSUM;for(let j=0;j<PU_W.length;j++){x-=PU_W[j];if(x<0)return j+1;}return 10;};
@@ -71,9 +71,9 @@ function genLevel(){
   const setCell = (c, r, reg, wall, hol) => { const i = r * COLS + c; region[i] = reg; isWall[i] = wall; hollow[i] = hol; };
   if (archetype === 0) { // scattered nested shapes
     const nTop = RI(1, 4);
-    for (let k = 0; k < nTop; k++) { const w = R(4, Math.min(22, COLS / 3)), h = R(4, Math.min(22, ROWS / 3)); place({t: RI(0, 3), cx: R(w + 1, COLS - w - 1), cy: R(h + 1, ROWS - h - 1), w, h}, 0); }
+    for (let k = 0; k < nTop; k++) { const w = originalPortrait ? R(6, 22) : R(4, Math.min(22, COLS / 3)), h = originalPortrait ? R(6, 22) : R(4, Math.min(22, ROWS / 3)); place({t: RI(0, 3), cx: R(w + 1, COLS - w - 1), cy: R(h + 1, ROWS - h - 1), w, h}, 0); }
   } else if (archetype === 1) { // concentric rings
-    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + R(-3, 3), w = R(COLS * .32, COLS * .47), h = R(ROWS * .33, ROWS * .48), k = RI(3, 7);
+    const t = RI(0, 3), cx = COLS / 2 + R(-6, 6), cy = ROWS / 2 + R(-3, 3), w = originalPortrait ? R(20, 30) : R(COLS * .32, COLS * .47), h = originalPortrait ? R(22, 34) : R(ROWS * .33, ROWS * .48), k = RI(3, 7);
     const metric = (dx, dy) => t === 0 ? Math.max(Math.abs(dx), Math.abs(dy)) : t === 1 ? Math.hypot(dx, dy) : t === 2 ? Math.abs(dx) + Math.abs(dy) : Math.max(Math.max(Math.abs(dx), Math.abs(dy)), (Math.abs(dx) + Math.abs(dy)) / 1.45);
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       const d = metric((c + .5 - cx) / w, (r + .5 - cy) / h); if (d > 1) continue;
