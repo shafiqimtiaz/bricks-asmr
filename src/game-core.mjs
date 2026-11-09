@@ -289,4 +289,4 @@ function uncrushPoint(transform,x,y){
 }
 export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
 export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval].map(fn=>fn.toString()).join("\n");
