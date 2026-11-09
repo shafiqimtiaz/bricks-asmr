@@ -77,7 +77,7 @@ for (const page of pages) {
 
   test(page + ": renders at independent axes with pixel cap and circular ball graphics", () => {
     assert.ok(source.includes("scaleX = width / W; scaleY = height / H"));
-    assert.ok(source.includes("Math.sqrt(8000000 / Math.max(1, r.width * r.height))"));
+    assert.ok(source.includes("Math.sqrt(4000000 / Math.max(1, r.width * r.height))"));
     assert.ok(source.includes("context.ellipse(x, y, radius * correction, radius / correction"));
     assert.ok(source.includes("layoutObserver.observe(element,{attributes:true,attributeFilter:['hidden']})"));
   });
