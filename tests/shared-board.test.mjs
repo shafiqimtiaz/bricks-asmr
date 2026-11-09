@@ -280,15 +280,21 @@ test("shared invite links auto-join before considering an older remembered room"
   const start = client.lastIndexOf("const invite=new URL(location.href)");
   const end = client.lastIndexOf("})();");
   assert.ok(start >= 0 && end > start);
-  const initialize = new Function("location", "localStorage", "autoJoin", "enter", "error", client.slice(start, end));
+  const initialize = new Function("location", "localStorage", "autoJoin", "enter", "error", "URL", client.slice(start, end));
+  const MockURL = class {
+    constructor(href){
+      const query=href.split("?")[1]||"";
+      this.searchParams={get:key=>query.split("&").map(part=>part.split("=")).find(pair=>pair[0]===key)?.[1]??null};
+    }
+  };
   const activity = [];
   const location = {href: "https://example.com/multiplayer?room=ABCD23"};
   const storage = {getItem: () => "ZXY789"};
-  initialize(location, storage, code => activity.push(["join",code]), code => activity.push(["resume",code]), error => activity.push(["error",error]));
+  initialize(location, storage, code => activity.push(["join",code]), code => activity.push(["resume",code]), error => activity.push(["error",error]), MockURL);
   assert.deepEqual(activity, [["join","ABCD23"]]);
   location.href = "https://example.com/multiplayer";
   activity.length = 0;
-  initialize(location, storage, code => activity.push(["join",code]), code => {activity.push(["resume",code]);return {catch(){}};},error => activity.push(["error",error]));
+  initialize(location, storage, code => activity.push(["join",code]), code => {activity.push(["resume",code]);return {catch(){}};},error => activity.push(["error",error]), MockURL);
   assert.deepEqual(activity, [["resume","ZXY789"]]);
 });
 
