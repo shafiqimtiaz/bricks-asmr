@@ -577,3 +577,31 @@ test("lobby pointer movement cannot move a paddle before a round starts", () => 
  controller.send(.08);
  assert.equal(controller.getPos(),.5);
 });
+
+test("rapid repeated join or create clicks cannot reserve duplicate players", async () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("let joining=false;"),to=client.indexOf("function showInvitePrompt(",from);
+ assert.ok(from>=0&&to>from);
+ let release;
+ let calls=0;
+ const elements={create:{},join:{},acceptInvite:{},joinCode:{value:"ABCDE2"}};
+ const storage={setItem(){}};
+ const createFlow=new Function("$","request","enter","localStorage","error","name",
+  client.slice(from,to)+"return {doCreate,doJoin,isJoining:()=>joining};");
+ const flow=createFlow(id=>elements[id],async (path,body)=>{
+  calls++;
+  await new Promise(resolve=>{release=resolve;});
+  return {code:"ABCDE2",you:"new-player",resumed:false};
+ },async()=>{},storage,()=>{},()=>"PlayerOne");
+ const first=flow.doJoin();
+ assert.equal(flow.isJoining(),true);
+ await flow.doJoin();
+ await flow.doCreate();
+ assert.equal(calls,1);
+ release();await first;
+ assert.equal(flow.isJoining(),false);
+ const second=flow.doCreate();
+ assert.equal(calls,2);
+ release();await second;
+ assert.equal(flow.isJoining(),false);
+});
