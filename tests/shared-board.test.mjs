@@ -262,3 +262,14 @@ test("all four authenticated players receive the same authoritative world", asyn
   assert.equal(worlds[0].players.length,4);
   assert.equal(worlds[0].balls.length,1);
 });
+
+
+test("Solo HUD exposes multiplayer without a second homepage", () => {
+  const solo = readFileSync(new URL("../src/index.mjs", import.meta.url), "utf8");
+  const start = solo.indexOf("const GAME=") + "const GAME=".length;
+  const end = solo.indexOf(";\nconst LEADERBOARD=", start);
+  const game = JSON.parse(solo.slice(start,end));
+  assert.match(game, /id="multi" href="\/multiplayer"/);
+  assert.match(game, /aria-label="Play multiplayer"/);
+  assert.equal((game.match(/id="wrap"/g)||[]).length,1);
+});
