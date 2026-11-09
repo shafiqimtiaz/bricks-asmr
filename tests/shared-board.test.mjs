@@ -273,3 +273,69 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
   assert.match(game, /aria-label="Play multiplayer"/);
   assert.equal((game.match(/id="wrap"/g)||[]).length,1);
 });
+
+
+test("shared invite links auto-join before considering an older remembered room", () => {
+  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
+  const start = client.lastIndexOf("const invite=new URL(location.href)");
+  const end = client.lastIndexOf("})();");
+  assert.ok(start >= 0 && end > start);
+  const initialize = new Function("location", "localStorage", "autoJoin", "enter", "error", client.slice(start, end));
+  const activity = [];
+  const location = {href: "https://example.com/multiplayer?room=ABCD23"};
+  const storage = {getItem: () => "ZXY789"};
+  initialize(location, storage, code => activity.push(["join",code]), code => activity.push(["resume",code]), error => activity.push(["error",error]));
+  assert.deepEqual(activity, [["join","ABCD23"]]);
+  location.href = "https://example.com/multiplayer";
+  activity.length = 0;
+  initialize(location, storage, code => activity.push(["join",code]), code => {activity.push(["resume",code]);return {catch(){}};},error => activity.push(["error",error]));
+  assert.deepEqual(activity, [["resume","ZXY789"]]);
+});
+
+test("random invite names are valid and generated with secure randomness", () => {
+  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
+  const start = client.indexOf("function randomGuestName(){");
+  const end = client.indexOf("function waiting(b)",start);
+  assert.ok(start >= 0 && end > start);
+  const factory = new Function("crypto",client.slice(start,end)+"return randomGuestName;");
+  const guestName = factory({getRandomValues(arr){arr[0]=4;arr[1]=8;arr[2]=27;return arr;}});
+  assert.match(guestName(),/^[A-Za-z0-9]{2,18}$/);
+  assert.equal(guestName(),"LunarKoala37");
+  assert.match(client,/await joinRoom\(code,\$\("playerName"\)\.value\)/);
+});
+
+test("brick changes redraw only changed cells rather than all tiles", () => {
+  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
+  const start = client.indexOf("let drawnPalette=null,drawnVaporPalette=null;");
+  const end = client.indexOf("function draw(now){",start);
+  assert.ok(start >= 0 && end > start);
+  const tileOperations = {clear:0,fill:0};
+  const tileCtx = {
+    clearRect(){tileOperations.clear++;},
+    fillRect(){tileOperations.fill++;},
+    set fillStyle(v){}
+  };
+  const palette = Array(16).fill("#777");
+  const renderer = new Function("tileCtx","PALETTE",
+    "const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6;let style='clean',drawnHP=null,drawnStyle=null;"
+    + client.slice(start,end) + "return paintTiles;")(tileCtx,{clean:palette,vintage:palette,vapor:palette});
+  const board = {hp:"1".repeat(58*64),colors:"0".repeat(58*64),palette,vaporPalette:palette};
+  renderer(board);
+  assert.equal(tileOperations.clear,58*64);
+  tileOperations.clear=0;tileOperations.fill=0;
+  const change = {...board,hp:"0"+board.hp.slice(1)};
+  renderer(change);
+  assert.equal(tileOperations.clear,1);
+  assert.equal(tileOperations.fill,0);
+  renderer(change);
+  assert.equal(tileOperations.clear,1);
+});
+
+test("multiplayer rendering uses bounded GPU resolution and persistent textures", () => {
+  const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
+  assert.match(client,/devicePixelRatio \|\| 1, 2/);
+  assert.match(client,/gl\.texSubImage2D\(/);
+  assert.match(client,/gl\.texImage2D\(gl\.TEXTURE_2D,0,gl\.RGBA,cv\.width,cv\.height/);
+  assert.match(client,/const remaining=42-\(performance\.now\(\)-lastInputSent\)/);
+  assert.match(source,/clamp\(\(now-this\.lastTick\)\/1000,0,\.25\)/);
+});
