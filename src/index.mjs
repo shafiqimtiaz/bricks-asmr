@@ -29,7 +29,7 @@ async function api(req,env,url){
 }
 export default {async fetch(req,env){
  const url=new URL(req.url),path=url.pathname;
- if(path==='/multiplayer'||path==='/multiplayer/'){const u=new URL(req.url);u.pathname='/';return multiplayer.fetch(new Request(u,req),env);}
+ if(path==='/multiplayer'||path==='/multiplayer/'||/^\/multiplayer\/[A-Z2-9]{6}\/?$/i.test(path)){const u=new URL(req.url);u.pathname='/';return multiplayer.fetch(new Request(u,req),env);}
  if(path.startsWith('/api/multiplayer/rooms')){const u=new URL(req.url);u.pathname=path.replace('/api/multiplayer','/api');return multiplayer.fetch(new Request(u,req),env);}
  if(path==='/api/leaderboard')return api(req,env,url);
  if(req.method!=='GET'&&req.method!=='HEAD')return new Response('Method not allowed',{status:405});
