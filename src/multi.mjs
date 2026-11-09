@@ -209,6 +209,12 @@ function genLevel(){
 }
 function assignedSides(n){return n===1?[0]:n===2?[0,2]:n===3?[0,1,3]:[0,1,2,3];}
 function assignSides(players){const sides=assignedSides(players.length);players.forEach((p,i)=>{p.seat=sides[i];p.pos=.5;});}
+
+const POWER_LABELS={1:"MULTIBALL",2:"BALL SPLIT",3:"WIDE PADDLES",4:"PIERCE",5:"SHOCKWAVE",6:"+1 LIFE",7:"HYPER",8:"SLOW TIME",9:"CHAIN BLAST",10:"+8 SECONDS",11:"STARTER SPLIT"};
+function markEvent(r,type,x,y,owner=null){
+ r.eventSeq=(r.eventSeq||0)+1;
+ r.lastEvent={seq:r.eventSeq,type,x,y,owner};
+}
 function resetBall(room){
  const a=((room.hits*47+19)%75-37)*Math.PI/180,speed=330;
  room.balls=[{x:180,y:500,vx:Math.sin(a)*speed,vy:-Math.cos(a)*speed,owner:null}];
@@ -217,45 +223,91 @@ function startRound(r){
  r.status="playing";r.round=(r.round||0)+1;r.seed=r.code.toLowerCase();r.level=1;
  r.startedAt=Date.now();r.endsAt=r.startedAt+90000;
  r.board=bricks(r.seed,r.level);r.hits=0;r.lastTouch=null;
+ r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
+ r.eventSeq=0;r.lastEvent=null;
  for(const p of r.players){p.score=0;p.lives=3;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
  resetBall(r);
 }
-function miss(r,p){p.lives=Math.max(0,p.lives-1);resetBall(r);}
 function paddleFor(r,side){return r.players.find(p=>p.seat===side&&p.lives>0&&p.online!==false)||null;}
-function advanceBall(r,ball,step){
+function damageBrick(r,index,owner,amount=1){
+ const hp=r.board.hp.charCodeAt(index)-48;
+ if(hp<=0)return false;
+ const next=Math.max(0,hp-amount);
+ r.board.hp=r.board.hp.slice(0,index)+next+r.board.hp.slice(index+1);
+ if(next===0)r.board.remaining--;
+ r.hits++;
+ const player=r.players.find(p=>p.id===owner);
+ if(player)player.score+=next===0?10:3;
+ return next===0;
+}
+function createExtraBalls(r,ball,count){
+ for(let i=0;i<count&&r.balls.length<MAX_BALLS;i++){
+  const sign=i%2===0?1:-1,angle=sign*(.24+Math.floor(i/2)*.18);
+  const cs=Math.cos(angle),sn=Math.sin(angle);
+  r.balls.push({x:ball.x,y:ball.y,vx:ball.vx*cs-ball.vy*sn,vy:ball.vx*sn+ball.vy*cs,owner:ball.owner});
+ }
+}
+function grantPower(r,idx,ball){
+ const kind=parseInt(r.board.powerups?.[idx]||"0",16);
+ if(!kind)return;
+ const now=Date.now(),e=r.effects||(r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0});
+ if(kind===1||kind===2||kind===11)createExtraBalls(r,ball,kind===2?3:2);
+ else if(kind===3)e.wideUntil=now+12000;
+ else if(kind===4)e.pierceUntil=now+7000;
+ else if(kind===5||kind===9){
+  const c=idx%GRID_COLS,row=Math.floor(idx/GRID_COLS),radius=kind===9?2:1;
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+   if(dx===0&&dy===0)continue;
+   if(Math.abs(dx)+Math.abs(dy)>radius)continue;
+   const x=c+dx,y=row+dy;
+   if(x<0||x>=GRID_COLS||y<0||y>=GRID_ROWS)continue;
+   damageBrick(r,y*GRID_COLS+x,ball.owner,kind===9?2:1);
+  }
+ }
+ else if(kind===6){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(5,p.lives+1);}
+ else if(kind===7)e.hyperUntil=now+7000;
+ else if(kind===8)e.slowUntil=now+7000;
+ else if(kind===10)r.endsAt=Math.min(r.startedAt+150000,r.endsAt+8000);
+ markEvent(r,POWER_LABELS[kind]||"POWER UP",ball.x,ball.y,ball.owner);
+}
+function miss(r,p,ball){
+ p.lives=Math.max(0,p.lives-1);
+ const index=r.balls.indexOf(ball);
+ if(index!==-1)r.balls.splice(index,1);
+ markEvent(r,"MISS",ball.x,ball.y,p.id);
+ if(r.balls.length===0&&r.players.some(player=>player.lives>0))resetBall(r);
+}
+function advanceBall(r,ball,dt){
  const prevX=ball.x,prevY=ball.y;
- ball.x+=ball.vx*step;ball.y+=ball.vy*step;
+ ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
  const col=Math.floor((ball.x-GRID_X)/GRID_SIZE),row=Math.floor((ball.y-GRID_Y)/GRID_SIZE);
  if(col>=0&&col<GRID_COLS&&row>=0&&row<GRID_ROWS){
   const idx=row*GRID_COLS+col,life=r.board.hp.charCodeAt(idx)-48;
   if(life>0){
-   r.board.hp=r.board.hp.slice(0,idx)+(life-1)+r.board.hp.slice(idx+1);
-   if(life===1)r.board.remaining--;
-   r.hits++;
-   const scorer=r.players.find(p=>p.id===ball.owner);
-   if(scorer)scorer.score+=life===1?10:3;
-   const oldCol=Math.floor((prevX-GRID_X)/GRID_SIZE);
-   if(oldCol!==col)ball.vx=-ball.vx;else ball.vy=-ball.vy;
-   ball.x=prevX;ball.y=prevY;
-   if(r.hits%60===0&&r.balls.length<MAX_BALLS){
-    const speed=Math.hypot(ball.vx,ball.vy),angle=(r.hits%2?.72:-.72);
-    r.balls.push({x:ball.x,y:ball.y,vx:Math.cos(angle)*ball.vx-Math.sin(angle)*ball.vy,vy:Math.sin(angle)*ball.vx+Math.cos(angle)*ball.vy,owner:ball.owner});
+   const pierced=(r.effects?.pierceUntil||0)>Date.now();
+   const cleared=damageBrick(r,idx,ball.owner,pierced?life:1);
+   if(cleared)grantPower(r,idx,ball);
+   if(!pierced){
+    if(Math.floor((prevX-GRID_X)/GRID_SIZE)!==col)ball.vx=-ball.vx;
+    else ball.vy=-ball.vy;
+    ball.x=prevX;ball.y=prevY;
    }
-   return;
+   return false;
   }
  }
- const edge=2.7,half=36;
- const hit=(seat,coord)=>{
-  const p=paddleFor(r,seat);if(!p)return false;
-  const center=(seat===0||seat===2)?42+p.pos*276:84+p.pos*416;
-  if(Math.abs(coord-center)>half+edge){miss(r,p);return true;}
+ const edge=2.7;
+ const hit=(side,coord)=>{
+  const p=paddleFor(r,side);if(!p)return false;
+  const center=(side===0||side===2)?42+p.pos*276:84+p.pos*416;
+  const half=(r.effects?.wideUntil||0)>Date.now()?49:36;
+  if(Math.abs(coord-center)>half+edge){miss(r,p,ball);return true;}
   const deflect=clamp((coord-center)/half,-1,1);
   ball.owner=p.id;p.score+=2;
-  if(seat===0||seat===2){
-   ball.vy=seat===0?-Math.abs(ball.vy):Math.abs(ball.vy);
+  if(side===0||side===2){
+   ball.vy=side===0?-Math.max(180,Math.abs(ball.vy)):Math.max(180,Math.abs(ball.vy));
    ball.vx=clamp(ball.vx+deflect*120,-340,340);
   }else{
-   ball.vx=seat===1?Math.abs(ball.vx):-Math.abs(ball.vx);
+   ball.vx=side===1?Math.max(180,Math.abs(ball.vx)):-Math.max(180,Math.abs(ball.vx));
    ball.vy=clamp(ball.vy+deflect*120,-340,340);
   }
   return false;
@@ -348,23 +400,26 @@ export class BrickRoom extends DurableObject{
   this.lastTick=Date.now();this.lastSave=this.lastTick;
   this.loop=setInterval(()=>{
    if(!this.room||this.room.status!=="playing"||this.liveIds().size===0){this.stopLoop();return;}
-   const now=Date.now(),dt=clamp((now-this.lastTick)/1000,0,.05);this.lastTick=now;
+   const now=Date.now(),dt=clamp((now-this.lastTick)/1000,0,.12);this.lastTick=now;
    this.step(dt,now);this.broadcast();
    if(now-this.lastSave>3000){this.lastSave=now;this.save().catch(e=>console.error("room.save",e));}
   },50);
  }
  step(dt,now){
   const r=this.room;
-  if(!r.board||!r.balls?.length){r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1);resetBall(r);}
-  if(now>=r.endsAt||r.board.remaining===0){
+  if(!r.board||!r.balls?.length){if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1);if(!r.balls?.length)resetBall(r);}
+  if(now>=r.endsAt||r.board.remaining===0||r.players.every(p=>p.lives===0)){
    r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;
   }
   const count=Math.max(1,Math.ceil(dt/(1/120))),t=dt/count;
   for(let tick=0;tick<count;tick++){
-   for(const b of [...r.balls]){if(advanceBall(r,b,t))break;}
+   const effects=r.effects||{},slow=effects.slowUntil>now?.72:1,hyper=effects.hyperUntil>now?1.2:1;
+   for(const ball of [...r.balls]){advanceBall(r,ball,t*slow*hyper);}
+  }
+  if(r.board.remaining===0||r.players.every(p=>p.lives===0)){
+   r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));
   }
  }
-
 }
 function newCode(){const bytes=new Uint8Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,n=>ABC[n%ABC.length]).join("");}
 function sameOrigin(request){const origin=request.headers.get("origin");return !origin||origin===new URL(request.url).origin;}
