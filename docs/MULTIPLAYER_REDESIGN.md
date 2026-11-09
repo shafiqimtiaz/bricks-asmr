@@ -49,7 +49,7 @@ The host may start when **at least two players are connected**. While waiting, t
 
 ### Responsive presentation
 
-There is **one** shared logical board at every viewport width, and its presentation scales independently in both dimensions to use the available screen instead of letterboxing the experience at 9:16. On wide screens a visible lobby docks beside the arena; during play the arena expands across the available viewport. On smaller screens panels overlay the game and scroll vertically as needed. Keep HUD, player labels, paddles and touch targets usable, including TV-sized focus targets and mobile safe margins. Preserve circular ball/effect rendering despite different pixel scales; cap backing canvas resolution for performance. Do not add extra boards or horizontal scrolling.
+There is **one** shared logical 360×640 board at every viewport width. **Always preserve its 9:16 aspect ratio:** scale uniformly to the available width or height without stretching bricks, paddles, balls or typography. On wide screens, center the board and visible Lobby together as a balanced two-column layout; during play, center the board on its own. On portrait and narrower screens, overlay the Lobby on the board with vertical scrolling as needed. Keep HUD, player labels, paddles and touch targets usable, including TV-sized focus targets and mobile safe margins. Cap the canvas backing resolution for performance. Unused landscape space is preferable to distorting the game or adding separate game boards; never add horizontal scrolling.
 
 Themes are a **local display preference**: Clean, CRT-Vintage and Vapor change how the same shared state is rendered, not the physics or authoritative state. A user changing their theme must not change other players' themes.
 
