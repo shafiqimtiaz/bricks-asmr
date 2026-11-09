@@ -298,8 +298,9 @@ function advanceBall(r,ball,dt){
  const edge=2.7;
  const hit=(side,coord)=>{
   const p=paddleFor(r,side);if(!p)return false;
-  const center=(side===0||side===2)?42+p.pos*276:84+p.pos*416;
   const half=(r.effects?.wideUntil||0)>Date.now()?49:36;
+  const horizontal=side===0||side===2,initial=horizontal?42+p.pos*276:84+p.pos*416;
+  const center=horizontal?clamp(initial,BOARD.x+half,BOARD.right-half):clamp(initial,BOARD.y+half,BOARD.bottom-half);
   if(Math.abs(coord-center)>half+edge){miss(r,p,ball);return true;}
   const deflect=clamp((coord-center)/half,-1,1);
   ball.owner=p.id;p.score+=2;
@@ -331,11 +332,29 @@ function advanceBall(r,ball,dt){
 
 function clamp(n,a,b){return Math.min(b,Math.max(a,n));}
 export class BrickRoom extends DurableObject{
- constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.room=null;this.loop=null;this.lastTick=0;this.lastSave=0;ctx.blockConcurrencyWhile(async()=>{this.room=await ctx.storage.get("room")||null;});}
+ constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.room=null;this.loop=null;this.lastTick=0;this.lastSave=0;this.lastBroadcastCode=null;this.lastBroadcastRound=null;this.lastBroadcastHP=null;ctx.blockConcurrencyWhile(async()=>{this.room=await ctx.storage.get("room")||null;});}
  async save(){if(this.room){this.room.lastActivity=Date.now();await this.ctx.storage.put("room",this.room);}}
  liveIds(){return new Set(this.ctx.getWebSockets().filter(w=>w.readyState===1).map(w=>w.deserializeAttachment()?.id).filter(Boolean));}
- snapshot(){const r=this.room,live=this.liveIds();return {code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,seed:r.seed,level:r.level,startedAt:r.startedAt,remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Date.now())/1000)):90,players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),board:r.board||null,balls:r.balls||[]};}
- broadcast(){if(!this.room)return;const data=JSON.stringify({type:"state",version:1,state:this.snapshot()});for(const ws of this.ctx.getWebSockets())if(ws.readyState===1)try{ws.send(data);}catch{}}
+ snapshot(includeBoard=true){
+  const r=this.room,live=this.liveIds();
+  const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,
+   seed:r.seed,level:r.level,startedAt:r.startedAt,
+   remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Date.now())/1000)):90,
+   players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),
+   balls:r.balls||[],effects:r.effects||{},lastEvent:r.lastEvent||null};
+  if(includeBoard)state.board=r.board||null;
+  return state;
+ }
+ broadcast(){
+  if(!this.room)return;
+  const r=this.room,state=this.snapshot(false);
+  const full=this.lastBroadcastCode!==r.code||this.lastBroadcastRound!==(r.round||0)||!this.lastBroadcastHP;
+  if(full)state.board=r.board||null;
+  else if(r.board?.hp!==this.lastBroadcastHP)state.board={hp:r.board.hp,remaining:r.board.remaining};
+  this.lastBroadcastCode=r.code;this.lastBroadcastRound=r.round||0;this.lastBroadcastHP=r.board?.hp||null;
+  const data=JSON.stringify({type:"state",version:1,state});
+  for(const ws of this.ctx.getWebSockets())if(ws.readyState===1)try{ws.send(data);}catch{}
+ }
  async fetch(req){
   const parts=new URL(req.url).pathname.split("/").filter(Boolean),action=parts.at(-1),code=parts.at(-2);
   if(!/^[A-Z2-9]{6}$/.test(code||""))return reply({error:"Invalid room code"},400);
