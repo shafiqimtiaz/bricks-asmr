@@ -20,14 +20,12 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": [
-        "BrickRoom"
-      ]
+  "exports": {
+    "BrickRoom": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
-  ],
+  },
   "observability": {
     "enabled": true,
     "logs": {
