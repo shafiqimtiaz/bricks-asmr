@@ -6,8 +6,8 @@ const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8"
 const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
   .replace(/^import .*?;\s*/, "")
   .replace("export class BrickRoom", "class BrickRoom");
-const { bricks, assignedSides, assignSides, startRound, advanceBall, BrickRoom } =
-  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,BrickRoom};")(class {});
+const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, BrickRoom } =
+  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,BrickRoom};")(class {});
 const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
 const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
@@ -102,4 +102,116 @@ test("multiplayer renderer parses and Solo/leaderboard routes remain intact", ()
   const solo = readFileSync(new URL("../src/index.mjs", import.meta.url), "utf8");
   assert.match(solo, /path==='\/api\/leaderboard'/);
   assert.match(solo, /const GAME=/);
+});
+
+
+test("a missed ball costs one life without deleting a surviving multiball", () => {
+  const room = roomForPlayers(2);
+  const top = room.players.find(p => p.seat === 2);
+  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: null };
+  const surviving = { x: 180, y: 480, vx: 130, vy: -260, owner: "p0" };
+  room.balls = [miss, surviving];
+  advanceBall(room, miss, .01);
+  assert.equal(top.lives, 2);
+  assert.equal(room.balls.length, 1);
+  assert.equal(room.balls[0], surviving);
+  assert.equal(room.lastEvent.type, "MISS");
+});
+
+test("bricks trigger real power-ups and score in the shared authoritative state", () => {
+  const room = roomForPlayers(2);
+  const index = 55 * 58 + 29;
+  room.board.hp = room.board.hp.slice(0, index) + "1" + room.board.hp.slice(index + 1);
+  room.board.powerups = room.board.powerups.slice(0, index) + "b" + room.board.powerups.slice(index + 1);
+  const initial = room.board.remaining;
+  const ball = { x: 183, y: 382, vx: 0, vy: -330, owner: "p0" };
+  room.balls = [ball];
+  advanceBall(room, ball, .02);
+  assert.equal(room.board.hp[index], "0");
+  assert.equal(room.board.remaining, initial - 1);
+  assert.equal(room.balls.length, 3);
+  assert.equal(room.lastEvent.type, "STARTER SPLIT");
+  assert.ok(room.players[0].score >= 10);
+});
+
+test("power-ups extend a bounded timer and expose active buffs", () => {
+  const room = roomForPlayers(2);
+  const ball = room.balls[0];ball.owner = "p0";
+  const setPower = (kind) => {
+    room.board.powerups = kind.toString(16) + room.board.powerups.slice(1);
+    grantPower(room, 0, ball);
+  };
+  setPower(3);
+  assert.ok(room.effects.wideUntil > Date.now());
+  setPower(4);
+  assert.ok(room.effects.pierceUntil > Date.now());
+  setPower(8);
+  assert.ok(room.effects.slowUntil > Date.now());
+  setPower(7);
+  assert.ok(room.effects.hyperUntil > Date.now());
+  for (let i = 0; i < 12; i++) setPower(10);
+  assert.equal(room.endsAt, room.startedAt + 150000);
+});
+
+test("wider paddles remain inside the arena boundaries", () => {
+  const room = roomForPlayers(4),p = room.players[0];
+  p.pos = 0;
+  room.effects.wideUntil = Date.now() + 10000;
+  const ball = { x: 50, y: 531, vx: 0, vy: 330, owner: null };
+  room.balls = [ball];
+  advanceBall(room, ball, .01);
+  assert.equal(p.lives, 3);
+  assert.equal(ball.owner, p.id);
+  assert.ok(ball.vy < 0);
+});
+
+test("frequent snapshots omit immutable map data but send brick HP changes", () => {
+  const room = roomForPlayers(4),packets = [];
+  const socket = { readyState: 1, deserializeAttachment: () => ({ id: "p0" }),
+    send(payload) { packets.push(JSON.parse(payload)); } };
+  const instance = {
+    room,
+    ctx: { getWebSockets: () => [socket] },
+    lastBroadcastCode: null,
+    lastBroadcastRound: null,
+    lastBroadcastHP: null,
+    liveIds: () => new Set(["p0"]),
+    snapshot(includeBoard) { return BrickRoom.prototype.snapshot.call(this, includeBoard); }
+  };
+  BrickRoom.prototype.broadcast.call(instance);
+  assert.equal(packets[0].state.board.hp.length, 58 * 64);
+  BrickRoom.prototype.broadcast.call(instance);
+  assert.equal(packets[1].state.board, undefined);
+  assert.ok(JSON.stringify(packets[1]).length < 1500);
+  const i = room.board.hp.indexOf("1");
+  assert.ok(i >= 0);
+  room.board.hp = room.board.hp.slice(0, i) + "0" + room.board.hp.slice(i+1);
+  room.board.remaining--;
+  BrickRoom.prototype.broadcast.call(instance);
+  assert.equal(packets[2].state.board.hp[i], "0");
+  assert.equal(packets[2].state.board.colors, undefined);
+  startRound(room);
+  BrickRoom.prototype.broadcast.call(instance);
+  assert.equal(packets[3].state.board.colors.length, 58 * 64);
+});
+
+test("a timed out match finishes and halts the simulation", () => {
+  const room = roomForPlayers(2);
+  room.endsAt = Date.now() - 1;
+  let stopped = false;
+  BrickRoom.prototype.step.call({ room, stopLoop() { stopped = true; }, save: async () => {} }, .05, Date.now());
+  assert.equal(room.status, "finished");
+  assert.ok(stopped);
+});
+
+test("unknown WebSocket protocol versions and stale moves do not change paddles", async () => {
+  const room = roomForPlayers(2);
+  const handler = { room, loop: {}, ensureLoop() { throw Error("Unexpected ensureLoop"); } };
+  const socket = { deserializeAttachment: () => ({ id: "p0" }), send() {}, close() {} };
+  await BrickRoom.prototype.webSocketMessage.call(handler, socket, JSON.stringify({ type:"paddle-input", version:2, seq:1, pos:.9 }));
+  assert.equal(room.players[0].pos,.5);
+  await BrickRoom.prototype.webSocketMessage.call(handler, socket, JSON.stringify({ type:"paddle-input", version:1, seq:1, pos:.8 }));
+  assert.equal(room.players[0].pos,.8);
+  await BrickRoom.prototype.webSocketMessage.call(handler, socket, JSON.stringify({ type:"paddle-input", version:1, seq:0, pos:.1 }));
+  assert.equal(room.players[0].pos,.8);
 });
