@@ -12,3 +12,18 @@ test("Multiplayer browser helpers include the same crusher cadence", () => {
   const actual = runInNewContext(browserCoreSource + "\ncrusherInterval(1)");
   assert.equal(actual, crusherInterval(1));
 });
+
+test("Solo browser bundle provides the build-injected function name helper", () => {
+  const result = runInNewContext(soloCoreSource + "\n__name((value) => value * 2, \"pickPU\")(21)");
+  assert.equal(result, 42);
+});
+
+test("Multiplayer browser bundle provides the build-injected function name helper", () => {
+  const result = runInNewContext(browserCoreSource + "\n__name((value) => value * 2, \"bounceBall\")(21)");
+  assert.equal(result, 42);
+});
+
+test("Solo browser bundle can generate a brick board after serialization", () => {
+  const result = runInNewContext(soloCoreSource + "\nbricks(\"qa-seed\", 1, 1).total");
+  assert.ok(result > 0);
+});
