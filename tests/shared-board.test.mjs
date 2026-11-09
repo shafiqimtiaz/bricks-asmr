@@ -6,8 +6,8 @@ const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8"
 const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
   .replace(/^import .*?;\s*/, "")
   .replace("export class BrickRoom", "class BrickRoom");
-const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, BrickRoom } =
-  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,BrickRoom};")(class {});
+const { bricks, assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
+  new Function("DurableObject", server + ";return {bricks,assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {});
 const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
 const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
@@ -36,6 +36,22 @@ test("multiplayer uses Solo's grid size and a deterministic level", () => {
   assert.notEqual(first.hp, bricks("TEST123", 2).hp);
 });
 
+test("more players compress the shared bricks and leave clear paddle approach lanes",()=>{
+ const layouts=[2,3,4].map(n=>bricks("BRICKS",1,n));
+ for(const [i,board] of layouts.entries()){
+  assert.equal(board.hp.length,58*64);
+  assert.equal(board.total,board.remaining);
+  assert.ok(board.total>60&&board.total<500,"sparse bricks for "+(i+2)+" players");
+  for(let k=0;k<board.hp.length;k++)if(board.hp[k]!=="0"){
+   const c=k%58,r=Math.floor(k/58);
+   assert.ok(r>=24&&r<=58&&c>=7&&c<=50);
+   assert.ok(c%4<2&&r%4<2);
+  }
+ }
+ assert.ok(layouts[0].total>layouts[1].total&&layouts[1].total>layouts[2].total);
+ assert.deepEqual(layouts[2],bricks("BRICKS",1,4));
+});
+
 function roomForPlayers(count = 4) {
   const players = Array.from({ length: count }, (_, i) =>
     ({ id: "p" + i, seat: -1, pos: .5, lives: 3, score: 0, online: true, lastSeq: -1, lastInputAt: 0 }));
@@ -44,6 +60,40 @@ function roomForPlayers(count = 4) {
   startRound(room);
   return room;
 }
+
+test("two to four players each launch an inward ball from their own edge",()=>{
+ for(const count of [2,3,4]){
+  const room=roomForPlayers(count);
+  assert.equal(room.balls.length,count);
+  assert.deepEqual(new Set(room.balls.map(b=>b.source)),new Set(room.players.map(p=>p.id)));
+  for(const b of room.balls){
+   const seat=room.players.find(p=>p.id===b.source).seat;
+   assert.equal(b.owner,b.source);
+   assert.ok(seat===0?b.vy<0:seat===2?b.vy>0:seat===1?b.vx>0:b.vx<0);
+  }
+ }
+});
+
+test("opponent deflections do not change which player a ball belongs to",()=>{
+ const room=roomForPlayers(2);
+ const ball=room.balls.find(b=>b.source==="p1");
+ Object.assign(ball,{x:180,y:531,vx:0,vy:330});
+ advanceBall(room,ball,.01);
+ assert.equal(ball.source,"p1");
+ assert.equal(ball.owner,"p0");
+ assert.ok(ball.vy<0);
+});
+
+test("reconnecting players regain their ball without duplicating others",()=>{
+ const room=roomForPlayers(3);
+ room.balls=room.balls.filter(b=>b.source!=="p1");
+ replenishBalls(room);
+ assert.equal(room.balls.length,3);
+ assert.equal(room.balls.filter(b=>b.source==="p1").length,1);
+ replenishBalls(room);
+ assert.equal(room.balls.length,3);
+ assert.match(source,/if\(r\.status==="playing"\)replenishBalls\(r\)/);
+});
 
 test("all four active paddles bounce their own ball", () => {
   for (const side of [0, 1, 2, 3]) {
@@ -98,6 +148,7 @@ test("multiplayer renderer parses and Solo/leaderboard routes remain intact", ()
   const js = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   assert.doesNotThrow(() => new Function(js));
   assert.match(js, /paintTiles\(s\?\.board\)/);
+  assert.match(js, /b\.source===you/);
   assert.match(js, /seq:\+\+inputSeq/);
   const solo = readFileSync(new URL("../src/index.mjs", import.meta.url), "utf8");
   assert.match(solo, /path==='\/api\/leaderboard'/);
@@ -108,13 +159,14 @@ test("multiplayer renderer parses and Solo/leaderboard routes remain intact", ()
 test("a missed ball costs one life without deleting a surviving multiball", () => {
   const room = roomForPlayers(2);
   const top = room.players.find(p => p.seat === 2);
-  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: null };
-  const surviving = { x: 180, y: 480, vx: 130, vy: -260, owner: "p0" };
+  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: "p1", source:"p1" };
+  const surviving = { x: 180, y: 480, vx: 130, vy: -260, owner: "p0", source:"p0" };
   room.balls = [miss, surviving];
   advanceBall(room, miss, .01);
   assert.equal(top.lives, 2);
-  assert.equal(room.balls.length, 1);
-  assert.equal(room.balls[0], surviving);
+  assert.equal(room.balls.length, 2);
+  assert.ok(room.balls.includes(surviving));
+  assert.equal(room.balls.filter(b=>b.source==="p1").length,1);
   assert.equal(room.lastEvent.type, "MISS");
 });
 
@@ -260,7 +312,8 @@ test("all four authenticated players receive the same authoritative world", asyn
   const worlds = Array.from(packets.values()).map(p=>p.state);
   for(let i=1;i<worlds.length;i++)assert.deepEqual(worlds[0],worlds[i]);
   assert.equal(worlds[0].players.length,4);
-  assert.equal(worlds[0].balls.length,1);
+  assert.equal(worlds[0].balls.length,4);
+  assert.deepEqual(new Set(worlds[0].balls.map(b=>b.source)),new Set(room.players.map(p=>p.id)));
 });
 
 
