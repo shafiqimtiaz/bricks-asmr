@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { bricks, bounceBall, browserCoreSource } from "./game-core.mjs";
+import { bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint } from "./game-core.mjs";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
 function reply(body,status=200,extra={}){return new Response(JSON.stringify(body),{status,headers:{...JSON_HEADERS,...extra}});}
@@ -48,7 +48,7 @@ function startRound(r){
  r.startedAt=Date.now()+3000;r.endsAt=r.startedAt+90000;
  r.board=bricks(r.seed,r.level,r.players.length);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
- r.eventSeq=0;r.lastEvent=null;
+ r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;
  for(const p of r.players){p.score=0;p.lives=3;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
  resetBall(r);
 }
@@ -103,9 +103,10 @@ function miss(r,p,ball){
  replenishBalls(r);
 }
 function advanceBall(r,ball,dt){
- const edge=2.7;
+ const edge=2.7,transform=crusherTransform(r.crushSteps,r.players,r.board.centerX,r.board.centerY);
  const impact=(x,y,axis)=>{
-  const col=Math.floor((x-GRID_X)/GRID_SIZE),row=Math.floor((y-GRID_Y)/GRID_SIZE);
+  const point=uncrushPoint(transform,x,y);
+  const col=Math.floor((point.x-GRID_X)/GRID_SIZE),row=Math.floor((point.y-GRID_Y)/GRID_SIZE);
   if(col<0||col>=GRID_COLS||row<0||row>=GRID_ROWS)return false;
   const idx=row*GRID_COLS+col,life=r.board.hp.charCodeAt(idx)-48;
   if(life<=0)return false;
@@ -162,7 +163,7 @@ export class BrickRoom extends DurableObject{
    seed:r.seed,level:r.level,startedAt:r.startedAt,
    remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Math.max(Date.now(),r.startedAt||0))/1000)):90,
    players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),
-   balls:r.balls||[],effects:r.effects||{},lastEvent:r.lastEvent||null};
+   balls:r.balls||[],effects:r.effects||{},lastEvent:r.lastEvent||null,crushSteps:r.crushSteps||0};
   if(includeBoard)state.board=r.board||null;
   return state;
  }
@@ -271,6 +272,11 @@ export class BrickRoom extends DurableObject{
    r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;
   }
   if(now<r.startedAt)return;
+  r.crushClock=(r.crushClock??-10)+dt;
+  const interval=crusherInterval(r.level||1);
+  if(r.crushClock>=interval){
+   r.crushClock-=interval;r.crushSteps=(r.crushSteps||0)+1;
+  }
   const count=Math.max(1,Math.ceil(dt/(1/120))),t=dt/count;
   for(let tick=0;tick<count;tick++){
    const effects=r.effects||{},slow=effects.slowUntil>now?.72:1,hyper=effects.hyperUntil>now?1.2:1;
