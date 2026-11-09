@@ -157,7 +157,7 @@ function advanceBall(r,ball,dt){
 
 function clamp(n,a,b){return Math.min(b,Math.max(a,n));}
 export class BrickRoom extends DurableObject{
- constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.room=null;this.loop=null;this.lastTick=0;this.lastSave=0;this.lastBroadcastCode=null;this.lastBroadcastRound=null;this.lastBroadcastHP=null;ctx.blockConcurrencyWhile(async()=>{this.room=await ctx.storage.get("room")||null;});}
+ constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.room=null;this.loop=null;this.lastTick=0;this.lastSave=0;this.lastBroadcastCode=null;this.lastBroadcastRound=null;this.lastBroadcastHP=null;ctx.blockConcurrencyWhile(async()=>{this.room=await ctx.storage.get("room")||null;if(this.room&&!this.room.arena)this.room.arena=arenaLayout();});}
  async save(){if(this.room){this.room.lastActivity=Date.now();await this.ctx.storage.put("room",this.room);}}
  liveIds(){return new Set(this.ctx.getWebSockets().filter(w=>w.readyState===1).map(w=>w.deserializeAttachment()?.id).filter(Boolean));}
  snapshot(includeBoard=true){
