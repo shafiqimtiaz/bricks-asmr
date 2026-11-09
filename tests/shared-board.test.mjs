@@ -30,7 +30,7 @@ test("there is one board and each occupied player gets a unique side", () => {
 test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",()=>{
  const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
  assert.match(solo,/import \{ soloCoreSource \} from "\.\/game-core\.mjs"/);
- assert.match(source,/import \{ bricks, bounceBall, browserCoreSource \} from "\.\/game-core\.mjs"/);
+ assert.match(source,/import \{ bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint \} from "\.\/game-core\.mjs"/);
  assert.match(solo,/bricks\(seed,level,1\)/);
  assert.match(solo,/drawBrickTile\(bctx/);
  assert.match(source,/bounceBall\(ball,side,deflect,330\)/);
