@@ -1,6 +1,6 @@
 # Bricks ASMR — Unified Solo & Shared-Board Multiplayer Plan
 
-**Status:** Shared-board multiplayer deployed; remaining parity and validation work tracked below  
+**Status:** Shared-board multiplayer, power-ups, and unified Solo entry deployed; remaining TypeScript parity and multi-client endurance verification tracked below  
 **Updated:** 2026-11-08  
 **Repository:** [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr)
 
@@ -55,7 +55,7 @@ Themes are a **local display preference**: Clean, CRT-Vintage and Vapor change h
 
 ## 3. Technical architecture
 
-Preserve the current Cloudflare Worker, its D1 leaderboard binding, Durable Object namespace, room-code concept and `cloudflare.config.ts`. The current source files, `src/index.mjs` and `src/multi.mjs`, are migration inputs: the Solo implementation supplies the shared rendering and mechanics, and the existing Durable Object supplies room coordination. Do **not** retain the current square-arena game as a second gameplay engine.
+Preserve the current Cloudflare Worker, its D1 leaderboard binding, Durable Object namespace, room-code concept and `wrangler.jsonc`. The current source files, `src/index.mjs` and `src/multi.mjs`, are migration inputs: the Solo implementation supplies the shared rendering and mechanics, and the existing Durable Object supplies room coordination. Do **not** retain the current square-arena game as a second gameplay engine.
 
 Suggested module boundaries (targets, not claims of existing files):
 
@@ -76,7 +76,7 @@ src/
   shared/
     types.ts           # Board, paddle, room and match types
     protocol.ts        # Versioned, validated network messages
-cloudflare.config.ts
+wrangler.jsonc
 tsconfig.json
 package.json
 ```
@@ -147,16 +147,16 @@ Review a focused PR with visual comparisons and tests. Merge only when accepted,
 
 ## 6. Acceptance checklist
 
-- [ ] Exactly **one** homepage and one visual identity, based on Solo
-- [ ] **One shared board at all player counts**
-- [ ] One waiting player = 1 paddle; two players = 2 paddles; three = 3; four = 4
-- [ ] Bottom/top/left/right edge paddles assigned only to participating players
-- [ ] No independent player boards, remote thumbnails or four-sided replacement game
+- [x] Exactly **one** homepage and one visual identity, based on Solo
+- [x] **One shared board at all player counts**
+- [x] One waiting player = 1 paddle; two players = 2 paddles; three = 3; four = 4
+- [x] Bottom/top/left/right edge paddles assigned only to participating players
+- [x] No independent player boards, remote thumbnails or four-sided replacement game
 - [ ] Same portrait Solo brick field, renderer, physics feel, power-ups, ASMR and effects
 - [ ] All players see the same shared balls, brick destruction and game events
-- [ ] Each player controls exactly their assigned paddle, with side-appropriate touch and keyboard input
+- [x] Each player controls exactly their assigned paddle, with side-appropriate touch and keyboard input
 - [ ] Host start requires two online players; authenticated reconnects do not duplicate seats
-- [ ] Authoritative input validation and bounded, efficient WebSocket snapshots
+- [x] Authoritative input validation and bounded, efficient WebSocket snapshots
 - [ ] Clean, CRT-Vintage and Vapor render the shared game correctly
 - [ ] No horizontal scrolling or clipped HUD/paddles on mobile
 - [ ] Original Solo game and global D1 leaderboard keep working
@@ -174,12 +174,18 @@ The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz
 - Shared authoritative ball, brick and paddle state through Cloudflare Durable Objects.
 - Original Solo deterministic brick patterns and palettes for equivalent seed and level.
 - Validated, sequenced paddle input tied to authenticated room seats.
-- Six focused regression tests and staging room joins from one to four participants.
+- Seventeen regression tests covering 1–4 paddle positions, deterministic levels, multiball misses, all four collisions, power-up activation, timeouts, versioned inputs, shared snapshots, countdown, and both WebGL/touch canvas targets.
 - Preserved D1 bindings and the existing Solo/global leaderboard.
+- Added a 2P+ launcher to the existing Solo HUD (no separate home design).
+- Activated authoritative multiball, wide paddles, piercing, shockwave, chain blast, extra lives, speed modifiers, and time extension from generated power-up cells.
+- Added a synchronized 3-second countdown, active buff indicators and local paddle input prediction.
+- Reduced redundant WebSocket traffic by sending board metadata once and brick HP changes only when needed.
+- Fixed CRT/Vapor pointer input to target the visible WebGL canvas, not just the hidden 2D canvas.
+- Implemented and released [PR #2](https://github.com/shafiqimtiaz/bricks-asmr/pull/2) and [PR #3](https://github.com/shafiqimtiaz/bricks-asmr/pull/3). The isolated QA Worker was deleted after verification.
 
 **Not yet fully verified or ported:**
 - Complete Solo power-up and physics parity, and extraction of the original engine/rendering into shared TypeScript modules.
-- Four simultaneous online clients throughout a complete round (Cloudflare browser testing reached a rate limit).
-- Comprehensive mobile checks at all specified viewport sizes and reconnection under real network disruption.
+- Two-to-four simultaneous browser clients through a complete live match (Cloudflare Browser Rendering returned HTTP 429 during the concurrent test). Simulated four-client authoritative state tests passed; that is not a substitute for a live endurance test.
+- Full visual/device checks at every specified viewport size and reconnect testing under real network interruption.
 
-The deployed gameplay should be treated as the **first functional shared-board release**, not completion of every acceptance criterion in this document.
+The multiplayer release includes the core shared-board gameplay, synchronized boosts and reliable input fixes. It is deployed and regression-tested, but the full common TypeScript engine extraction, exact Solo effect parity, and the real four-client complete-match gate remain open.
