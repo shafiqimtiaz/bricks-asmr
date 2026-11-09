@@ -480,7 +480,6 @@ test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=
 test("multiplayer lobby maps the current player to the bottom slot",()=>{
  const js=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
  const from=js.indexOf("function render(){"),to=js.indexOf("const GRID_X=",from);
- const ids=["bottom","top","left","right"];
  assert.ok(from>=0&&to>from);
  const players=[{id:"p0",name:"Host",seat:0,online:true,lives:3},{id:"p1",name:"Guest",seat:2,online:true,lives:3}];
  const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false});return nodes.get(id);};
