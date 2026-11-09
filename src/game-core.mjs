@@ -199,12 +199,20 @@ function genLevel(){
   total = remaining;
 }
  genLevel();
+ let minC=COLS,minR=ROWS,maxC=-1,maxR=-1;
+ for(let i=0;i<N;i++)if(hp[i]){
+  const c=i%COLS,r=(i/COLS)|0;
+  minC=Math.min(minC,c);maxC=Math.max(maxC,c);
+  minR=Math.min(minR,r);maxR=Math.max(maxR,r);
+ }
  return {
   hp:Array.from(hp,x=>String(x)).join(""),
   colors:Array.from(col,x=>x.toString(16)).join(""),
   powerups:Array.from(pu,x=>x.toString(16)).join(""),
   palette,wallColors:wallCols,vaporPalette:vPal,vaporWalls:vWall,
   rootSemi,scale:scale_,wave,decay,archetype,quad,
+  centerX:GRID_X+(minC+maxC+1)*GRID_SIZE/2,
+  centerY:GRID_Y+(minR+maxR+1)*GRID_SIZE/2,
   total,remaining
  };
 }
@@ -260,6 +268,25 @@ function createASMR(host){
   }
  };
 }
-export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR};
-export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
+
+function crusherInterval(level,daily=false){
+ return daily?5:Math.max(3,8.3-level*.3);
+}
+function crusherTransform(steps,players,cx=180,cy=292){
+ const seats=new Set(players.map(p=>p.seat));
+ const n=Math.max(0,steps||0);
+ return {
+  sx:seats.has(1)||seats.has(3)?1+Math.min(14,n)*.04:1,
+  sy:seats.has(0)||seats.has(2)?1+Math.min(14,n)*.06:1,
+  cx,cy
+ };
+}
+function crusherPoint(transform,x,y){
+ return {x:transform.cx+(x-transform.cx)*transform.sx,y:transform.cy+(y-transform.cy)*transform.sy};
+}
+function uncrushPoint(transform,x,y){
+ return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
+}
+export {hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
+export const browserCoreSource=[bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
 export const soloCoreSource="const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6;\n"+[hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR].map(fn=>fn.toString()).join("\n");
