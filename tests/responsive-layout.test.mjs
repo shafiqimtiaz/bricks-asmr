@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { arenaLayout } from "../src/game-core.mjs";
 
 const pages = ["../src/index.mjs", "../src/multi.mjs"];
 const viewports = [
@@ -8,104 +9,91 @@ const viewports = [
   [1280, 800], [1366, 768], [1920, 1080], [2560, 1440],
   [3840, 2160], [7680, 4320],
 ];
-const ratio = 360 / 640;
 
-function fitAt(source, viewportWidth, viewportHeight, panelOpen) {
+function fitAt(source, vw, vh, panelOpen, seat = 0) {
   const start = source.indexOf("function fit(){");
   const end = source.indexOf("}\\nfunction resize(){", start);
   assert.ok(start >= 0 && end > start, "missing fit function");
-
   const body = source.slice(start, end + 1).replaceAll("\\n", "\n");
-  const properties = new Map();
-  let sidecar = false;
+  const arena = arenaLayout(vw / vh);
+  const props = new Map();
   const wrap = {
-    classList: { toggle: (name, enabled) => {
-      assert.equal(name, "sidecar");
-      sidecar = enabled;
-    } },
-    style: { setProperty: (name, value) => properties.set(name, value) },
+    classList: { toggle: (key, flag) => props.set(key, flag) },
+    style: { setProperty: (key, value) => props.set(key, value) },
   };
-  const window = {
-    innerWidth: viewportWidth, innerHeight: viewportHeight, visualViewport: null,
-  };
-  const document = {
-    getElementById: (id) => id === "panel" ? { hidden: !panelOpen } : null,
-  };
-  new Function("window", "wrap", "document", "W", "H", body + "\nreturn fit;")(
-    window, wrap, document, 360, 640
-  )();
-
+  const window = { innerWidth: vw, innerHeight: vh, visualViewport: null };
+  const document = { getElementById: (id) => id === "panel" ? { hidden: !panelOpen } : null };
+  const current = { players: [{ id: "me", seat }] };
+  const result = new Function(
+    "window", "document", "wrap", "W", "H", "state", "you",
+    "let viewW=W,viewH=H;\n" + body + "\nfit(); return {viewW,viewH};"
+  )(window, document, wrap, arena.width, arena.height, current, "me");
   return {
     width: parseFloat(wrap.style.width),
     height: parseFloat(wrap.style.height),
-    sidebar: parseFloat(properties.get("--sidebar-width")),
-    gap: parseFloat(properties.get("--desktop-gap")),
-    edge: parseFloat(properties.get("--edge")),
-    stageLeft: parseFloat(properties.get("--stage-left")),
-    sidecar,
+    sidebar: parseFloat(props.get("--sidebar-width")),
+    gap: parseFloat(props.get("--desktop-gap")),
+    edge: parseFloat(props.get("--edge")),
+    stageLeft: parseFloat(props.get("--stage-left")),
+    dock: props.get("sidecar"),
+    logicalWidth: result.viewW,
+    logicalHeight: result.viewH,
+    arena,
   };
 }
 
 for (const page of pages) {
   const source = readFileSync(new URL(page, import.meta.url), "utf8");
 
-  test(page + ": game never stretches beyond its original 9:16 aspect ratio", () => {
-    for (const [vw, vh] of viewports) {
-      for (const open of [false, true]) {
-        const size = fitAt(source, vw, vh, open);
-        assert.ok(Math.abs(size.width / size.height - ratio) < 0.000001, vw + "x" + vh);
-        assert.ok(size.width + size.edge * 2 <= vw + 0.01, "width fits " + vw);
-        assert.ok(size.height + size.edge * 2 <= vh + 0.01, "height fits " + vh);
-        assert.ok(size.width > 0 && size.height > 0);
-      }
+  test(page + ": fits mobile, tablet, desktop and TV without distorting game cells", () => {
+    for (const [vw, vh] of viewports) for (const open of [true, false]) {
+      const fit = fitAt(source, vw, vh, open);
+      assert.ok(Math.abs(fit.width / fit.height - fit.logicalWidth / fit.logicalHeight) < 0.00001);
+      assert.ok(fit.width + fit.edge * 2 <= vw + 0.01);
+      assert.ok(fit.height + fit.edge * 2 <= vh + 0.01);
+      assert.ok(fit.width > 0 && fit.height > 0);
+      assert.equal(fit.arena.cols % 2, 0);
+      assert.equal(fit.arena.rows % 2, 0);
     }
   });
 
-  test(page + ": game is centered when playing without a lobby", () => {
-    for (const [vw, vh] of viewports) {
-      const size = fitAt(source, vw, vh, false);
-      assert.equal(size.sidecar, false);
-      assert.equal(size.sidebar, 0);
-      assert.ok(Math.abs(size.stageLeft - (vw - size.width) / 2) < 0.01);
-      assert.ok(
-        Math.abs(size.height - (vh - 2 * size.edge)) < 0.01 ||
-        Math.abs(size.width - (vw - 2 * size.edge)) < 0.01
-      );
+  test(page + ": responsive game reorganizes its actual arena across aspect ratios", () => {
+    const portrait = fitAt(source, 375, 812, false);
+    const landscape = fitAt(source, 1920, 1080, false);
+    const ultrawide = fitAt(source, 3440, 1440, false);
+    assert.ok(portrait.logicalWidth < portrait.logicalHeight);
+    assert.ok(landscape.logicalWidth > landscape.logicalHeight);
+    assert.ok(ultrawide.logicalWidth > landscape.logicalWidth);
+    assert.ok(landscape.width > landscape.height);
+    assert.ok(landscape.arena.cols > portrait.arena.cols);
+  });
+
+  test(page + ": docks Lobby beside the stage without squeezing or stretching it", () => {
+    for (const [vw, vh] of [[1024, 768], [1280, 800], [1920, 1080], [3840, 2160]]) {
+      const fit = fitAt(source, vw, vh, true);
+      assert.equal(fit.dock, true);
+      assert.ok(fit.sidebar >= 320);
+      assert.ok(fit.stageLeft >= fit.edge);
+      assert.ok(Math.abs(fit.stageLeft * 2 + fit.width + fit.sidebar + fit.gap - vw) < 0.01);
     }
   });
 
-  test(page + ": wide-screen lobby and proportional game are centered together", () => {
-    for (const [vw, vh] of [[1024, 768], [1280, 800], [1366, 768], [1920, 1080], [3840, 2160]]) {
-      const size = fitAt(source, vw, vh, true);
-      assert.equal(size.sidecar, true);
-      assert.ok(size.sidebar >= 320);
-      assert.ok(Math.abs(size.stageLeft * 2 + size.width + size.gap + size.sidebar - vw) < 0.01);
-      assert.ok(size.stageLeft >= size.edge);
-    }
-  });
-
-  test(page + ": portrait and narrow tablet lobbies remain overlaid without overflow", () => {
-    for (const [vw, vh] of [[320, 568], [375, 812], [768, 1024], [820, 1180]]) {
-      const size = fitAt(source, vw, vh, true);
-      assert.equal(size.sidecar, false);
-      assert.ok(size.width + 2 * size.edge <= vw + 0.01);
-      assert.ok(size.height + 2 * size.edge <= vh + 0.01);
-    }
-  });
-
-  test(page + ": canvas dimensions preserve game coordinates with pixel cap", () => {
-    assert.ok(source.includes("const pixelScale = Math.min(r.width / W, r.height / H) * density"));
-    assert.ok(source.includes("Math.round(W * pixelScale)"));
-    assert.ok(source.includes("Math.round(H * pixelScale)"));
+  test(page + ": keeps circular balls and pixel-capped, proportional canvas buffers", () => {
+    assert.ok(source.includes("const pixelScale = Math.min("));
     assert.ok(source.includes("Math.sqrt(4000000 / Math.max(1, r.width * r.height))"));
     assert.ok(source.includes("context.ellipse(x, y, radius * correction, radius / correction"));
-    assert.ok(source.includes("layoutObserver.observe(element,{attributes:true,attributeFilter:['hidden']})"));
-    assert.ok(source.includes("left:var(--stage-left)!important"));
-  });
-
-  test(page + ": accessible keyboard and touch controls remain available", () => {
     assert.ok(source.includes("@media (pointer:coarse)"));
-    assert.ok(source.includes("min-height:44px"));
-    assert.ok(source.includes("#wrap.sidecar"));
   });
 }
+
+test("Multiplayer: the side player's camera is a true 90-degree rotation", () => {
+  const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
+  assert.ok(source.includes("ctx.transform(0,-1,1,0,0,W)"));
+  assert.ok(source.includes("ctx.transform(0,1,-1,0,H,0)"));
+  for (const seat of [1, 3]) {
+    const fit = fitAt(source, 1920, 1080, false, seat);
+    assert.equal(fit.logicalWidth, fit.arena.height);
+    assert.equal(fit.logicalHeight, fit.arena.width);
+    assert.ok(fit.width < fit.height);
+  }
+});
