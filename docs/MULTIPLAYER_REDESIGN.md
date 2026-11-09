@@ -32,10 +32,10 @@
 | --- | ---: | --- | --- |
 | 1 (host waiting) | **1** | Bottom | Top, left, right |
 | 2 | **1** | Bottom + top | Left + right |
-| 3 | **1** | Bottom + left + right | Top |
+| 3 | **1** | Bottom + top + left | Right |
 | 4 | **1** | Bottom + top + left + right | None |
 
-These are the intended balanced paddle arrangements, not separate boards. Player positions may be assigned/remapped **only while waiting**; freeze the assignment for the active round. Occupied sides get one paddle and player label; unoccupied sides behave as ordinary reflective boundaries without decorative or artificial paddles.
+These are progressive paddle assignments on one board, not separate boards. Seats are allocated in bottom → top → left → right order. **A new arrival or departure must never relocate a player already seated or reset their paddle position.** A new player fills the first available edge; all assignments remain fixed during the active round. Occupied sides get one paddle and player label; unoccupied sides behave as ordinary reflective boundaries without decorative or artificial paddles.
 
 The board remains one authoritative portrait-coordinate game world. **Each client rotates and fits that same world to its own portrait viewport**, placing its assigned paddle at the bottom. This is a local camera only: there are no additional boards, and the engine state, impacts, timers and power-ups remain shared. Top/bottom and left/right paddles use equivalent proportional reach along their respective edges. Clearly highlight the viewer's own paddle. A player's input maps to their assigned side: horizontal movement for top/bottom, vertical movement for left/right. Touch and keyboard input must not interfere with page navigation or another player's paddle.
 
@@ -111,7 +111,7 @@ Use the existing authenticated room sessions and Durable Object WebSockets with 
 
 Do not accept a client-supplied player ID as authority: identify the sender from its authenticated socket/session and map inputs to that player's assigned paddle. Validate event types, message sizes, numeric positions, sequence ordering and rate limits. Reject stale/unknown messages and never allow one client to set another player's paddle or shared brick state.
 
-Handle temporary disconnects without duplicating seats. A disconnected player's side becomes an inactive wall for play (or follows one consistent documented reconnection rule); restore the same paddle on successful authenticated resume. An explicit leave during a waiting lobby may reassign paddles; assignments do not jump during an active match. Prevent duplicate match starts and preserve room expiry semantics.
+Handle temporary disconnects without duplicating seats. A disconnected player's side becomes an inactive wall during play; restore the same paddle on successful authenticated resume. An explicit leave during a waiting lobby may reassign paddles; assignments do not jump during an active match. Prevent duplicate match starts and preserve room expiry semantics.
 
 ## 5. Migration and verification gates
 
