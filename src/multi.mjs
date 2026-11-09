@@ -8,8 +8,7 @@ function cookieFor(code,t){return "brick_room_"+code+"="+t+"; Path=/; Max-Age=21
 function authToken(req,code){const raw=req.headers.get("cookie")||"",key="brick_room_"+code+"=";const v=raw.split(";").map(x=>x.trim()).find(x=>x.startsWith(key));return v?v.slice(key.length):"";}
 function newToken(){const bytes=new Uint8Array(24);crypto.getRandomValues(bytes);return Array.from(bytes,x=>x.toString(16).padStart(2,"0")).join("");}
 
-const BOARD={x:6,y:40,right:354,bottom:544,paddleBottom:535,paddleTop:36,paddleLeft:12,paddleRight:348};
-const GRID_COLS=58,GRID_ROWS=64,GRID_SIZE=6,GRID_Y=40,GRID_X=6,MAX_BALLS=12;
+const MAX_BALLS=12;
 const SEAT_ORDER=[0,2,1,3];
 function assignedSides(n){return SEAT_ORDER.slice(0,n);}
 function assignSides(players){
@@ -29,7 +28,8 @@ function markEvent(r,type,x,y,owner=null){
  r.lastEvent={seq:r.eventSeq,type,x,y,owner};
 }
 function spawnPlayerBall(room,p){
- const arena=room.arena||arenaLayout();\n const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=Math.round(330*Math.pow(arena.width/360,.35));
+ const arena=room.arena||arenaLayout();
+ const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=Math.round(330*Math.pow(arena.width/360,.35));
  const sideways=Math.sin(a)*speed,forward=Math.cos(a)*speed;
  const coord=p.seat===0||p.seat===2?arena.width*42/360+p.pos*arena.width*276/360:84+p.pos*416;
  if(p.seat===0)return {x:coord,y:484,vx:sideways,vy:-forward,owner:p.id,source:p.id};
@@ -72,6 +72,7 @@ function createExtraBalls(r,ball,count){
  }
 }
 function grantPower(r,idx,ball){
+ const GRID_COLS=r.arena.cols,GRID_ROWS=r.arena.rows;
  const kind=parseInt(r.board.powerups?.[idx]||"0",16);
  if(!kind)return;
  const now=Date.now(),e=r.effects||(r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0});
@@ -103,7 +104,9 @@ function miss(r,p,ball){
  replenishBalls(r);
 }
 function advanceBall(r,ball,dt){
- const edge=2.7,transform=crusherTransform(r.crushSteps,r.players,r.board.centerX,r.board.centerY);
+ const {width,cell:GRID_SIZE,cols:GRID_COLS,rows:GRID_ROWS,gridX:GRID_X,gridY:GRID_Y}=r.arena;
+ const BOARD={x:6,y:40,right:width-6,bottom:544,paddleBottom:535,paddleTop:36,paddleLeft:12,paddleRight:width-12};
+ const edge=Math.max(2.7,GRID_SIZE*.45),transform=crusherTransform(r.crushSteps,r.players,r.board.centerX,r.board.centerY);
  const impact=(x,y,axis)=>{
   const point=uncrushPoint(transform,x,y);
   const col=Math.floor((point.x-GRID_X)/GRID_SIZE),row=Math.floor((point.y-GRID_Y)/GRID_SIZE);
@@ -184,6 +187,7 @@ export class BrickRoom extends DurableObject{
    if(this.room&&Date.now()-(this.room.lastActivity||0)<TTL)return reply({error:"Room already exists"},409);
    const data=await req.json().catch(()=>({})),name=nameOf(data.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:3};
+   const arena=arenaLayout(Number(data.aspect));
    this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],arena,board:bricks(code.toLowerCase(),1,2,arena),seed:code.toLowerCase(),level:1,startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
    await this.save();return reply({code,you:p.id},201,{"set-cookie":cookieFor(code,p.token)});
   }
