@@ -13,7 +13,7 @@ const htmlEnd = source.indexOf(";\nexport default", htmlStart);
 const html = JSON.parse(source.slice(htmlStart, htmlEnd));
 
 test("there is one board and each occupied player gets a unique side", () => {
-  const expected = { 1: [0], 2: [0, 2], 3: [0, 1, 3], 4: [0, 1, 2, 3] };
+  const expected = { 1: [0], 2: [0, 2], 3: [0, 2, 1], 4: [0, 2, 1, 3] };
   for (const count of [1, 2, 3, 4]) {
     const players = Array.from({ length: count }, (_, index) =>
       ({ id: "player-" + index, seat: -1, pos: .5, lives: 3, online: true }));
@@ -490,4 +490,119 @@ test("multiplayer lobby maps the current player to the bottom slot",()=>{
  assert.equal(calls.length,4);
  assert.deepEqual(calls[0],{side:0,id:"p1",mine:true});
  assert.deepEqual(calls[2],{side:2,id:"p0",mine:false});
+});
+
+test("joining and leaving never reassigns existing players or resets their controls", () => {
+ const players=[{id:"host",seat:-1,pos:.5}];
+ assignSides(players);
+ players[0].pos=.18;
+ assert.deepEqual(players.map(p=>p.seat),[0]);
+ const second={id:"second",seat:0,pos:.5};
+ players.push(second);assignSides(players);
+ assert.equal(second.seat,2);
+ second.pos=.29;
+ const third={id:"third",seat:0,pos:.5};
+ players.push(third);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,2,1]);
+ assert.equal(players[0].pos,.18);
+ assert.equal(second.pos,.29);
+ third.pos=.71;
+ const fourth={id:"fourth",seat:0,pos:.5};
+ players.push(fourth);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,2,1,3]);
+ assert.equal(third.pos,.71);
+ players.splice(players.indexOf(second),1);
+ assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,1,3]);
+ const newGuest={id:"replacement",seat:0,pos:.5};
+ players.push(newGuest);assignSides(players);
+ assert.deepEqual(players.map(p=>p.seat),[0,1,3,2]);
+ assert.equal(third.pos,.71);
+ assert.equal(players[0].pos,.18);
+});
+
+test("a third room join keeps the second player's camera seat unchanged", async () => {
+ const code="ABCD23",host={id:"host",token:"host-token",name:"Host",seat:0,pos:.2,score:0,lives:3};
+ const room={code,players:[host],status:"waiting",lastActivity:Date.now(),round:0};
+ const handler={room,save:async()=>{},broadcast:()=>{}};
+ const join=async name=>{
+  const response=await BrickRoom.prototype.fetch.call(handler,new Request("https://game.example/api/rooms/"+code+"/join",{
+   method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({name})
+  }));
+  assert.equal(response.status,201);
+  return room.players.at(-1);
+ };
+ const guest=await join("GuestTwo");
+ assert.equal(guest.seat,2);
+ guest.pos=.37;
+ await join("GuestThree");
+ assert.equal(guest.seat,2);
+ assert.equal(guest.pos,.37);
+ assert.equal(host.pos,.2);
+ assert.deepEqual(room.players.map(p=>p.seat),[0,2,1]);
+});
+
+test("an old tab does not repeatedly reconnect after another tab takes the same seat", () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("function connect(){"),to=client.indexOf("let lastUiRender=",from);
+ assert.ok(from>=0&&to>from);
+ const sockets=[],nodes={connection:{},panel:{hidden:true},room:{hidden:true},statusText:{},roomTitle:{},glass:{hidden:true},glassTitle:{},glassText:{},start:{hidden:false}};
+ let scheduled=0;
+ const WebSocket=class{constructor(url){this.url=url;sockets.push(this);}};
+ const setup=new Function("WebSocket","location","$","clearTimeout","setTimeout",
+  'const API="/api/multiplayer/rooms";let closed=false,roomCode="ABCD23",socket=null,retry=null,inputSeq=0,lastInputSent=0,pendingInput=null;'
+  +client.slice(from,to)+'return {connect,getRetry:()=>retry};');
+ const conn=setup(WebSocket,{protocol:"https:",host:"game.example"},id=>nodes[id],()=>{},()=>{scheduled++;return scheduled;});
+ conn.connect();
+ assert.equal(sockets.length,1);
+ sockets[0].onclose({code:1000,reason:"Reconnected"});
+ assert.equal(conn.getRetry(),null);
+ assert.equal(scheduled,0);
+ assert.equal(nodes.connection.textContent,"Opened elsewhere");
+ assert.equal(nodes.panel.hidden,false);
+ assert.equal(nodes.start.hidden,true);
+ assert.match(nodes.glassText.textContent,/other tab/);
+ const again=setup(WebSocket,{protocol:"https:",host:"game.example"},id=>nodes[id],()=>{},()=>{scheduled++;return scheduled;});
+ again.connect();const socket=sockets.at(-1);
+ socket.onclose({code:1006,reason:""});
+ assert.equal(scheduled,1);
+});
+
+test("lobby pointer movement cannot move a paddle before a round starts", () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("function send(pos){"),to=client.indexOf("function pointer(",from);
+ assert.ok(from>=0&&to>from);
+ const setup=new Function("socket","state","WebSocket","clearTimeout","setTimeout","performance","flushInput",
+  'let localPos=.5,lastInputSent=0,pendingInput=null;'+client.slice(from,to)+'return {send,getPos:()=>localPos};');
+ const controller=setup({readyState:1},{status:"waiting"},{OPEN:1},()=>{},()=>{}, {now:()=>100},()=>{});
+ controller.send(.08);
+ assert.equal(controller.getPos(),.5);
+});
+
+test("rapid repeated join or create clicks cannot reserve duplicate players", async () => {
+ const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
+ const from=client.indexOf("let joining=false;"),to=client.indexOf("function showInvitePrompt(",from);
+ assert.ok(from>=0&&to>from);
+ let release;
+ let calls=0;
+ const elements={create:{},join:{},acceptInvite:{},joinCode:{value:"ABCDE2"}};
+ const storage={setItem(){}};
+ const createFlow=new Function("$","request","enter","localStorage","error","name",
+  client.slice(from,to)+"return {doCreate,doJoin,isJoining:()=>joining};");
+ const flow=createFlow(id=>elements[id],async (path,body)=>{
+  calls++;
+  await new Promise(resolve=>{release=resolve;});
+  return {code:"ABCDE2",you:"new-player",resumed:false};
+ },async()=>{},storage,()=>{},()=>"PlayerOne");
+ const first=flow.doJoin();
+ assert.equal(flow.isJoining(),true);
+ await flow.doJoin();
+ await flow.doCreate();
+ assert.equal(calls,1);
+ release();await first;
+ assert.equal(flow.isJoining(),false);
+ const second=flow.doCreate();
+ assert.equal(calls,2);
+ release();await second;
+ assert.equal(flow.isJoining(),false);
 });
