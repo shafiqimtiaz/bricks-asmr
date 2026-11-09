@@ -325,7 +325,7 @@ test("invited player must enter a real gamer name before joining", async () => {
  assert.match(client,/const displayName=name\(\)/);
 });
 
-test("brick changes redraw only changed cellstest("brick changes redraw only changed cells rather than all tiles", () => {
+test("brick changes redraw only changed cells rather than all tiles", () => {
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   const start = client.indexOf("let drawnPalette=null,drawnVaporPalette=null;");
   const end = client.indexOf("function draw(now){",start);
