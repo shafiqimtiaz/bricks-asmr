@@ -215,3 +215,50 @@ test("unknown WebSocket protocol versions and stale moves do not change paddles"
   await BrickRoom.prototype.webSocketMessage.call(handler, socket, JSON.stringify({ type:"paddle-input", version:1, seq:0, pos:.1 }));
   assert.equal(room.players[0].pos,.8);
 });
+
+
+test("CRT and Vapor canvases both receive direct pointer input", () => {
+  assert.match(html, /for\(const canvas of \[cv,gcv\]\)/);
+  assert.match(html, /#c,#g\{touch-action:none\}/);
+  assert.match(html, /target=event.currentTarget/);
+});
+
+test("shared countdown is visible but physics and the timer wait three seconds", () => {
+  const room = roomForPlayers(2);
+  assert.ok(room.startedAt > Date.now());
+  assert.equal(room.endsAt - room.startedAt, 90000);
+  const before = { ...room.balls[0] };
+  const handler = { room, stopLoop() {}, save: async () => {} };
+  BrickRoom.prototype.step.call(handler, .05, room.startedAt - 1000);
+  assert.deepEqual(room.balls[0], before);
+  BrickRoom.prototype.step.call(handler, .05, room.startedAt + 50);
+  assert.ok(room.balls[0].x !== before.x || room.balls[0].y !== before.y);
+  assert.match(html, /GET READY/);
+});
+
+test("all four authenticated players receive the same authoritative world", async () => {
+  const room = roomForPlayers(4), packets = new Map();
+  const sockets = room.players.map(p => ({
+    readyState: 1,
+    deserializeAttachment: () => ({id:p.id}),
+    send(data) { packets.set(p.id, JSON.parse(data)); },
+    close() {}
+  }));
+  const handler = {
+    room, ctx:{ getWebSockets:()=>sockets },
+    loop: {}, lastBroadcastCode:null, lastBroadcastRound:null, lastBroadcastHP:null,
+    liveIds:()=>new Set(room.players.map(p=>p.id)),
+    snapshot(includeBoard) {return BrickRoom.prototype.snapshot.call(this,includeBoard);}
+  };
+  for(const [i,ws] of sockets.entries()){
+    await BrickRoom.prototype.webSocketMessage.call(handler,ws,JSON.stringify({
+      type:"paddle-input",version:1,seq:1,pos:.15+i*.2
+    }));
+  }
+  assert.deepEqual(room.players.map(p=>p.pos), [.15,.35,.55,.75]);
+  BrickRoom.prototype.broadcast.call(handler);
+  const worlds = Array.from(packets.values()).map(p=>p.state);
+  for(let i=1;i<worlds.length;i++)assert.deepEqual(worlds[0],worlds[i]);
+  assert.equal(worlds[0].players.length,4);
+  assert.equal(worlds[0].balls.length,1);
+});
