@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { arenaLayout, bricks, crusherTransform, uncrushPoint, bounceBall } from "../src/game-core.mjs";
+import { arenaLayout, bricks, crusherInterval, crusherTransform, uncrushPoint, bounceBall } from "../src/game-core.mjs";
 
 test("Arena geometry uses square cells and covers tall through ultrawide screens", () => {
   for (const ratio of [0.4, 375 / 812, 9 / 16, 3 / 4, 1, 4 / 3, 16 / 9, 21 / 9, 32 / 9]) {
@@ -60,5 +60,35 @@ test("Multiplayer spawn and authoritative wall collision respect room width", ()
     advance(room, ball, 0.04);
     assert.ok(ball.x < arena.width);
     assert.ok(ball.vx < 0, "right boundary should reflect the ball");
+  }
+});
+
+test("Authoritative 1–4-player rounds run across every arena shape", () => {
+  const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
+  const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
+    .replace(/^import .*$/gm, "").replace("export class BrickRoom", "class BrickRoom");
+  const { startRound, advanceBall } = new Function(
+    "arenaLayout", "bricks", "bounceBall", "crusherInterval", "crusherTransform", "uncrushPoint", "DurableObject",
+    server + "\nreturn {startRound,advanceBall};"
+  )(arenaLayout, bricks, bounceBall, crusherInterval, crusherTransform, uncrushPoint, class {});
+
+  for (const ratio of [0.46, 1, 16 / 9, 21 / 9]) for (const playerCount of [1, 2, 3, 4]) {
+    const arena = arenaLayout(ratio);
+    const room = {
+      arena, code: "AAABBB",
+      players: [0, 2, 1, 3].slice(0, playerCount)
+        .map((seat, id) => ({ id: String(id), seat, pos: 0.5, lives: 3, score: 0, online: true })),
+    };
+    startRound(room);
+    assert.equal(room.status, "playing");
+    assert.equal(room.board.hp.length, arena.cols * arena.rows);
+    assert.equal(room.balls.length, playerCount);
+    for (let tick = 0; tick < 25; tick++) {
+      for (const ball of [...room.balls]) advanceBall(room, ball, 1 / 60);
+    }
+    for (const ball of room.balls) {
+      assert.ok(Number.isFinite(ball.x) && Number.isFinite(ball.y));
+      assert.ok(ball.x >= 0 && ball.x <= arena.width);
+    }
   }
 });
