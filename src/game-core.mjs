@@ -175,8 +175,16 @@ function genLevel(){
    const sideInset=Math.round(COLS*(playerCount>=4?13/58:playerCount===3?11/58:7/58));
    const topRow=Math.round(ROWS*(playerCount>=4?28/64:playerCount===3?26/64:24/64));
    const bottomRow=Math.round(ROWS*(playerCount>=4?54/64:playerCount===3?56/64:58/64));
+   const carve=random(hash(seed+':'+level+':multi:'+playerCount));
+   const patchSize=3,patchCols=Math.ceil(COLS/(patchSize*2));
+   const patches=Array.from({length:Math.ceil(ROWS/patchSize)*patchCols},()=>carve());
+   const phase=carve()*Math.PI*2;
+   const carveRate=playerCount>=4?.38:playerCount===3?.32:.24;
    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-    if(c<sideInset||c>=COLS-sideInset||r<topRow||r>bottomRow||c%4>=2||r%4>=2){
+    const mirrored=Math.min(c,COLS-1-c);
+    const patch=patches[Math.floor(r/patchSize)*patchCols+Math.floor(mirrored/patchSize)];
+    const channel=Math.abs(mirrored-(COLS*.25+Math.sin(r*.17+phase)*COLS*.1))<.8;
+    if(c<sideInset||c>=COLS-sideInset||r<topRow||r>bottomRow||patch<carveRate||channel){
      hollow[r*COLS+c]=1;isWall[r*COLS+c]=0;
     }
    }
