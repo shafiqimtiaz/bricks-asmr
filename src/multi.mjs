@@ -43,7 +43,7 @@ function resetBall(room){
 }
 // A replacement ball rides its owner's paddle for a moment before launching, as Solo's does after a miss.
 function replenishBalls(room){
- for(const p of room.players)if(p.lives>0&&p.online!==false&&!room.balls.some(b=>b.source===p.id)&&room.balls.length<MAX_BALLS)room.balls.push({...spawnPlayerBall(room,p),hold:1.2});
+ for(const p of room.players)if(p.lives>0&&p.online!==false&&!room.balls.some(b=>b.source===p.id)&&room.balls.length<MAX_BALLS)room.balls.push({...spawnPlayerBall(room,p),hold:2.5});
 }
 function startRound(r){
  r.status="playing";r.round=(r.round||0)+1;r.seed=r.code.toLowerCase();r.level=r.round;
@@ -51,7 +51,7 @@ function startRound(r){
  r.arena=r.arena||arenaLayout();
  r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
- r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;
+ r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
  for(const p of r.players){p.score=0;p.lives=5;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
  resetBall(r);
 }
@@ -74,12 +74,16 @@ function createExtraBalls(r,ball,count){
   r.balls.push({x:ball.x,y:ball.y,vx:ball.vx*cs-ball.vy*sn,vy:ball.vx*sn+ball.vy*cs,owner:ball.owner,source:ball.source??ball.owner});
  }
 }
-function grantPower(r,idx,ball){
+function grantPower(r,idx,ball,caught=0){
  const {cols:GRID_COLS,rows:GRID_ROWS}=r.arena||(r.arena=arenaLayout());
- const kind=parseInt(r.board.powerups?.[idx]||"0",16);
+ const kind=caught||parseInt(r.board.powerups?.[idx]||"0",16);
  if(!kind)return;
  const now=Date.now(),e=r.effects||(r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0});
- if(kind===1||kind===2||kind===11)createExtraBalls(r,ball,kind===2?3:2);
+ if(kind===1||kind===2||kind===11){
+  // A caught capsule splits the catcher's own ball (or, failing that, any ball in play).
+  const from=ball.vx!==undefined?ball:r.balls.find(b=>b.source===ball.owner&&!(b.hold>0))||r.balls.find(b=>!(b.hold>0));
+  if(from)createExtraBalls(r,from,kind===2?3:2);
+ }
  else if(kind===3)e.wideUntil=now+12000;
  else if(kind===4)e.pierceUntil=now+7000;
  else if(kind===5||kind===9){
@@ -97,6 +101,34 @@ function grantPower(r,idx,ball){
  else if(kind===8)e.slowUntil=now+7000;
  else if(kind===10)r.endsAt=Math.min(r.startedAt+150000,r.endsAt+8000);
  markEvent(r,POWER_LABELS[kind]||"POWER UP",ball.x,ball.y,ball.owner);
+}
+// As in Solo, a power-up brick releases a capsule. It falls toward the player whose ball broke the brick,
+// and only takes effect if that player catches it.
+function dropPower(r,idx,ball){
+ const kind=parseInt(r.board.powerups?.[idx]||"0",16);
+ if(!kind)return;
+ const catcher=r.players.find(p=>p.id===ball.owner&&p.lives>0&&p.online!==false)||r.players.find(p=>p.id===ball.source&&p.lives>0&&p.online!==false);
+ r.pups=r.pups||[];
+ if(!catcher||r.pups.length>=16){grantPower(r,idx,ball);return;}
+ r.pups.push({x:ball.x,y:ball.y,kind,idx,owner:catcher.id});
+}
+function advancePowers(r,dt){
+ if(!r.pups?.length)return;
+ const reach=r.arena.cell*1.5,wide=(r.effects?.wideUntil||0)>Date.now();
+ r.pups=r.pups.filter(pup=>{
+  const p=r.players.find(v=>v.id===pup.owner);
+  if(!p||p.lives<=0||p.online===false)return false;
+  const move=95*dt,shape=paddleShape(r.arena,p.seat,p.pos,wide);
+  if(p.seat===0)pup.y+=move;else if(p.seat===2)pup.y-=move;else if(p.seat===1)pup.x-=move;else pup.x+=move;
+  const depth=shape.horizontal?pup.y:pup.x,along=shape.horizontal?pup.x:pup.y,inward=p.seat===0||p.seat===3?-1:1;
+  const past=(shape.face-depth)*inward;
+  if(past<-reach)return true;
+  if(past<=7+reach&&Math.abs(along-shape.center)<=shape.half+reach){
+   grantPower(r,pup.idx,{x:pup.x,y:pup.y,owner:p.id},pup.kind);
+   return false;
+  }
+  return past<=7+reach;
+ });
 }
 function miss(r,p,ball){
  p.lives=Math.max(0,p.lives-1);
@@ -118,7 +150,7 @@ function advanceBall(r,ball,dt){
   if(life<=0)return false;
   const pierced=(r.effects?.pierceUntil||0)>Date.now();
   const cleared=damageBrick(r,idx,ball.owner,pierced?life:1);
-  if(cleared)grantPower(r,idx,ball);
+  if(cleared)dropPower(r,idx,ball);
   if(!pierced)ball[axis]=-ball[axis];
   return !pierced;
  };
@@ -167,7 +199,8 @@ export class BrickRoom extends DurableObject{
    seed:r.seed,level:r.level,startedAt:r.startedAt,
    remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Math.max(Date.now(),r.startedAt||0))/1000)):90,
    players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),
-   balls:(r.balls||[]).map(b=>({x:Math.round(b.x*10)/10,y:Math.round(b.y*10)/10,vx:b.hold>0?0:Math.round(b.vx),vy:b.hold>0?0:Math.round(b.vy),owner:b.owner,source:b.source})),
+   balls:(r.balls||[]).map(b=>({x:Math.round(b.x*10)/10,y:Math.round(b.y*10)/10,vx:b.hold>0?0:Math.round(b.vx),vy:b.hold>0?0:Math.round(b.vy),owner:b.owner,source:b.source,held:b.hold>0||undefined})),
+   pups:(r.pups||[]).map(p=>({x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,kind:p.kind,owner:p.owner})),
    now:Date.now(),effects:r.effects||{},lastEvent:r.lastEvent||null,crushSteps:r.crushSteps||0};
   if(includeBoard)state.board=r.board||null;
   return state;
@@ -256,6 +289,8 @@ export class BrickRoom extends DurableObject{
    const now=Date.now();if(now-(p.lastInputAt||0)<25)return;
    p.pos=clamp(v.pos,0,1);p.lastSeq=v.seq;p.lastInputAt=now;
    if(!this.loop)this.ensureLoop();
+  }else if(v?.type==="launch"&&v.version===1&&this.room.status==="playing"){
+   for(const ball of this.room.balls||[])if(ball.source===p.id&&ball.hold>0)ball.hold=0;
   }else if(v?.type==="ping")ws.send(JSON.stringify({type:"pong"}));
  }
  async webSocketClose(ws,code,reason){try{ws.close(code,reason);}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id))p.online=false;this.broadcast();if(this.liveIds().size===0){this.stopLoop();await this.save();}}}
@@ -293,6 +328,7 @@ export class BrickRoom extends DurableObject{
      if(owner){const rest=spawnPlayerBall(r,owner);ball.x=rest.x;ball.y=rest.y;}
     }else advanceBall(r,ball,t*slow*hyper);
    }
+   advancePowers(r,t);
   }
   if(r.board.remaining===0||r.players.every(p=>p.lives===0)){
    r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));

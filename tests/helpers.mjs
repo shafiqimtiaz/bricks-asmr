@@ -16,6 +16,6 @@ export function loadServer() {
     .replace("export class BrickRoom", "class BrickRoom");
   return new Function("DurableObject", "core",
     `const {${Object.keys(core).join(",")}}=core;${body}
-return {assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,spawnPlayerBall,BrickRoom};`
+return {assignedSides,assignSides,startRound,advanceBall,grantPower,dropPower,advancePowers,replenishBalls,spawnPlayerBall,BrickRoom};`
   )(class {}, core);
 }

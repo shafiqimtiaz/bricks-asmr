@@ -5,7 +5,7 @@ import { arenaLayout, bricks, bounceBall, normalizeBallVelocity, drawBrickTile, 
 import { loadServer, multiHtml as html, serverSource, soloHtml, soloWorker } from "./helpers.mjs";
 
 const source = serverSource + html;
-const { assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } = loadServer();
+const { assignedSides, assignSides, startRound, advanceBall, grantPower, advancePowers, replenishBalls, BrickRoom } = loadServer();
 
 test("there is one board and each occupied player gets a unique side", () => {
   const expected = { 1: [0], 2: [0, 2], 3: [0, 2, 1], 4: [0, 2, 1, 3] };
@@ -255,7 +255,7 @@ test("a missed ball costs one life and the replacement rides the paddle before l
   assert.equal(fresh[0].y,100);
   const sent=BrickRoom.prototype.snapshot.call(instance).balls.find(b=>b.source==="p1");
   assert.equal(sent.vx,0);assert.equal(sent.vy,0);
-  for(let i=0;i<14;i++)BrickRoom.prototype.step.call(instance,.1,Date.now());
+  for(let i=0;i<27;i++)BrickRoom.prototype.step.call(instance,.1,Date.now());
   assert.ok(!(fresh[0].hold>0)&&fresh[0].y>100,"the held ball launches inward");
 });
 
@@ -270,10 +270,52 @@ test("bricks trigger real power-ups and score in the shared authoritative state"
   advanceBall(room, ball, .02);
   assert.equal(room.board.hp[index], "0");
   assert.equal(room.board.remaining, initial - 1);
+  assert.ok(room.players[0].score >= 10);
+  // The brick releases a capsule that falls to the player who broke it; nothing happens until it is caught.
+  assert.equal(room.balls.length, 1);
+  assert.equal(room.pups.length, 1);
+  assert.equal(room.pups[0].owner, "p0");
+  const startY = room.pups[0].y;
+  advancePowers(room, .5);
+  assert.ok(room.pups[0].y > startY);
+  room.players[0].pos = paddlePosFor(room, 0, room.pups[0].x);
+  for (let i = 0; i < 60 && room.pups.length; i++) advancePowers(room, .05);
+  assert.equal(room.pups.length, 0);
   assert.equal(room.balls.length, 3);
   assert.equal(room.lastEvent.type, "STARTER SPLIT");
-  assert.ok(room.players[0].score >= 10);
 });
+
+test("a power-up capsule that misses its owner's paddle is lost, and each seat's capsule heads for its own edge", () => {
+  const room = roomForPlayers(4);
+  room.balls = [{ x: 180, y: 292, vx: 100, vy: 300, owner: "p0", source: "p0" }];
+  for (const p of room.players) {
+    room.pups = [{ x: 180, y: 292, kind: 3, idx: 0, owner: p.id }];
+    p.pos = p.seat === 0 || p.seat === 2 ? 0 : 1;
+    const start = { ...room.pups[0] };
+    advancePowers(room, .2);
+    const dx = room.pups[0].x - start.x, dy = room.pups[0].y - start.y;
+    assert.deepEqual([Math.sign(dx), Math.sign(dy)], [[0, 1], [-1, 0], [0, -1], [1, 0]][p.seat]);
+    for (let i = 0; i < 200 && room.pups.length; i++) advancePowers(room, .05);
+    assert.equal(room.pups.length, 0);
+    assert.ok(!(room.effects.wideUntil > Date.now()), "seat " + p.seat + " missed its capsule");
+  }
+  const sent = BrickRoom.prototype.snapshot.call({ room: { ...room, pups: [{ x: 1.234, y: 5, kind: 3, idx: 0, owner: "p0" }] }, liveIds: () => new Set() });
+  assert.deepEqual(sent.pups, [{ x: 1.2, y: 5, kind: 3, owner: "p0" }]);
+});
+
+test("a player can launch their held ball early, but nobody else's", async () => {
+  const room = roomForPlayers(2);
+  room.balls = [{ x: 1, y: 1, vx: 0, vy: 1, source: "p0", hold: 2 }, { x: 1, y: 1, vx: 0, vy: 1, source: "p1", hold: 2 }];
+  const socket = { deserializeAttachment: () => ({ id: "p0" }), send() {}, close() {} };
+  await BrickRoom.prototype.webSocketMessage.call({ room, loop: {} }, socket, JSON.stringify({ type: "launch", version: 1 }));
+  assert.equal(room.balls[0].hold, 0);
+  assert.equal(room.balls[1].hold, 2);
+});
+
+function paddlePosFor(room, seat, coord) {
+  const { half } = paddleShape(room.arena, seat, .5, false), span = seat === 0 || seat === 2 ? room.arena.width - 12 : 504;
+  return Math.max(0, Math.min(1, (coord - (seat === 0 || seat === 2 ? 6 : 40) - half) / (span - 2 * half)));
+}
 
 test("power-ups extend a bounded timer and expose active buffs", () => {
   const room = roomForPlayers(2);

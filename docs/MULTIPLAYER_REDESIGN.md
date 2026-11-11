@@ -204,4 +204,6 @@ Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seede
 - **HUD.** The HUD owns the top 36 logical pixels; on small screens the remainder hangs above the stage instead of covering the top paddle or brick rows.
 - **Play feel.** A replacement ball rides its owner's paddle for 1.2s before launching. Players start with 5 lives. Remote paddles are eased between snapshots, held keys move the paddle smoothly, countdown and buff timers use the room's clock, and bricks are cached at device resolution.
 - **Lobby.** Friends can join between rounds, not only before the first.
-- **Still open from section 9:** Solo's falling theme-specific pickups, manual aim and stopwatch are not in Multiplayer. The room is always the portrait arena: the host-aspect option is not wired through the room-creation route.
+- **Pickups.** A power-up brick releases a capsule that falls toward the player whose ball broke it and takes effect only if that player catches it, as in Solo. Capsules look the same in every theme because the power-up set is shared by the room; Solo's per-theme sets stay Solo-only by design.
+- **Launch.** A held replacement ball launches on a tap on the board or Space, or by itself after 2.5s.
+- **Still open from section 9:** drag-to-aim and Solo's stopwatch scoring are not in Multiplayer (rounds stay timed and scored). The room is always the portrait arena: the host-aspect option is not wired through the room-creation route.
