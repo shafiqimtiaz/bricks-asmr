@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import { loadServer } from "./helpers.mjs";
 import { arenaLayout, bricks, crusherInterval, crusherTransform, uncrushPoint, bounceBall } from "../src/game-core.mjs";
 
 test("Arena geometry uses square cells and covers tall through ultrawide screens", () => {
@@ -32,46 +32,25 @@ test("Shared generator reflows both Solo and 2–4-player boards deterministical
   }
 });
 
-test("Multiplayer spawn and authoritative wall collision respect room width", () => {
-  const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
-  const spawnStart = source.indexOf("function spawnPlayerBall(");
-  const spawnEnd = source.indexOf("\nfunction resetBall(", spawnStart);
-  const advanceStart = source.indexOf("function advanceBall(");
-  const advanceEnd = source.indexOf("\nfunction clamp(", advanceStart);
-  assert.ok(spawnStart > 0 && spawnEnd > spawnStart && advanceEnd > advanceStart);
-  const spawn = new Function("arenaLayout", source.slice(spawnStart, spawnEnd) + "\nreturn spawnPlayerBall;")(arenaLayout);
-  const advance = new Function(
-    "crusherTransform", "uncrushPoint", "bounceBall",
-    "const clamp=(v,min,max)=>Math.min(max,Math.max(min,v));" +
-      "const paddleFor=()=>null,grantPower=()=>{},damageBrick=()=>false,miss=()=>{};\n" +
-      source.slice(advanceStart, advanceEnd) + "\nreturn advanceBall;"
-  )(crusherTransform, uncrushPoint, bounceBall);
+const { spawnPlayerBall, startRound, advanceBall } = loadServer();
 
+test("Multiplayer spawn and authoritative wall collision respect room width", () => {
   for (const ratio of [9 / 16, 16 / 9, 21 / 9]) {
     const arena = arenaLayout(ratio);
     const room = { arena, board: bricks("qa", 1, 2, arena), players: [], crushSteps: 0, effects: {} };
-    const leftPlayer = { seat: 1, pos: 0.5, id: "left" };
-    const rightPlayer = { seat: 3, pos: 0.5, id: "right" };
-    const leftBall = spawn(room, leftPlayer), rightBall = spawn(room, rightPlayer);
-    assert.ok(leftBall.x < arena.width / 2);
-    assert.ok(rightBall.x > arena.width / 2);
-    assert.ok(rightBall.x > leftBall.x);
-    const ball = { x: arena.width - 16, y: 500, vx: 250, vy: 0 };
-    advance(room, ball, 0.04);
+    const leftBall = spawnPlayerBall(room, { seat: 1, pos: 0.5, id: "left" });
+    const rightBall = spawnPlayerBall(room, { seat: 3, pos: 0.5, id: "right" });
+    assert.ok(leftBall.x < arena.width / 2 && leftBall.vx > 0);
+    assert.ok(rightBall.x > arena.width / 2 && rightBall.vx < 0);
+    assert.equal(leftBall.y, 292);
+    const ball = { x: arena.width - 20, y: 500, vx: 250, vy: 0 };
+    advanceBall(room, ball, 0.04);
     assert.ok(ball.x < arena.width);
     assert.ok(ball.vx < 0, "right boundary should reflect the ball");
   }
 });
 
 test("Authoritative 1–4-player rounds run across every arena shape", () => {
-  const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
-  const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
-    .replace(/^import .*$/gm, "").replace("export class BrickRoom", "class BrickRoom");
-  const { startRound, advanceBall } = new Function(
-    "arenaLayout", "bricks", "bounceBall", "crusherInterval", "crusherTransform", "uncrushPoint", "DurableObject",
-    server + "\nreturn {startRound,advanceBall};"
-  )(arenaLayout, bricks, bounceBall, crusherInterval, crusherTransform, uncrushPoint, class {});
-
   for (const ratio of [0.46, 1, 16 / 9, 21 / 9]) for (const playerCount of [1, 2, 3, 4]) {
     const arena = arenaLayout(ratio);
     const room = {

@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { arenaLayout, bricks } from "../src/game-core.mjs";
 
-const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
-const declarationStart = source.indexOf("const MULTIPLAYER_HTML=");
-const declarationEnd = source.indexOf("\nexport default", declarationStart);
-const html = new Function(source.slice(declarationStart, declarationEnd) + ";\nreturn MULTIPLAYER_HTML;")();
+import { loadServer, multiHtml as html } from "./helpers.mjs";
 
 test("multiplayer layouts keep substantially more square bricks across player counts", () => {
   for (const ratio of [375 / 812, 9 / 16, 1, 16 / 9, 21 / 9]) {
@@ -29,13 +25,7 @@ test("multiplayer layouts keep substantially more square bricks across player co
 });
 
 test("multiplayer rooms generate a fresh layout on each new round", () => {
-  const start = source.indexOf("function startRound(r){");
-  const end = source.indexOf("\nfunction paddleFor(", start);
-  assert.ok(start >= 0 && end > start);
-  const startRound = new Function(
-    "bricks", "arenaLayout", "resetBall",
-    source.slice(start, end) + "\nreturn startRound;"
-  )(bricks, arenaLayout, room => { room.balls = []; });
+  const { startRound } = loadServer();
   const room = {
     code: "ABCDEF",
     arena: arenaLayout(16 / 9),
@@ -64,18 +54,17 @@ test("multiplayer retro visuals do not animate full-screen brightness", () => {
 
 test("the brick cache only repaints changed cells and clears on a fresh round or theme", () => {
   const start = html.indexOf("function paintTiles(board){");
-  const end = html.indexOf("\nfunction draw(now){", start);
+  const end = html.indexOf("\nfunction label(", start);
   assert.ok(start > 0 && end > start);
   const clears = [], draws = [];
-  const tileCtx = { clearRect: (...args) => clears.push(args) };
+  const tileCtx = { setTransform() {}, clearRect: (...args) => clears.push(args) };
   const drawer = (context, x, y, size, life) => {
     context.clearRect(x, y, size, size);
     draws.push([x, y, life]);
   };
   const cache = new Function(
     "tileCtx", "drawBrickTile",
-    `const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6;
-const tiles={width:360,height:640};
+    `const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6,W=360,H=640,tileScale=2;
 const PALETTE={clean:[],vintage:[],vapor:[]};
 let style="clean",drawnStyle=null,drawnPalette=null,drawnVaporPalette=null,drawnHP=null;
 ${html.slice(start, end)}

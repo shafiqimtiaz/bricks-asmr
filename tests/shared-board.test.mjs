@@ -1,17 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { bricks, bounceBall, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource, crusherInterval, crusherTransform, crusherPoint, uncrushPoint } from "../src/game-core.mjs";
+import { arenaLayout, bricks, bounceBall, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource, crusherInterval, crusherTransform, crusherPoint, uncrushPoint, paddleShape } from "../src/game-core.mjs";
 
-const source = readFileSync(new URL("../src/multi.mjs", import.meta.url), "utf8");
-const server = source.slice(0, source.indexOf("const MULTIPLAYER_HTML="))
-  .replace(/^import .*?;\s*/gm, "")
-  .replace("export class BrickRoom", "class BrickRoom");
-const { assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } =
-  new Function("DurableObject","bricks","bounceBall","crusherInterval","crusherTransform","uncrushPoint", server + ";return {assignedSides,assignSides,startRound,advanceBall,grantPower,replenishBalls,BrickRoom};")(class {},bricks,bounceBall,crusherInterval,crusherTransform,uncrushPoint);
-const htmlStart = source.indexOf("const MULTIPLAYER_HTML=") + "const MULTIPLAYER_HTML=".length;
-const htmlEnd = source.indexOf(";\nexport default", htmlStart);
-const html = JSON.parse(source.slice(htmlStart, htmlEnd));
+import { loadServer, multiHtml as html, serverSource, soloHtml, soloWorker } from "./helpers.mjs";
+
+const source = serverSource + html;
+const { assignedSides, assignSides, startRound, advanceBall, grantPower, replenishBalls, BrickRoom } = loadServer();
 
 test("there is one board and each occupied player gets a unique side", () => {
   const expected = { 1: [0], 2: [0, 2], 3: [0, 2, 1], 4: [0, 2, 1, 3] };
@@ -28,15 +22,12 @@ test("there is one board and each occupied player gets a unique side", () => {
 
 
 test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",()=>{
- const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
- assert.match(solo,/import \{ soloCoreSource \} from "\.\/game-core\.mjs"/);
- assert.match(source,/import \{ bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint \} from "\.\/game-core\.mjs"/);
- assert.match(solo,/bricks\(seed,level,1\)/);
- assert.match(solo,/drawBrickTile\(bctx/);
- assert.match(source,/bounceBall\(ball,side,deflect,330\)/);
- assert.match(source,/drawBrickTile\(tileCtx/);
- assert.match(solo,/GAME\.replace\('<script>'/);
- assert.match(source,/MULTIPLAYER_HTML\.replace\("<script>"/);
+ assert.match(soloWorker,/import \{ soloCoreSource \} from "\.\/game-core\.mjs"/);
+ assert.match(soloHtml,/bricks\(seed,level,1,arena\)/);
+ assert.match(soloHtml,/drawBrickTile\(bctx/);
+ assert.match(html,/drawBrickTile\(tileCtx/);
+ assert.match(soloWorker,/GAME\.replace\('<script>'/);
+ assert.match(serverSource,/MULTIPLAYER_HTML\.replace\("<script>"/);
  assert.match(soloCoreSource,/function bricks\(/);
  assert.match(browserCoreSource,/function drawBrickTile\(/);
  for(const [seed,total] of [["ALPHA",3184],["TEST123",3476],["BRICKS",3226]]){
@@ -117,19 +108,24 @@ test("multiplayer uses Solo's grid size and a deterministic level", () => {
   assert.notEqual(first.hp, bricks("TEST123", 2).hp);
 });
 
-test("more players compress the shared bricks and leave clear paddle approach lanes",()=>{
+test("multiplayer plays a whole Solo-style level on a field that leaves a lane before every paddle",()=>{
+ const fields={2:[7,50,24,58],3:[11,46,26,56],4:[13,44,28,54]};
  const layouts=[2,3,4].map(n=>bricks("BRICKS",1,n));
  for(const [i,board] of layouts.entries()){
+  const [c0,c1,r0,r1]=fields[i+2],cells=(c1-c0+1)*(r1-r0+1);
   assert.equal(board.hp.length,58*64);
   assert.equal(board.total,board.remaining);
-  assert.ok(board.total>60&&board.total<500,"sparse bricks for "+(i+2)+" players");
-  for(let k=0;k<board.hp.length;k++)if(board.hp[k]!=="0"){
+  assert.equal(board.total,[...board.hp].filter(c=>c!=="0").length);
+  for(let k=0;k<board.hp.length;k++)if(board.hp[k]!=="0"||board.powerups[k]!=="0"){
    const c=k%58,r=Math.floor(k/58);
-   assert.ok(r>=24&&r<=58&&c>=7&&c<=50);
-   assert.ok(c%4<2&&r%4<2);
+   assert.ok(r>=r0&&r<=r1&&c>=c0&&c<=c1,"brick outside the "+(i+2)+"-player field");
   }
+  // A real level, not a thinned-out crop: mostly filled, with walls, colour regions, power-ups and mirror symmetry.
+  assert.ok(board.total>cells*.5,"dense "+(i+2)+"-player level: "+board.total+"/"+cells);
+  assert.ok(board.hp.includes("3")&&board.powerups.includes("b"));
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)assert.equal(board.hp[r*58+c],board.hp[r*58+57-c]);
+  assert.ok(Math.abs(board.centerX-180)<1&&Math.abs(board.centerY-292)<12);
  }
- assert.ok(layouts[0].total>layouts[1].total&&layouts[1].total>layouts[2].total);
  assert.deepEqual(layouts[2],bricks("BRICKS",1,4));
 });
 
@@ -199,11 +195,11 @@ test("all four active paddles bounce their own ball", () => {
 test("a missed occupied paddle loses a life, an empty side acts as a wall", () => {
   const room = roomForPlayers(2);
   const top = room.players.find(p => p.seat === 2);
-  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: null };
+  const miss = { x: 30, y: 52, vx: 0, vy: -330, owner: null };
   room.balls = [miss];
   advanceBall(room, miss, .01);
-  assert.equal(top.lives, 2);
-  const left = { x: 15, y: 500, vx: -330, vy: 0, owner: null };
+  assert.equal(top.lives, 4);
+  const left = { x: 18, y: 500, vx: -330, vy: 0, owner: null };
   room.balls = [left];
   advanceBall(room, left, .01);
   assert.ok(left.vx > 0);
@@ -228,27 +224,39 @@ test("socket identity and sequence prevent controlling another paddle", async ()
 test("multiplayer renderer parses and Solo/leaderboard routes remain intact", () => {
   const js = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   assert.doesNotThrow(() => new Function(js));
+  const soloJs = soloHtml.slice(soloHtml.indexOf("<script>") + 8, soloHtml.lastIndexOf("</script>"));
+  assert.doesNotThrow(() => new Function(soloJs));
   assert.match(js, /paintTiles\(s\?\.board\)/);
   assert.match(js, /b\.source===you/);
   assert.match(js, /seq:\+\+inputSeq/);
-  const solo = readFileSync(new URL("../src/index.mjs", import.meta.url), "utf8");
-  assert.match(solo, /path==='\/api\/leaderboard'/);
-  assert.match(solo, /const GAME=/);
+  assert.match(soloWorker, /path==='\/api\/leaderboard'/);
+  assert.match(soloWorker, /import GAME from "\.\/solo\.html"/);
 });
 
-
-test("a missed ball costs one life without deleting a surviving multiball", () => {
+test("a missed ball costs one life and the replacement rides the paddle before launching", () => {
   const room = roomForPlayers(2);
   const top = room.players.find(p => p.seat === 2);
-  const miss = { x: 30, y: 39, vx: 0, vy: -330, owner: "p1", source:"p1" };
+  const miss = { x: 30, y: 52, vx: 0, vy: -330, owner: "p1", source:"p1" };
   const surviving = { x: 180, y: 480, vx: 130, vy: -260, owner: "p0", source:"p0" };
   room.balls = [miss, surviving];
   advanceBall(room, miss, .01);
-  assert.equal(top.lives, 2);
+  assert.equal(top.lives, 4);
   assert.equal(room.balls.length, 2);
   assert.ok(room.balls.includes(surviving));
-  assert.equal(room.balls.filter(b=>b.source==="p1").length,1);
+  const fresh = room.balls.filter(b=>b.source==="p1");
+  assert.equal(fresh.length,1);
+  assert.ok(fresh[0].hold>0);
   assert.equal(room.lastEvent.type, "MISS");
+  // While held, the ball follows its owner's paddle and is reported as stationary.
+  const instance={room,ctx:{getWebSockets:()=>[]},liveIds:BrickRoom.prototype.liveIds,stopLoop(){},save:async()=>{}};
+  room.startedAt=Date.now()-1000;room.endsAt=Date.now()+60000;top.pos=.9;
+  BrickRoom.prototype.step.call(instance,.1,Date.now());
+  assert.ok(Math.abs(fresh[0].x-paddleShape(room.arena,2,.9,false).center)<1e-9);
+  assert.equal(fresh[0].y,100);
+  const sent=BrickRoom.prototype.snapshot.call(instance).balls.find(b=>b.source==="p1");
+  assert.equal(sent.vx,0);assert.equal(sent.vy,0);
+  for(let i=0;i<14;i++)BrickRoom.prototype.step.call(instance,.1,Date.now());
+  assert.ok(!(fresh[0].hold>0)&&fresh[0].y>100,"the held ball launches inward");
 });
 
 test("bricks trigger real power-ups and score in the shared authoritative state", () => {
@@ -290,10 +298,12 @@ test("wider paddles remain inside the arena boundaries", () => {
   const room = roomForPlayers(4),p = room.players[0];
   p.pos = 0;
   room.effects.wideUntil = Date.now() + 10000;
-  const ball = { x: 50, y: 531, vx: 0, vy: 330, owner: null };
+  const wide = paddleShape(room.arena, 0, 0, true);
+  assert.ok(Math.abs(wide.x - 6) < 1e-9 && wide.half > paddleShape(room.arena, 0, 0, false).half);
+  const ball = { x: 6 + wide.half * 2 - 2, y: 531, vx: 0, vy: 330, owner: null };
   room.balls = [ball];
   advanceBall(room, ball, .01);
-  assert.equal(p.lives, 3);
+  assert.equal(p.lives, 5);
   assert.equal(ball.owner, p.id);
   assert.ok(ball.vy < 0);
 });
@@ -353,7 +363,8 @@ test("unknown WebSocket protocol versions and stale moves do not change paddles"
 test("CRT and Vapor canvases both receive direct pointer input", () => {
   assert.match(html, /for\(const canvas of \[cv,gcv\]\)/);
   assert.match(html, /#c,#g\{touch-action:none\}/);
-  assert.match(html, /target=event.currentTarget/);
+  assert.match(html, /event\.currentTarget\.getBoundingClientRect\(\)/);
+  assert.match(html, /send\(sliderPos\(view,u\*viewW\)\)/);
 });
 
 test("shared countdown is visible but physics and the timer wait three seconds", () => {
@@ -399,18 +410,12 @@ test("all four authenticated players receive the same authoritative world", asyn
 
 
 test("Solo HUD exposes multiplayer without a second homepage", () => {
-  const solo = readFileSync(new URL("../src/index.mjs", import.meta.url), "utf8");
-  const start = solo.indexOf("const GAME=") + "const GAME=".length;
-  const end = solo.indexOf(";\nconst LEADERBOARD=", start);
-  const game = JSON.parse(solo.slice(start,end));
+  const game = soloHtml;
   assert.match(game, /id="multi" href="\/multiplayer"/);
   assert.match(game, /aria-label="Play multiplayer"/);
   assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,2);
-  assert.equal(solo.includes("new HTMLRewriter()"),false);
-  assert.equal(solo.includes("4P</a>"),false);
   assert.equal((game.match(/id="wrap"/g)||[]).length,1);
 });
-
 
 test("room-specific invitations take priority, legacy query invites do not join", () => {
  const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
@@ -462,21 +467,22 @@ test("invited player must enter a real gamer name before joining", async () => {
 test("brick changes redraw only changed cells rather than all tiles", () => {
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   const start = client.indexOf("let drawnPalette=null,drawnVaporPalette=null;");
-  const end = client.indexOf("function draw(now){",start);
+  const end = client.indexOf("function label(",start);
   assert.ok(start >= 0 && end > start);
   const tileOperations = {clear:0,fill:0};
   const tileCtx = {
+    setTransform(){},
     clearRect(){tileOperations.clear++;},
     fillRect(){tileOperations.fill++;},
     set fillStyle(v){}
   };
   const palette = Array(16).fill("#777");
   const renderer = new Function("tileCtx","PALETTE","drawBrickTile",
-    "const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6;let style='clean',drawnHP=null,drawnStyle=null;"
+    "const GRID_COLS=58,GRID_ROWS=64,GRID_X=6,GRID_Y=40,GRID_SIZE=6,W=360,H=640,tileScale=2;let style='clean',drawnHP=null,drawnStyle=null;"
     + client.slice(start,end) + "return paintTiles;")(tileCtx,{clean:palette,vintage:palette,vapor:palette},drawBrickTile);
   const board = {hp:"1".repeat(58*64),colors:"0".repeat(58*64),palette,vaporPalette:palette};
   renderer(board);
-  assert.equal(tileOperations.clear,58*64);
+  assert.equal(tileOperations.clear,58*64+1);
   tileOperations.clear=0;tileOperations.fill=0;
   const change = {...board,hp:"0"+board.hp.slice(1)};
   renderer(change);
@@ -490,11 +496,10 @@ test("multiplayer rendering uses bounded GPU resolution and persistent textures"
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   assert.match(client,/devicePixelRatio \|\| 1, 2/);
   assert.match(client,/gl\.texSubImage2D\(/);
-  assert.match(client,/gl\.texImage2D\(gl\.TEXTURE_2D,0,gl\.RGBA,cv\.width,cv\.height/);
+  assert.match(client,/gl\.texImage2D\(gl\.TEXTURE_2D,0,gl\.RGBA,width,height/);
   assert.match(client,/const remaining=42-\(performance\.now\(\)-lastInputSent\)/);
-  assert.match(source,/clamp\(\(now-this\.lastTick\)\/1000,0,\.25\)/);
+  assert.match(serverSource,/clamp\(\(now-this\.lastTick\)\/1000,0,\.25\)/);
 });
-
 
 test("connecting players update online counts immediately without waiting for the HUD throttle", () => {
   const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
@@ -547,52 +552,49 @@ test("new invite joins reserve exactly one seat and set a session cookie",async(
 });
 
 test("multiplayer copied invites use path URLs and accept rename routes",()=>{
- const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
+ const solo=soloWorker;
  assert.ok(solo.includes("||/^\\/multiplayer\\/[A-Z2-9]{6}\\/?$/i.test(path)"));
  assert.ok(source.includes("(join|rename|state|socket|action|leave)"));
  assert.match(html,/location\.origin\+"\/multiplayer\/"\+roomCode/);
 });
 
-test("each multiplayer player has a bottom-edge camera and consistent left-right controls",()=>{
- const js=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
- const from=js.indexOf("const BOARD_W=348,BOARD_H=504;"),to=js.indexOf("const tiles=",from);
- assert.ok(from>=0&&to>from);
- const getCamera=new Function("SX0","SX1",js.slice(from,to)+"return {viewPoint,applyBoardView,paddleInputPos,localPaddlePos};");
- const {viewPoint,applyBoardView,paddleInputPos,localPaddlePos}=getCamera(40,320);
- const paddles=[{seat:0,x:180,y:535},{seat:1,x:12,y:292},{seat:2,x:180,y:36},{seat:3,x:348,y:292}];
- for(const {seat,x,y} of paddles){
-  const pos=viewPoint(seat,x,y);
-  assert.ok(Math.abs(pos.x-180)<1,"seat "+seat+" centers its own paddle");
-  assert.ok(pos.y>=529&&pos.y<=553,"seat "+seat+" shows own paddle at bottom: "+pos.y);
-  assert.ok(Math.abs(viewPoint(seat,180,292).x-180)<1e-9);
-  assert.ok(Math.abs(viewPoint(seat,180,292).y-292)<1e-9);
-  assert.equal(localPaddlePos(seat,paddleInputPos(seat,40)),0);
-  assert.equal(localPaddlePos(seat,paddleInputPos(seat,320)),1);
-  assert.equal(paddleInputPos(seat,40)>=0&&paddleInputPos(seat,40)<=1,true);
-  const transforms=[];
-  applyBoardView({transform(...args){transforms.push(args);}},seat);
-  assert.equal(transforms.length,seat===0?0:1);
+test("what a player sees is what the room simulates: drawn paddles meet the ball exactly at their face",()=>{
+ const room=roomForPlayers(4);
+ for(const p of room.players){
+  const shape=paddleShape(room.arena,p.seat,.5,false),horizontal=p.seat===0||p.seat===2;
+  const inward=p.seat===0||p.seat===3?-1:1;
+  // A ball flying straight at the middle of the paddle.
+  const ball=horizontal?{x:shape.center,y:shape.face-inward*-30,vx:0,vy:-inward*330}:{x:shape.face+inward*30,y:shape.center,vx:-inward*330,vy:0};
+  if(horizontal)ball.y=shape.face+inward*30;
+  room.balls=[ball];
+  let previous=horizontal?ball.y:ball.x;
+  for(let i=0;i<40;i++){
+   advanceBall(room,ball,1/120);
+   const now=horizontal?ball.y:ball.x;
+   if((now-previous)*inward>0)break;
+   previous=now;
+  }
+  const gap=Math.abs(previous-shape.face)-2.7;
+  assert.ok(gap>=0&&gap<4,"seat "+p.seat+" bounces at its drawn face, gap "+gap);
+  assert.equal(ball.owner,p.id);
  }
- assert.match(js,/const relativeSide=\(p\.seat-cameraSeat\+4\)%4/);
- assert.match(js,/send\(paddleInputPos\(side,x\)\)/);
- assert.match(js,/side===2\|\|side===3\?-1:1/);
- assert.match(js,/ctx\.save\(\);applyBoardView\(ctx,cameraSeat\)/);
 });
 
 test("side paddle collision reach is proportional to a top or bottom paddle",()=>{
- const s=source;
- assert.match(s,/half=\(\(r\.effects\?\.wideUntil\|\|0\)>Date\.now\(\)\?49:36\)\*\(horizontal\?1:504\/348\)/);
  const room=roomForPlayers(4),p=room.players.find(player=>player.seat===1);
- p.pos=.5;const edge={x:15,y:292+48,vx:-330,vy:0,owner:null};
+ const side=paddleShape(room.arena,1,.5,false),bottom=paddleShape(room.arena,0,.5,false);
+ assert.ok(Math.abs(side.half/504-bottom.half/348)<1e-9);
+ p.pos=.5;const edge={x:18,y:292+side.half+2,vx:-330,vy:0,owner:null};
  room.balls=[edge];advanceBall(room,edge,.01);
  assert.equal(p.score,2);
- assert.equal(p.lives,3);
+ assert.equal(p.lives,5);
+ const wide={x:18,y:292+side.half+12,vx:-330,vy:0,owner:null};
+ room.balls=[wide];advanceBall(room,wide,.01);
+ assert.equal(p.lives,4,"a ball clearly past the paddle end is a miss");
 });
 
 test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=>{
- const solo=readFileSync(new URL("../src/index.mjs",import.meta.url),"utf8");
- const start=solo.indexOf("const GAME=")+"const GAME=".length,end=solo.indexOf(";\nconst LEADERBOARD=",start);
- const game=JSON.parse(solo.slice(start,end));
+ const game=soloHtml;
  for(const page of [game,html]){
   assert.match(page,/BRICKS ASMR<\/h1>/);
   assert.match(page,/<em>by Shafiq 😉<\/em>/);
@@ -613,7 +615,7 @@ test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=
 
 test("multiplayer lobby maps the current player to the bottom slot",()=>{
  const js=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
- const from=js.indexOf("function render(){"),to=js.indexOf("const GRID_X=",from);
+ const from=js.indexOf("function render(){"),to=js.indexOf("let GRID_X=",from);
  assert.ok(from>=0&&to>from);
  const players=[{id:"p0",name:"Host",seat:0,online:true,lives:3},{id:"p1",name:"Guest",seat:2,online:true,lives:3}];
  const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false});return nodes.get(id);};

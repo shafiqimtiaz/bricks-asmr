@@ -10,7 +10,10 @@ function arenaLayout(aspect=9/16){
 }
 function bricks(seed,level,playerCount=2,arena=arenaLayout()){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
- const COLS=GRID_COLS,ROWS=GRID_ROWS,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
+ // Multiplayer runs Solo's level generator on a smaller field that leaves a lane in front of every paddle.
+ const crowd=playerCount>=4?[13,28,54]:playerCount===3?[11,26,56]:playerCount===2?[7,24,58]:[0,0,63];
+ const FIELD_C=Math.round(GRID_COLS*crowd[0]/58),FIELD_R=Math.round(GRID_ROWS*crowd[1]/64);
+ const COLS=GRID_COLS-2*FIELD_C,ROWS=Math.round(GRID_ROWS*(crowd[2]+1)/64)-FIELD_R,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
  const SCALES=[[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8],[0,2,4,6,7,9,11],[0,2,3,5,7,9,10],[0,4,5,7,11]];
  const PU_W=[14,12,10,9,8,8,8,7,6,6],PU_WSUM=PU_W.reduce((a,b)=>a+b,0);
  const pickPU=u=>{let x=u*PU_WSUM;for(let j=0;j<PU_W.length;j++){x-=PU_W[j];if(x<0)return j+1;}return 10;};
@@ -149,7 +152,7 @@ function genLevel(){
   for (let k = 0; k < nCor; k++) {
     let c = RI(2, COLS - 3), r = rng() < 0.6 ? ROWS - 1 : RI(5, ROWS - 5);
     let d = r === ROWS - 1 ? 0 : RI(0, 3);
-    const wide = rng() < 0.35 ? 2 : 1, len = RI(40, 160);
+    const wide = rng() < 0.35 ? 2 : 1, len = Math.round(RI(40, 160) * (playerCount > 1 ? Math.min(1, N / 3712) : 1));
     const DIRS = [[0,-1],[1,0],[0,1],[-1,0]];
     for (let t = 0; t < len; t++) {
       for (let a = 0; a < wide; a++) for (let b2 = 0; b2 < wide; b2++) {
@@ -171,24 +174,6 @@ function genLevel(){
   const topGap = RI(1, 2);
   for (let i = 0; i < topGap * COLS; i++) { hollow[i] = 1; isWall[i] = 0; }
 
-  if(playerCount>1){
-   const sideInset=Math.round(COLS*(playerCount>=4?13/58:playerCount===3?11/58:7/58));
-   const topRow=Math.round(ROWS*(playerCount>=4?28/64:playerCount===3?26/64:24/64));
-   const bottomRow=Math.round(ROWS*(playerCount>=4?54/64:playerCount===3?56/64:58/64));
-   const carve=random(hash(seed+':'+level+':multi:'+playerCount));
-   const patchSize=3,patchCols=Math.ceil(COLS/(patchSize*2));
-   const patches=Array.from({length:Math.ceil(ROWS/patchSize)*patchCols},()=>carve());
-   const phase=carve()*Math.PI*2;
-   const carveRate=playerCount>=4?.38:playerCount===3?.32:.24;
-   for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
-    const mirrored=Math.min(c,COLS-1-c);
-    const patch=patches[Math.floor(r/patchSize)*patchCols+Math.floor(mirrored/patchSize)];
-    const channel=Math.abs(mirrored-(COLS*.25+Math.sin(r*.17+phase)*COLS*.1))<.8;
-    if(c<sideInset||c>=COLS-sideInset||r<topRow||r>bottomRow||patch<carveRate||channel){
-     hollow[r*COLS+c]=1;isWall[r*COLS+c]=0;
-    }
-   }
-  }
   // fill
   const density = playerCount>1?R(0.025,0.045):R(0.006,0.014);
   remaining = 0;
@@ -215,9 +200,13 @@ function genLevel(){
   total = remaining;
 }
  genLevel();
- let minC=COLS,minR=ROWS,maxC=-1,maxR=-1;
- for(let i=0;i<N;i++)if(hp[i]){
-  const c=i%COLS,r=(i/COLS)|0;
+ if(N!==GRID_COLS*GRID_ROWS){
+  const place=cells=>{const out=new Uint8Array(GRID_COLS*GRID_ROWS);for(let r=0;r<ROWS;r++)out.set(cells.subarray(r*COLS,(r+1)*COLS),(r+FIELD_R)*GRID_COLS+FIELD_C);return out;};
+  hp=place(hp);col=place(col);pu=place(pu);
+ }
+ let minC=GRID_COLS,minR=GRID_ROWS,maxC=-1,maxR=-1;
+ for(let i=0;i<hp.length;i++)if(hp[i]){
+  const c=i%GRID_COLS,r=(i/GRID_COLS)|0;
   minC=Math.min(minC,c);maxC=Math.max(maxC,c);
   minR=Math.min(minR,r);maxR=Math.max(maxR,r);
  }
@@ -297,13 +286,52 @@ function crusherTransform(steps,players,cx=180,cy=292){
   cx,cy
  };
 }
+// Paddle geometry shared by the authoritative room and every client, so what is drawn is what the ball hits.
+function paddleShape(arena,seat,pos,wide){
+ const horizontal=seat===0||seat===2,low=horizontal?6:40,span=horizontal?arena.width-12:504;
+ const half=(wide?51.2:32)*span/348,center=low+half+Math.max(0,Math.min(1,pos))*(span-2*half);
+ const face=seat===0?536:seat===2?48:seat===1?14:arena.width-14;
+ return {horizontal,half,center,face,
+  x:horizontal?center-half:seat===1?face-7:face,y:horizontal?(seat===0?face:face-7):center-half,
+  w:horizontal?half*2:7,h:horizontal?7:half*2};
+}
+// A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
+function boardView(arena,seat){
+ const side=seat===1||seat===3,w=side?504:arena.width-12,h=side?arena.width-12:504;
+ return {seat:seat||0,width:w+12,height:h+136,cx:w/2+6,cy:40+h/2,wx:arena.width/2,wy:292};
+}
+function viewMatrix(view){
+ const [a,b,c,d]=view.seat===2?[-1,0,0,-1]:view.seat===1?[0,-1,1,0]:view.seat===3?[0,1,-1,0]:[1,0,0,1];
+ return [a,b,c,d,view.cx-a*view.wx-c*view.wy,view.cy-b*view.wx-d*view.wy];
+}
+function viewPoint(view,x,y){
+ const m=viewMatrix(view);
+ return {x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
+}
+function sliderPos(view,x){
+ const margin=Math.max(40,view.width*.11),t=Math.max(0,Math.min(1,(x-margin)/(view.width-2*margin)));
+ return view.seat===2||view.seat===3?1-t:t;
+}
+// Fits a logical stage into the viewport. The top 36 logical pixels are the HUD band; a taller HUD hangs above the stage.
+function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
+ const dock=vw>=900&&vw>=vh*1.15&&panelOpen;
+ const edge=Math.min(48,Math.max(8,Math.round(Math.min(vw,vh)*.022)));
+ const gap=Math.min(28,Math.max(12,Math.round(vw*.015)));
+ const sidebar=dock?Math.min(720,Math.max(320,Math.round(vw*.29))):0;
+ const availableWidth=Math.max(1,vw-edge*2-(dock?sidebar+gap:0)),availableHeight=Math.max(1,vh-edge*2);
+ let height=Math.min(availableHeight,availableWidth*stageH/stageW);
+ if(hudHeight>36*height/stageH)height=Math.max(1,Math.min(height,(availableHeight-hudHeight)/(1-36/stageH)));
+ const width=height*stageW/stageH;
+ return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
+  stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
+}
 function crusherPoint(transform,x,y){
  return {x:transform.cx+(x-transform.cx)*transform.sx,y:transform.cy+(y-transform.cy)*transform.sy};
 }
 function uncrushPoint(transform,x,y){
  return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
 }
-export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint};
+export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit].map(fn=>fn.toString()).join("\n");

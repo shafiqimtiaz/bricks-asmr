@@ -5,7 +5,7 @@ A browser-based brick-breaker with Solo mode, a global leaderboard, and a live, 
 **Play:** https://bricks-asmr.shafiqimtiaz.workers.dev  
 **Multiplayer Lobby:** https://bricks-asmr.shafiqimtiaz.workers.dev/multiplayer
 
-The Bricks ASMR home screen now opens a unified **Lobby** with **Single Player** and **Multiplayer** choices, consistent Clean / CRT / Vapor themes and a compact in-game menu. Multiplayer keeps one authoritative room-shaped game world, chosen from the host's aspect ratio, and rotates the board locally so **every player sees their own paddle at the bottom**. The shared brick generator reflows square cells across portrait, tablet, desktop and TV layouts without stretching the game. Side paddles are proportionally balanced against top/bottom paddles; all four seats continue sharing the same bricks, balls and power-ups. Players keep their side as friends join or leave, without snapping to a new camera. Reopening a seat in another tab moves control to that tab rather than endlessly reconnecting the original tab. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
+The Bricks ASMR home screen now opens a unified **Lobby** with **Single Player** and **Multiplayer** choices, consistent Clean / CRT / Vapor themes and a compact in-game menu. Multiplayer keeps one authoritative room-shaped game world, chosen from the host's aspect ratio, and rotates the board locally so **every player sees their own paddle at the bottom**. The shared brick generator reflows square cells across portrait, tablet, desktop and TV layouts without stretching the game. Side paddles are proportionally balanced against top/bottom paddles; all four seats continue sharing the same bricks, balls and power-ups. Players keep their side as friends join or leave, without snapping to a new camera. Reopening a seat in another tab moves control to that tab rather than endlessly reconnecting the original tab. Use **COPY LINK** in a room to invite friends: opening a room-specific invite URL asks new players to enter their own gamer name before joining. Existing authenticated members resume their seat without duplicating it. Only `/multiplayer/CODE` invite links are supported; manual code joining remains available. Multiplayer levels come from the same generator as Solo: each round is a complete Solo-style level (walls, colour regions, corridors, power-ups) built on a smaller field that leaves a lane in front of every paddle, and the round number is the level number. See [the multiplayer plan](docs/MULTIPLAYER_REDESIGN.md) for implemented features and remaining parity/testing work.
 
 ## Development and deployment
 
@@ -50,8 +50,11 @@ Do not change, clear, or recreate these resources as part of app deployment. `sc
 
 ### Current source
 
-- `src/index.mjs` — original Solo game, leaderboard and routing
-- `src/multi.mjs` — single shared multiplayer arena, power-ups, WebSocket inputs and authoritative Durable Object game state
+- `src/index.mjs` — routing and the leaderboard API
+- `src/solo.html`, `src/leaderboard.html` — the Solo game and leaderboard pages
+- `src/multi.mjs` — multiplayer routing and the authoritative Durable Object game state
+- `src/multiplayer.html` — the multiplayer lobby and game client
+- `src/game-core.mjs` — code shared by both modes and by the room server: level generator, paddle geometry, player camera, stage layout, bounce physics, brick art and sound. The pages are imported as text and the shared functions are injected into them when served.
 - `docs/MULTIPLAYER_REDESIGN.md` — shared-board implementation, accepted layout and remaining TypeScript/physics parity tasks
 
 The future TypeScript migration is described in the design document, not implemented by this build-system change.
