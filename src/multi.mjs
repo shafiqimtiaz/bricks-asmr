@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { arenaLayout, bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint, paddleShape } from "./game-core.mjs";
+import { arenaLayout, bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint, paddleShape, ballSpeed } from "./game-core.mjs";
 import MULTIPLAYER_HTML from "./multiplayer.html";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
@@ -30,7 +30,7 @@ function markEvent(r,type,x,y,owner=null){
 }
 function spawnPlayerBall(room,p){
  const arena=room.arena||arenaLayout();
- const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=Math.round(330*Math.pow(arena.width/360,.35));
+ const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=ballSpeed(arena);
  const sideways=Math.sin(a)*speed,forward=Math.cos(a)*speed;
  const coord=paddleShape(arena,p.seat,p.pos,false).center;
  if(p.seat===0)return {x:coord,y:484,vx:sideways,vy:-forward,owner:p.id,source:p.id};
@@ -52,7 +52,7 @@ function startRound(r){
  r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
- for(const p of r.players){p.score=0;p.lives=5;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
+ for(const p of r.players){p.score=0;p.lives=4;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
  resetBall(r);
 }
 function paddleFor(r,side){return r.players.find(p=>p.seat===side&&p.lives>0&&p.online!==false)||null;}
@@ -96,7 +96,7 @@ function grantPower(r,idx,ball,caught=0){
    damageBrick(r,y*GRID_COLS+x,ball.owner,kind===9?2:1);
   }
  }
- else if(kind===6){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(7,p.lives+1);}
+ else if(kind===6){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(6,p.lives+1);}
  else if(kind===7)e.hyperUntil=now+7000;
  else if(kind===8)e.slowUntil=now+7000;
  else if(kind===10)r.endsAt=Math.min(r.startedAt+150000,r.endsAt+8000);
@@ -163,12 +163,12 @@ function advanceBall(r,ball,dt){
  ball.y=ny;
  const hit=(side,coord)=>{
   const p=paddleFor(r,side);if(!p)return false;
-  // 4px of grace beyond the drawn paddle absorbs the latency between a player's hand and the room.
+  // 2px of grace beyond the drawn paddle absorbs the latency between a player's hand and the room.
   const {half,center}=paddleShape(r.arena,side,p.pos,(r.effects?.wideUntil||0)>Date.now());
-  if(Math.abs(coord-center)>half+edge+4){miss(r,p,ball);return true;}
+  if(Math.abs(coord-center)>half+edge+2){miss(r,p,ball);return true;}
   const deflect=clamp((coord-center)/half,-1,1);
   ball.owner=p.id;p.score+=2;
-  bounceBall(ball,side,deflect,Math.round(330*Math.pow(width/360,.35)));
+  bounceBall(ball,side,deflect,ballSpeed(r.arena));
   return false;
  };
  if(ball.y>=BOARD.paddleBottom-edge&&ball.vy>0){
@@ -221,7 +221,7 @@ export class BrickRoom extends DurableObject{
   if(action==="create"&&req.method==="POST"){
    if(this.room&&Date.now()-(this.room.lastActivity||0)<TTL)return reply({error:"Room already exists"},409);
    const data=await req.json().catch(()=>({})),name=nameOf(data.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
-   const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:5};
+   const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:4};
    const arena=arenaLayout(Number(data.aspect));
    this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],arena,board:bricks(code.toLowerCase(),1,2,arena),seed:code.toLowerCase(),level:1,startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
    await this.save();return reply({code,you:p.id},201,{"set-cookie":cookieFor(code,p.token)});
@@ -233,7 +233,7 @@ export class BrickRoom extends DurableObject{
    if(r.status==="playing")return reply({error:"A round is in progress. Try again when it ends."},409);
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
-   const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:5};r.players.push(player);assignSides(r.players);
+   const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:4};r.players.push(player);assignSides(r.players);
    if(r.status==="waiting"){r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;}
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }

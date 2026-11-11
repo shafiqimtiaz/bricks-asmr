@@ -222,6 +222,8 @@ function genLevel(){
  };
 }
 
+// One ball speed for Solo and Multiplayer; wider arenas are a little faster so crossing them takes similar time.
+function ballSpeed(arena){return Math.round(300*Math.pow(arena.width/360,.35));}
 function bounceBall(ball,side,offset,speed=330){
  const angle=Math.max(-1,Math.min(1,offset))*1.05;
  const parallel=Math.sin(angle)*speed,inward=Math.cos(angle)*speed;
@@ -331,7 +333,7 @@ function crusherPoint(transform,x,y){
 function uncrushPoint(transform,x,y){
  return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
 }
-export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit};
+export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed].map(fn=>fn.toString()).join("\n");

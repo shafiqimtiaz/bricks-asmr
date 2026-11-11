@@ -183,7 +183,7 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
   <canvas id="g"></canvas>
   <div id="hud">
    <span id="hudMode">SOLO</span><span id="lvl">L1</span><span id="lives">♥3</span><span id="tmr">0:00</span><span class="sp"></span>
-   <button id="sty" type="button" title="Visual style">crt</button><button id="spd" type="button" title="Game speed">×1</button>
+   <button id="sty" type="button" title="Visual style">crt</button>
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
    <div id="hudMenu" hidden>
     <button id="home" type="button">LOBBY</button>
@@ -223,7 +223,7 @@ let GX = arena.gridX, GY = arena.gridY;
 const SY = 614, SZONE = 572, PY = 536, PH = 7, MAX_BALLS = 2500;
 let SX0 = Math.max(40, W * .11), SX1 = W - SX0;
 const basePaddle = () => 64 * CS / 6;
-let BR = CS * .45, SPEED = Math.round(330 * Math.pow(W / 360, .35)), PU_R = CS * 1.5;
+let BR = CS * .45, SPEED = ballSpeed(arena), PU_R = CS * 1.5;
 
 // ---------- seeded RNG: game-core.mjs ----------
 // ---------- URL state ----------
@@ -419,7 +419,7 @@ const brickBottom = () => GY + drop + (lowestRow() + 1) * CS;
 let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim', targetX = W / 2;
 let msgText = '';
 
-const MAX_LIVES = 10;
+const MAX_LIVES = 5;
 let lives = MAX_LIVES, runTime = 0, timerOn = false;
 function syncArena(){
   const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
@@ -427,7 +427,7 @@ function syncArena(){
   arena=next;W=next.width;H=next.height;CS=next.cell;COLS=next.cols;ROWS=next.rows;
   GX=next.gridX;GY=next.gridY;N=COLS*ROWS;
   SX0=Math.max(40,W*.11);SX1=W-SX0;
-  BR=CS*.45;SPEED=Math.round(330*Math.pow(W/360,.35));PU_R=CS*1.5;
+  BR=CS*.45;SPEED=ballSpeed(next);PU_R=CS*1.5;
   px=targetX=W/2;
   hp=null;resize();
 }
@@ -564,7 +564,7 @@ function plusThree(){
 
 function update(dt){
   pw = basePaddle() * (fx.wide > 0 ? 1.6 : 1) * (fx.shrink > 0 ? 0.6 : 1);
-  px += (targetX - px) * Math.min(1, dt / SPEEDS[spdIdx] * 25);
+  px += (targetX - px) * Math.min(1, dt * 25);
   px = Math.max(pw / 2, Math.min(W - pw / 2, px));
   if (state === 'aim') { balls[0].x = px; balls[0].y = PY - BR - 1; return; }
   if (state !== 'play') return;
@@ -698,18 +698,6 @@ function render(fs = 1){
 
   // trajectory previews
   if (state === 'aim') drawPath(predict(px, PY - BR - 1, SPEED * Math.sin(aimAng), -SPEED * Math.cos(aimAng), 900), V ? '#01cdfe' : '#ffffff');
-  else if (state === 'play') {
-    // soonest-arriving descending balls; show only those that will actually hit the paddle
-    const th = [];
-    for (const b of balls) if (b.vy > 0 && b.y < PY) {
-      const t = (PY - b.y) / b.vy;
-      if (th.length < 10) th.push([t, b]);
-      else { let m = 0; for (let j = 1; j < 10; j++) if (th[j][0] > th[m][0]) m = j; if (t < th[m][0]) th[m] = [t, b]; }
-    }
-    th.sort((a, b) => a[0] - b[0]);
-    let shown = 0;
-    for (const [, b] of th) { if (shown >= 3) break; const pr = predict(b.x, b.y, b.vx, b.vy, 700); if (pr.hit) { drawPath(pr, V ? '#ff71ce' : '#ffd166'); shown++; } }
-  }
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
@@ -843,10 +831,9 @@ let last = performance.now();
 function frame(now){
   const dt = Math.min(0.033, (now - last) / 1000); last = now;
   if(!document.getElementById('homeLobby').hidden){render(dt*60);postFX(now);requestAnimationFrame(frame);return;}
-  // play time is game time (speed setting can't help or hurt); aiming time is real time
-  if (timerOn && !(fx.freeze > 0)) runTime += (state === 'play' ? dt * SPEEDS[spdIdx] : state === 'aim' ? dt : 0) * 1000;
+  if (timerOn && !(fx.freeze > 0) && (state === 'play' || state === 'aim')) runTime += dt * 1000;
   notesThisFrame = 0;
-  update(dt * SPEEDS[spdIdx]); render(dt * 60); postFX(now);
+  update(dt); render(dt * 60); postFX(now);
   if (danger > .2) { hbT -= dt; if (hbT <= 0) { hbT = danger > .7 ? .45 : .75; blip(55, .4, .13, 'sine'); setTimeout(() => { notesThisFrame = 0; blip(48, .3, .12, 'sine'); }, 110); } }
   perfEma += ((now - (frame.prev || now)) - perfEma) * .05; frame.prev = now;
   if (perfEma > 30 && balls.length > 600 && maxBalls > balls.length * .9) { maxBalls = Math.max(600, Math.floor(balls.length * .85)); if (!perfWarned) { perfWarned = true; showToast('smooth mode · ball cap ' + maxBalls); } }
@@ -898,13 +885,6 @@ window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) targetX = px - d; if (keys.arrowright || keys.d) targetX = px + d; }, 16);
 
-const SPEEDS = [0.25, 0.5, 1, 1.5, 2, 3];
-let spdIdx = 2;
-try { const v = +localStorage.getItem('brick-asmr-speed'); if (SPEEDS.includes(v)) spdIdx = SPEEDS.indexOf(v); } catch(e) {}
-const spdBtn = document.getElementById('spd');
-function showSpd(){ spdBtn.textContent = '×' + SPEEDS[spdIdx]; }
-spdBtn.onclick = () => { audioInit(); spdIdx = (spdIdx + 1) % SPEEDS.length; showSpd(); try { localStorage.setItem('brick-asmr-speed', SPEEDS[spdIdx]); } catch(e) {} };
-showSpd();
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
 const SHARE_BASE = location.origin + location.pathname;

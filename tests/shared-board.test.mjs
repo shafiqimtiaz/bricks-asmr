@@ -198,7 +198,7 @@ test("a missed occupied paddle loses a life, an empty side acts as a wall", () =
   const miss = { x: 30, y: 52, vx: 0, vy: -330, owner: null };
   room.balls = [miss];
   advanceBall(room, miss, .01);
-  assert.equal(top.lives, 4);
+  assert.equal(top.lives, 3);
   const left = { x: 18, y: 500, vx: -330, vy: 0, owner: null };
   room.balls = [left];
   advanceBall(room, left, .01);
@@ -240,7 +240,7 @@ test("a missed ball costs one life and the replacement rides the paddle before l
   const surviving = { x: 180, y: 480, vx: 130, vy: -260, owner: "p0", source:"p0" };
   room.balls = [miss, surviving];
   advanceBall(room, miss, .01);
-  assert.equal(top.lives, 4);
+  assert.equal(top.lives, 3);
   assert.equal(room.balls.length, 2);
   assert.ok(room.balls.includes(surviving));
   const fresh = room.balls.filter(b=>b.source==="p1");
@@ -345,7 +345,7 @@ test("wider paddles remain inside the arena boundaries", () => {
   const ball = { x: 6 + wide.half * 2 - 2, y: 531, vx: 0, vy: 330, owner: null };
   room.balls = [ball];
   advanceBall(room, ball, .01);
-  assert.equal(p.lives, 5);
+  assert.equal(p.lives, 4);
   assert.equal(ball.owner, p.id);
   assert.ok(ball.vy < 0);
 });
@@ -629,10 +629,10 @@ test("side paddle collision reach is proportional to a top or bottom paddle",()=
  p.pos=.5;const edge={x:18,y:292+side.half+2,vx:-330,vy:0,owner:null};
  room.balls=[edge];advanceBall(room,edge,.01);
  assert.equal(p.score,2);
- assert.equal(p.lives,5);
+ assert.equal(p.lives,4);
  const wide={x:18,y:292+side.half+12,vx:-330,vy:0,owner:null};
  room.balls=[wide];advanceBall(room,wide,.01);
- assert.equal(p.lives,4,"a ball clearly past the paddle end is a miss");
+ assert.equal(p.lives,3,"a ball clearly past the paddle end is a miss");
 });
 
 test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=>{
