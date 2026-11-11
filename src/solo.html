@@ -175,6 +175,27 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
 #wrap,body.vintage #wrap{overflow:visible}
 #wrap canvas{border-radius:inherit}
 #hud{top:calc(var(--hud-over,0px)*-1)}
+
+/* Top bar: level chip, lives as bricks, clock, and a line that fills as the board is cleared. */
+#hud{gap:calc(var(--u)*2);padding:calc(var(--u)*1.5) calc(var(--u)*2.2);min-height:calc(var(--u)*10);
+ background:linear-gradient(180deg,#080c10f5,#0b1116d9);border:1px solid #ffffff16;border-top:0;
+ border-radius:0 0 calc(var(--u)*2.6) calc(var(--u)*2.6);box-shadow:0 6px 18px #0008;color:var(--l-ink)}
+body{--hud-life:#ff7a6b}body.clean{--hud-life:#e9ecec}body.vapor{--hud-life:#ff71ce}
+#hud .chip{flex:0 0 auto;padding:.6em .85em .5em;border-radius:999px;line-height:1;letter-spacing:.06em;color:var(--l-accent);
+ background:color-mix(in srgb,var(--l-accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--l-accent) 42%,transparent)}
+#hud .pips{display:flex;flex:0 0 auto;align-items:center;gap:calc(var(--u)*.8);overflow:visible}
+#hud .pips i{display:block;width:calc(var(--u)*2.6);height:calc(var(--u)*1.7);border-radius:1.5px;background:var(--hud-life);box-shadow:0 0 calc(var(--u)*1.4) color-mix(in srgb,var(--hud-life) 60%,transparent)}
+#hud .pips i.off{background:#ffffff1f;box-shadow:none}
+#hud .clock{flex:0 0 auto;font-variant-numeric:tabular-nums;letter-spacing:.04em;color:var(--l-ink);overflow:visible}
+#hud .clock.low{color:#ff5468}
+#hud button{border-radius:calc(var(--u)*2.2);background:#ffffff0d!important;border-color:#ffffff26!important;transition:background .12s,border-color .12s,transform .08s}
+#hud button:hover{background:#ffffff1a!important;border-color:var(--l-border)!important}
+#hud button:active{transform:scale(.94)}
+#hudBar{position:absolute;left:calc(var(--u)*2.6);right:calc(var(--u)*2.6);bottom:0;height:2px;border-radius:2px;background:#ffffff14;overflow:hidden;pointer-events:none}
+#hudFill{display:block;width:100%;height:100%;transform-origin:left;transform:scaleX(0);transition:transform .3s ease-out;
+ background:linear-gradient(90deg,var(--lb-secondary),var(--l-accent))}
+body.clean #hud .pips i{box-shadow:none}
+@media(prefers-reduced-motion:reduce){#hudFill,#hud button{transition:none}}
 </style>
 </head>
 <body>
@@ -182,9 +203,10 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
   <canvas id="c"></canvas>
   <canvas id="g"></canvas>
   <div id="hud">
-   <span id="hudMode">SOLO</span><span id="lvl">L1</span><span id="lives">♥3</span><span id="tmr">0:00</span><span class="sp"></span>
+   <span id="lvl" class="chip">L1</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span><span class="sp"></span>
    <button id="sty" type="button" title="Visual style">crt</button>
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
+   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
    <div id="hudMenu" hidden>
     <button id="home" type="button">LOBBY</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
@@ -648,7 +670,7 @@ function update(dt){
 
 // ---------- render ----------
 const hudLives = document.getElementById('lives'), hudTmr = document.getElementById('tmr');
-const hudLvl = document.getElementById('lvl');
+const hudLvl = document.getElementById('lvl'), hudFill = document.getElementById('hudFill');
 function setText(el, text){ if (el.textContent !== text) el.textContent = text; }
 function render(fs = 1){
   shake *= Math.pow(0.86, fs); const sx = (Math.random() - .5) * shake, sy = (Math.random() - .5) * shake;
@@ -711,11 +733,11 @@ function render(fs = 1){
   else ctx.fillStyle = style === 'clean' ? '#c96a5a' : '#e07a66';
   squash *= Math.pow(0.82, fs);
   const sw = pw * (1 + .1 * squash), sh = PH * (1 - .35 * squash);
-  for (const q of paddles()) ctx.fillRect(q - sw / 2, PY + (PH - sh), sw, sh);
+  for (const q of paddles()) { ctx.beginPath(); ctx.roundRect(q - sw / 2, PY + (PH - sh), sw, sh, 3.5); ctx.fill(); }
   ctx.fillStyle = V ? '#01cdfe' : '#c96a5a'; ctx.fillRect(GX, GY - 7, COLS * CS, 2);
   ctx.restore();
   if (style !== 'clean') {
-    ctx.fillStyle = V ? '#fff' : '#ffb3a3'; for (const q of paddles()) ctx.fillRect(q - pw / 2, PY, pw, 1);
+    ctx.fillStyle = V ? '#fff' : '#ffb3a3'; for (const q of paddles()) ctx.fillRect(q - pw / 2 + 3, PY + 1, pw - 6, 1);
     ctx.globalCompositeOperation = 'lighter';
     const gs = V ? glowP : glowV;
     for (let k = 0, n = Math.min(balls.length, 350); k < n; k++) ctx.drawImage(gs, balls[k].x - 8, balls[k].y - 8, 16, 16);
@@ -822,9 +844,11 @@ function render(fs = 1){
     ctx.shadowBlur = 0;
   }
 
-  setText(hudLvl, (isDaily() ? 'DAY' : 'L' + level) + (quad ? '✣' : '◫'));
-  setText(hudLives, '♥' + lives);
+  setText(hudLvl, isDaily() ? 'DAILY' : 'LEVEL ' + level);
+  if (hudLives.shown !== lives) { hudLives.shown = lives; const top = Math.max(MAX_LIVES, lives); let pips = ''; for (let k = 0; k < top; k++) pips += k < lives ? '<i></i>' : '<i class="off"></i>'; hudLives.innerHTML = pips; hudLives.setAttribute('aria-label', lives + ' lives'); }
   setText(hudTmr, fmtTime(runTime));
+  const cleared = total ? Math.round(1000 * (1 - remaining / total)) / 1000 : 0;
+  if (hudFill.shown !== cleared) { hudFill.shown = cleared; hudFill.style.transform = 'scaleX(' + cleared + ')'; }
 }
 
 let last = performance.now();

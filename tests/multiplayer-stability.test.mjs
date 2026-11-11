@@ -54,7 +54,7 @@ test("multiplayer retro visuals do not animate full-screen brightness", () => {
 
 test("the brick cache only repaints changed cells and clears on a fresh round or theme", () => {
   const start = html.indexOf("function paintTiles(board){");
-  const end = html.indexOf("\nfunction label(", start);
+  const end = html.indexOf("\n// The court backdrop", start);
   assert.ok(start > 0 && end > start);
   const clears = [], draws = [];
   const tileCtx = { setTransform() {}, clearRect: (...args) => clears.push(args) };

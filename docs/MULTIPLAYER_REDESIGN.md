@@ -207,3 +207,11 @@ Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seede
 - **Pickups.** A power-up brick releases a capsule that falls toward the player whose ball broke it and takes effect only if that player catches it, as in Solo. Capsules look the same in every theme because the power-up set is shared by the room; Solo's per-theme sets stay Solo-only by design.
 - **Launch.** A held replacement ball launches on a tap on the board or Space, or by itself after 2.5s.
 - **Still open from section 9:** drag-to-aim and Solo's stopwatch scoring are not in Multiplayer (rounds stay timed and scored). The room is always the portrait arena: the host-aspect option is not wired through the room-creation route.
+
+## 11. Top bar, visual pass and new mechanics (November 11, 2026)
+
+- **Top bar (both modes).** Level chip, lives as brick pips, clock (red in the last 10 seconds of a round) and a line along the bottom edge that fills as the board is cleared. Solo's speed button is removed.
+- **Multiplayer visuals.** Pre-rendered court backdrop with glow, grid and frame; rounded paddles with a highlight; tapered ball trails that turn gold as a rally speeds up; score pop-ups; a pulsing combo banner.
+- **Combo.** Bricks broken within 1.5s of each other build a combo; every five links add a multiple to brick score, up to x5. A miss resets it.
+- **Rally.** Each paddle return speeds that ball up 3%, to 30% at most. A replacement ball starts at base speed.
+- **Difficulty.** Base ball speed is 300 (was 330) in both modes via `ballSpeed()`. Solo starts with 5 lives and only previews the launch aim. Multiplayer starts with 4 lives (max 6) and 2px of paddle grace.

@@ -335,5 +335,5 @@ function uncrushPoint(transform,x,y){
 }
 export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed].map(fn=>fn.toString()).join("\n");
 export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed].map(fn=>fn.toString()).join("\n");

@@ -52,7 +52,7 @@ function startRound(r){
  r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
- for(const p of r.players){p.score=0;p.lives=4;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
+ for(const p of r.players){p.score=0;p.combo=0;p.comboAt=0;p.lives=4;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
  resetBall(r);
 }
 function paddleFor(r,side){return r.players.find(p=>p.seat===side&&p.lives>0&&p.online!==false)||null;}
@@ -64,14 +64,21 @@ function damageBrick(r,index,owner,amount=1){
  if(next===0)r.board.remaining--;
  r.hits++;
  const player=r.players.find(p=>p.id===owner);
- if(player)player.score+=next===0?10:3;
+ if(player){
+  // Bricks broken in quick succession build a combo; every five links add another multiple, up to x5.
+  if(next===0){
+   const now=Date.now();
+   player.combo=now-(player.comboAt||0)<1500?(player.combo||0)+1:1;player.comboAt=now;
+   player.score+=10*(1+Math.min(4,Math.floor(player.combo/5)));
+  }else player.score+=3;
+ }
  return next===0;
 }
 function createExtraBalls(r,ball,count){
  for(let i=0;i<count&&r.balls.length<MAX_BALLS;i++){
   const sign=i%2===0?1:-1,angle=sign*(.24+Math.floor(i/2)*.18);
   const cs=Math.cos(angle),sn=Math.sin(angle);
-  r.balls.push({x:ball.x,y:ball.y,vx:ball.vx*cs-ball.vy*sn,vy:ball.vx*sn+ball.vy*cs,owner:ball.owner,source:ball.source??ball.owner});
+  r.balls.push({x:ball.x,y:ball.y,vx:ball.vx*cs-ball.vy*sn,vy:ball.vx*sn+ball.vy*cs,owner:ball.owner,source:ball.source??ball.owner,rally:ball.rally||0});
  }
 }
 function grantPower(r,idx,ball,caught=0){
@@ -131,7 +138,7 @@ function advancePowers(r,dt){
  });
 }
 function miss(r,p,ball){
- p.lives=Math.max(0,p.lives-1);
+ p.lives=Math.max(0,p.lives-1);p.combo=0;
  const index=r.balls.indexOf(ball);
  if(index!==-1)r.balls.splice(index,1);
  markEvent(r,"MISS",ball.x,ball.y,p.id);
@@ -168,7 +175,9 @@ function advanceBall(r,ball,dt){
   if(Math.abs(coord-center)>half+edge+2){miss(r,p,ball);return true;}
   const deflect=clamp((coord-center)/half,-1,1);
   ball.owner=p.id;p.score+=2;
-  bounceBall(ball,side,deflect,ballSpeed(r.arena));
+  // Every return speeds the ball up a little, to 30% at most; a miss starts the rally again.
+  ball.rally=Math.min(10,(ball.rally||0)+1);
+  bounceBall(ball,side,deflect,ballSpeed(r.arena)*(1+.03*ball.rally));
   return false;
  };
  if(ball.y>=BOARD.paddleBottom-edge&&ball.vy>0){
@@ -198,7 +207,7 @@ export class BrickRoom extends DurableObject{
   const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,arena:r.arena||arenaLayout(),
    seed:r.seed,level:r.level,startedAt:r.startedAt,
    remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Math.max(Date.now(),r.startedAt||0))/1000)):90,
-   players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,online:live.has(p.id)})),
+   players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,combo:Date.now()-(p.comboAt||0)<1500?p.combo||0:0,online:live.has(p.id)})),
    balls:(r.balls||[]).map(b=>({x:Math.round(b.x*10)/10,y:Math.round(b.y*10)/10,vx:b.hold>0?0:Math.round(b.vx),vy:b.hold>0?0:Math.round(b.vy),owner:b.owner,source:b.source,held:b.hold>0||undefined})),
    pups:(r.pups||[]).map(p=>({x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,kind:p.kind,owner:p.owner})),
    now:Date.now(),effects:r.effects||{},lastEvent:r.lastEvent||null,crushSteps:r.crushSteps||0};

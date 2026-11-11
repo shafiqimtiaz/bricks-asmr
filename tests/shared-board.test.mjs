@@ -509,7 +509,7 @@ test("invited player must enter a real gamer name before joining", async () => {
 test("brick changes redraw only changed cells rather than all tiles", () => {
   const client = html.slice(html.indexOf("<script>") + 8, html.lastIndexOf("</script>"));
   const start = client.indexOf("let drawnPalette=null,drawnVaporPalette=null;");
-  const end = client.indexOf("function label(",start);
+  const end = client.indexOf("// The court backdrop",start);
   assert.ok(start >= 0 && end > start);
   const tileOperations = {clear:0,fill:0};
   const tileCtx = {
@@ -660,7 +660,7 @@ test("multiplayer lobby maps the current player to the bottom slot",()=>{
  const from=js.indexOf("function render(){"),to=js.indexOf("let GRID_X=",from);
  assert.ok(from>=0&&to>from);
  const players=[{id:"p0",name:"Host",seat:0,online:true,lives:3},{id:"p1",name:"Guest",seat:2,online:true,lives:3}];
- const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false});return nodes.get(id);};
+ const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false,style:{}});return nodes.get(id);};
  const calls=[],state={code:"ABCD23",players,hostId:"p0",status:"waiting",round:0,remaining:90,balls:[],board:{hp:"0",remaining:0,total:1}};
  const fn=new Function("$","state","you","renderSeat",js.slice(from,to)+"return render;");
  const render=fn($,state,"p1",(side,p,mine)=>calls.push({side,id:p?.id,mine}));
