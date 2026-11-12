@@ -357,11 +357,11 @@ body.clean #hud .pips i{box-shadow:none}
 const $=id=>document.getElementById(id);
 const API=location.pathname.startsWith("/multiplayer")?"/api/multiplayer/rooms":"/api/rooms";
 let aimAng=0,heldBefore=false,drag=null;
-let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,lastHits=-1,localPos=.5,inputSeq=0;
+let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,localPos=.5,inputSeq=0;
 let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
-const serverNow=()=>Date.now()+clock,shownPos={},held={};
-// Power-up capsules look the same in every theme because all players share them.
-const CAPSULES={1:["+2","#3fa9d8"],2:["x3","#9cc23a"],3:["W","#f0a040"],4:["P","#ff5a2a"],5:["S","#01cdfe"],6:["♥","#ff6fa3"],7:["H","#ff3df0"],8:["Z","#6a8cff"],9:["C","#d9b22a"],10:["♥","#ff6fa3"],11:["x2","#9cc23a"]};
+const serverNow=()=>Date.now()+clock,shownC={},held={};
+// The room's rules are Solo's: the same engine runs here for the aim path, paddle geometry and power-up tables.
+const E=brickEngine();
 const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
 // ---------- canvas ----------
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -461,9 +461,9 @@ for(const id of ['panel', 'homeLobby']){
 
 let W=arena.width,H=arena.height,viewW=W,viewH=H;
 const colors=["#d57d70","#8dbbca","#d0a768","#a5ae91"];
-let sparks=[],rings=[],lastHP=null,drawnHP=null,drawnStyle=null;
+let board=null,sparks=[],rings=[],beams=[],hpArr=null,colArr=null,dirty=[],tilesFull=true,drawnStyle=null,sim=null;
 let soundOn=true,soundKit=null,notesThisFrame=0;
-function clearFx(){sparks=[];rings=[];floats=[];}
+function clearFx(){sparks=[];rings=[];beams=[];floats=[];}
 function sparkle(b){
  const c=(style==="vapor"?state?.board?.vaporPalette:state?.board?.palette)?.[b.c]||colors[b.c%4];const x=b.x,y=b.y;
  rings.push({x,y,r:2,t:1,c});
@@ -546,7 +546,7 @@ function beep(row=32){
 async function enter(code,id){
  const result=await request("/"+code+"/state");
  clearTimeout(retry);retry=null;socket?.close();socket=null;
- closed=false;roomCode=code;you=result.you||id||"";state=null;lastHits=-1;drawnHP=null;clearFx();lastHP=null;
+ closed=false;roomCode=code;you=result.you||id||"";state=null;tilesFull=true;hpArr=null;clearFx();
  localStorage.setItem("bricksLastRoom",code);
  $("nicknameForm").hidden=true;$("intro").hidden=true;$("room").hidden=false;$("roomCode").textContent=code;
  accept(result.state);connect();
@@ -581,55 +581,69 @@ function connect(){
  };
  ws.onerror=()=>{try{ws.close();}catch{}};
 }
-let lastUiRender=0,lastEventSeq=-1,toastTimeout=0;
-function showPower(event){
- if(!event||event.seq===lastEventSeq)return;
- lastEventSeq=event.seq;
- // Other players' misses and pickups stay on their screens; shared buffs still show in the status line.
- if(event.owner!==you)return;
- const el=$("toast");el.textContent=event.type;el.classList.add("visible");
+let lastUiRender=0,toastTimeout=0;
+function toast(text){
+ const el=$("toast");el.textContent=text;el.classList.add("visible");
  clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove("visible"),1400);
- if(event.type==="MISS")blip(95,.13,.18);
- else blip(440,.07,.10);
+}
+// Where a brick's centre is on the board right now, through the crusher's stretch.
+function cellWorld(s,i){
+ const [kx,bx,ky,by]=s.crush;
+ return {x:kx*(GRID_X+(i%GRID_COLS+.5)*GRID_SIZE)+bx,y:ky*(GRID_Y+(Math.floor(i/GRID_COLS)+.5)*GRID_SIZE)+by};
+}
+// What the room reports happening: every player hears the bricks, but only the player concerned gets the toast.
+function react(s,e,mine){
+ const own=s.players[e.o]?.id===you;
+ switch(e.t){
+  case"break":{
+   const w=cellWorld(s,e.i),row=Math.floor(e.i/GRID_COLS);
+   beep(row);
+   if(sparks.length<120)sparkle({x:w.x,y:w.y,c:parseInt(s.board.colors[e.i],16)||0});
+   if(own)popAt=w;
+   break;}
+  case"hit":blip(140+Math.floor(e.i/GRID_COLS),.12,.05,"sine");break;
+  case"paddle":if(own&&notesThisFrame<2)blip(98,.15,.06,"sine");break;
+  case"crush":blip(70,.25,.18,"sine");break;
+  case"beam":beams.push({...e,t:1});break;
+  case"ring":rings.push({x:e.x,y:e.y,r:e.R,t:1,c:e.c,big:1});break;
+  case"power":if(own){const d=E.puDef(s.set,e.k,s.mode);toast(d.nm+"!");blip(262*Math.pow(2,(e.k-1)/12),.12,.12,d.bad?"square":"triangle");}break;
+  case"miss":if(own){toast("MISS");blip(95,.13,.18);}break;
+  case"out":if(own){toast("OUT");blip(80,.15,.3,"square");}break;
+  case"crushed":if(own){toast("CRUSHED");blip(110,.25,.3,"square");}break;
+ }
 }
 let popAt=null;
+// The live world the shared engine reads (aim path, paddle geometry), rebuilt from each snapshot.
+function buildSim(s){
+ const bi=s.board||{},[kx,bx,ky,by]=s.crush;
+ return {W,H,CS:GRID_SIZE,COLS:GRID_COLS,ROWS:GRID_ROWS,GX:GRID_X,GY:GRID_Y,BR:GRID_SIZE*.45,speed:ballSpeed(arena),mode:s.mode,pool:s.players[0]?.lives||0,
+  hp:hpArr,col:colArr,crush:{kx,bx,ky,by},fx:s.fx,
+  players:s.players.map(p=>({id:p.id,seat:p.seat,online:p.online,out:!!p.out,lives:p.lives,fx:p.fx,c:p.c,pw:p.pw,aim:0})),
+  balls:s.balls.map(b=>({x:b[0],y:b[1],vx:b[2],vy:b[3],source:s.players[b[4]]?.id,held:!!b[5]}))};
+}
 function accept(s){
  if(!s)return;
  popAt=null;
  if(s.arena && s.arena.width!==W)adoptArena(s.arena);
  if(typeof s.now==="number")clock=s.now-Date.now();
  const previous=state,sameRound=!!previous&&previous.code===s.code&&previous.round===s.round;
- if(!sameRound){lastEventSeq=-1;clearFx();drawnHP=null;}
- const prior=sameRound?previous?.board?.hp||null:null,oldHits=lastHits;
- if(s.board&&sameRound&&previous?.board)s.board={...previous.board,...s.board};
- else if(!s.board&&sameRound&&previous?.board)s.board=previous.board;
- state=s;lastStateAt=performance.now();lastHits=s.hits;
+ if(!sameRound){clearFx();tilesFull=true;localPos=.5;}
+ // The board arrives whole once, then as the list of cells that changed.
+ if(s.board?.hp){board=s.board;hpArr=Uint8Array.from(s.board.hp,c=>c.charCodeAt(0)-48);colArr=Uint8Array.from(s.board.colors,c=>parseInt(c,16));tilesFull=true;}
+ else if(s.board?.cells&&hpArr)for(let k=0;k<s.board.cells.length;k+=2){hpArr[s.board.cells[k]]=s.board.cells[k+1];dirty.push(s.board.cells[k]);}
+ s.board=board;
+ state=s;lastStateAt=performance.now();
+ sim=hpArr?buildSim(s):null;
  if(previous?.players.find(p=>p.id===you)?.seat!==s.players.find(p=>p.id===you)?.seat)resize();
- const next=s.board?.hp||null;
- if(prior&&next&&next!==prior){
-  let noteRow=32;
-  for(let i=0;i<Math.min(prior.length,next.length);i++)if(prior[i]!=="0"&&next[i]==="0"){
-   noteRow=Math.floor(i/GRID_COLS);
-   if(sparks.length<120){
-    const transform=crusherTransform(s.crushSteps,s.players,s.board.centerX,s.board.centerY);
-    const world=crusherPoint(transform,GRID_X+(i%GRID_COLS+.5)*GRID_SIZE,GRID_Y+(Math.floor(i/GRID_COLS)+.5)*GRID_SIZE);
-    sparkle({x:world.x,y:world.y,c:parseInt(s.board.colors[i],16)||0});popAt=world;
-   }
-  }
-  if(oldHits>=0&&s.hits>oldHits)beep(noteRow);
- }
+ for(const e of s.events||[])react(s,e);
  const mineBefore=previous?.players.find(p=>p.id===you),mineNow=s.players.find(p=>p.id===you);
  if(sameRound&&mineBefore&&mineNow&&mineNow.score-mineBefore.score>=10&&popAt&&floats.length<24){
   floats.push({x:popAt.x,y:popAt.y,text:"+"+(mineNow.score-mineBefore.score),c:style==="vapor"?"#fffb96":"#ffe9a8",t:1});
  }
- lastHP=next;
- if(s.lastEvent)showPower(s.lastEvent);
  // Each new serve starts aimed straight in.
- const holding=s.status==="playing"&&!!s.balls?.some(b=>b.held&&b.source===you);
+ const holding=s.status==="playing"&&holdingServe();
  if(holding&&!heldBefore){aimAng=0;queueInput();}
  heldBefore=holding;
- const me=s.players.find(p=>p.id===you);
- if(previous?.status!=="playing"&&me)localPos=me.pos;
  const connectionChanged=s.hostId!==previous?.hostId||s.players.some((p,i)=>p.online!==previous?.players?.[i]?.online||p.name!==previous?.players?.[i]?.name);
  if(connectionChanged||performance.now()-lastUiRender>175||s.status!==previous?.status||s.mode!==previous?.mode||s.round!==previous?.round||s.players.length!==previous?.players?.length){
   render();lastUiRender=performance.now();
@@ -659,11 +673,11 @@ function render(){
  $("round").textContent=s.round||"—";
  const secs=Math.max(0,s.elapsed|0),mode=s.mode||"versus";
  $("timer").textContent=Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
- $("lvl").textContent="SEED "+String(s.seed||"").toUpperCase();
+ $("lvl").textContent="SEED "+(s.seed||"");
  let pips="";for(let k=0;k<Math.max(4,me.lives);k++)pips+=k<me.lives?"<i></i>":'<i class="off"></i>';
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
  $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
- $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.board.remaining/s.board.total).toFixed(3):0)+")";
+ $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.remaining/s.board.total).toFixed(3):0)+")";
  $("hudStats").hidden=s.status!=="playing";
  $("hudMode").hidden=s.status==="playing";
  $("hudMode").textContent=s.status==="finished"?"RESULTS":"LOBBY";
@@ -679,7 +693,7 @@ function render(){
  if(s.status==="finished"){
   const result=s.result||{},top=Math.max(...s.players.map(p=>p.score)),winner=s.players.find(p=>p.id===result.winner);
   if(mode==="coop"){
-   $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":"ALL OUT";
+   $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":result.reason==="crushed"?"CRUSHED":"ALL OUT";
    $("glassText").textContent="TEAM SCORE "+s.players.reduce((t,p)=>t+p.score,0)+" · "+Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
   }else if(winner){
    $("glassTitle").textContent=winner.name+" WINS";
@@ -699,14 +713,14 @@ const tiles=document.createElement("canvas"),tileCtx=tiles.getContext("2d");let 
 function sizeTiles(){
  const next=Math.max(1,Math.min(4,Math.ceil(Math.max(scaleX,scaleY))));
  if(next===tileScale&&tiles.width===W*next)return;
- tileScale=next;tiles.width=W*next;tiles.height=H*next;drawnHP=null;
+ tileScale=next;tiles.width=W*next;tiles.height=H*next;tilesFull=true;
 }
 function adoptArena(next){
  arena=arenaLayout(next.width/next.height);
  W=arena.width;H=arena.height;
  GRID_X=arena.gridX;GRID_Y=arena.gridY;GRID_SIZE=arena.cell;
  GRID_COLS=arena.cols;GRID_ROWS=arena.rows;
- drawnHP=null;resize();
+ tilesFull=true;resize();
 }
 const PALETTE={
  clean:["#7d9cb5","#8eb59e","#c1ab85","#c58e90","#7e938c","#9ca3b0","#b5a088","#9b8da9","#a2bdb3","#94aec2","#b0acaa","#bfaaa0","#abb59a","#9da9ad","#b8b4a1","#c1b6b2"],
@@ -714,23 +728,24 @@ const PALETTE={
  vapor:["#ff71ce","#01cdfe","#05ffa1","#b967ff","#ff9dea","#7ee9fd","#f6a6e6","#c187ff","#ff78d2","#59ffde","#9ec1ff","#f5a5ff","#bfe6ff","#fa89c6","#b9f9ab","#a786fc"]
 };
 let drawnPalette=null,drawnVaporPalette=null;
-function paintTiles(board){
- if(!board?.hp)return;
- const samePalette=drawnStyle===style&&drawnPalette===board.palette&&drawnVaporPalette===board.vaporPalette;
- if(samePalette&&board.hp===drawnHP)return;
- const previous=samePalette?drawnHP:null;
+function paintCell(b,i){
+ const x=GRID_X+i%GRID_COLS*GRID_SIZE,y=GRID_Y+Math.floor(i/GRID_COLS)*GRID_SIZE;
+ drawBrickTile(tileCtx,x,y,GRID_SIZE,hpArr[i],colArr[i],
+  style==="vapor"?b.vaporPalette||PALETTE.vapor:b.palette||PALETTE[style],
+  style==="vapor"?b.vaporWalls:b.wallColors);
+}
+// Only the cells that changed are redrawn; a new round, theme or canvas size repaints them all.
+function paintTiles(b){
+ if(!b||!hpArr)return;
+ if(drawnStyle!==style||drawnPalette!==b.palette||drawnVaporPalette!==b.vaporPalette)tilesFull=true;
  tileCtx.setTransform(tileScale,0,0,tileScale,0,0);
- if(!previous)tileCtx.clearRect(0,0,W,H);
- const count=Math.min(board.hp.length,GRID_COLS*GRID_ROWS);
- for(let i=0;i<count;i++){
-  if(previous&&previous.charCodeAt(i)===board.hp.charCodeAt(i))continue;
-  const life=board.hp.charCodeAt(i)-48;
-  const x=GRID_X+i%GRID_COLS*GRID_SIZE,y=GRID_Y+Math.floor(i/GRID_COLS)*GRID_SIZE;
-  drawBrickTile(tileCtx,x,y,GRID_SIZE,life,parseInt(board.colors[i],16)||0,
-   style==="vapor"?board.vaporPalette||PALETTE.vapor:board.palette||PALETTE[style],
-   style==="vapor"?board.vaporWalls:board.wallColors);
- }
- drawnHP=board.hp;drawnStyle=style;drawnPalette=board.palette;drawnVaporPalette=board.vaporPalette;
+ if(tilesFull){
+  tileCtx.clearRect(0,0,W,H);
+  const count=Math.min(hpArr.length,GRID_COLS*GRID_ROWS);
+  for(let i=0;i<count;i++)paintCell(b,i);
+  tilesFull=false;drawnStyle=style;drawnPalette=b.palette;drawnVaporPalette=b.vaporPalette;
+ }else for(const i of dirty)paintCell(b,i);
+ dirty=[];
 }
 // The court backdrop (glow, faint grid, frame) is painted once and reused every frame.
 const court=document.createElement("canvas");let courtKey="";
@@ -752,32 +767,26 @@ function paintCourt(){
  c.strokeStyle=V?"#ff71ce":C?"#5a5d60":"#56605c";c.lineWidth=1;c.beginPath();c.roundRect(6.5,40.5,W-13,503,5);c.stroke();
 }
 let floats=[];
-// The serve's straight-line path: it reflects off empty edges and stops at the first brick or occupied edge.
-function aimPath(from,seat,radius,transform){
- const v=aimVelocity(seat,aimAng,1),points=[],occupied=new Set(state.players.filter(p=>p.online&&p.lives>0).map(p=>p.seat));
- let x=from.x,y=from.y,vx=v.vx,vy=v.vy;
- for(let d=0;d<700;d+=2){
-  x+=vx*2;y+=vy*2;
-  if(x<15+radius){if(occupied.has(1))break;x=15+radius;vx=Math.abs(vx);}
-  if(x>W-15-radius){if(occupied.has(3))break;x=W-15-radius;vx=-Math.abs(vx);}
-  if(y<49+radius){if(occupied.has(2))break;y=49+radius;vy=Math.abs(vy);}
-  if(y>535-radius){if(occupied.has(0))break;y=535-radius;vy=-Math.abs(vy);}
-  const p=uncrushPoint(transform,x,y),col=Math.floor((p.x-GRID_X)/GRID_SIZE),row=Math.floor((p.y-GRID_Y)/GRID_SIZE);
-  if(col>=0&&col<GRID_COLS&&row>=0&&row<GRID_ROWS&&state.board?.hp?.[row*GRID_COLS+col]>"0")break;
-  if(d%8===0)points.push(x,y);
- }
- return points;
-}
 function label(text,x,y,angle){
  ctx.save();ctx.translate(x,y);if(angle)ctx.rotate(angle);ctx.fillText(text,0,0);ctx.restore();
 }
+// The serve's predicted path (wall and brick bounces, then a return off the server's own paddle), as in Solo.
+function drawPath(pr,color){
+ const n=pr.pts.length/2;
+ ctx.fillStyle=color;
+ for(let k=0;k<n;k++){ctx.globalAlpha=.85*(1-k/n)+.1;ctx.fillRect(pr.pts[2*k]-1,pr.pts[2*k+1]-1,2,2);}
+ ctx.globalAlpha=.9;ctx.strokeStyle=color;ctx.lineWidth=.8;
+ for(let k=0;k<pr.marks.length;k+=2){ctx.beginPath();ctx.arc(pr.marks[k],pr.marks[k+1],3,0,Math.PI*2);ctx.stroke();}
+ ctx.globalAlpha=1;
+}
+const INWARD={0:[0,-1],2:[0,1],1:[1,0],3:[-1,0]};
 function draw(now){
  frame=requestAnimationFrame(draw);notesThisFrame=0;
  const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000)||0);lastFrame=now;
  const s=state,me=s?.players.find(p=>p.id===you),V=style==="vapor",C=style==="clean";
- const playing=s?.status==="playing",live=playing&&s.startedAt<=serverNow(),wide=s?.effects?.wideUntil>serverNow();
+ const playing=s?.status==="playing",live=playing&&s.startedAt<=serverNow(),inverted=me?.fx?.invert>0;
  const dir=(held.arrowright||held.d?1:0)-(held.arrowleft||held.a?1:0);
- if(dir&&playing&&$("hudMenu").hidden)send(localPos+dir*(view.seat===2||view.seat===3?-1:1)*dt*1.5);
+ if(dir&&playing&&$("hudMenu").hidden)send(localPos+dir*dt*1.5);
  const turn=(held.arrowup||held.w?1:0)-(held.arrowdown||held.s?1:0);
  if(turn&&$("hudMenu").hidden&&holdingServe())setAim(aimAng+turn*dt*1.2);
  ctx.setTransform(scaleX,0,0,scaleY,0,0);
@@ -786,46 +795,74 @@ function draw(now){
  ctx.save();ctx.transform(...viewMatrix(view));
  paintCourt();ctx.drawImage(court,0,0,W,H);
  paintTiles(s?.board);
- const transform=crusherTransform(s?.crushSteps,s?.players||[],s?.board?.centerX,s?.board?.centerY);
+ // The crusher stretches the formation toward every occupied edge: world = k * grid + b.
+ const [kx,bx,ky,by]=s?.crush||[1,0,1,0];
  ctx.save();
- ctx.transform(transform.sx,0,0,transform.sy,transform.cx*(1-transform.sx),transform.cy*(1-transform.sy));
+ ctx.transform(kx,0,0,ky,bx,by);
  ctx.drawImage(tiles,0,0,W,H);
  ctx.restore();
+ // Where each paddle is now: yours follows your finger at once, the others glide between updates.
+ const mine=playing&&me&&sim?E.paddleAt(sim,you,inverted?1-localPos:localPos):null;
+ const cOf=p=>{
+  if(p.id===you&&mine!==null)return mine;
+  const seen=shownC[p.id]??p.c;
+  return shownC[p.id]=seen+(p.c-seen)*Math.min(1,dt*20);
+ };
+ const centres={};
  if(s?.players)for(const p of s.players){
-  const own=p.id===you,active=p.online&&p.lives>0;
+  const own=p.id===you,active=p.online&&!p.out,c=cOf(p),pw=p.pw;
+  centres[p.id]=c;
   const color=own?(V?"#ff71ce":"#e07a66"):V?["#01cdfe","#05ffa1","#ff71ce","#b967ff"][p.seat]:"#8dbbca";
-  // Other players' paddles arrive 20 times a second; ease between updates so they glide.
-  const seen=shownPos[p.id]??p.pos;
-  const pos=own?(playing?localPos:p.pos):(shownPos[p.id]=seen+(p.pos-seen)*Math.min(1,dt*20));
-  const shape=paddleShape(arena,p.seat,pos,wide);
-  ctx.save();ctx.fillStyle=active?color:(V?"#483052":"#414546");
-  if(!C&&active){ctx.shadowColor=color;ctx.shadowBlur=11;}
-  ctx.beginPath();ctx.roundRect(shape.x,shape.y,shape.w,shape.h,3.5);ctx.fill();
-  if(active&&!C){ctx.shadowBlur=0;ctx.fillStyle="rgba(255,255,255,.55)";const inner=p.seat===0||p.seat===1;
-   if(shape.horizontal)ctx.fillRect(shape.x+3,inner&&p.seat===0?shape.y+1:shape.y+shape.h-2,shape.w-6,1);
-   else ctx.fillRect(p.seat===1?shape.x+shape.w-2:shape.x+1,shape.y+3,1,shape.h-6);}
-  ctx.restore();
+  const hz=p.seat===0||p.seat===2,face=E.face({W},p.seat),span=hz?[0,W]:[40,544];
+  // A twin paddle mirrors the first across the edge.
+  const cs=active&&p.fx.twin>0?[c,span[0]+span[1]-c]:[c];
+  if(active){
+   if(p.fx.sunbeam>0){
+    const g=hz?ctx.createLinearGradient(c-15,0,c+15,0):ctx.createLinearGradient(0,c-15,0,c+15);
+    g.addColorStop(0,"rgba(255,211,25,0)");g.addColorStop(.5,"rgba(255,211,25,.45)");g.addColorStop(1,"rgba(255,211,25,0)");
+    ctx.fillStyle=g;if(hz)ctx.fillRect(c-15,40,30,504);else ctx.fillRect(6,c-15,W-12,30);
+   }
+   if(p.fx.floor>0&&(p.fx.floor>1.5||(now/125|0)%2)){
+    const o=(p.seat===0||p.seat===3?1:-1),fl=face+o*E.floorDepth(p.seat);
+    ctx.fillStyle="#2ec4a6";if(!C){ctx.shadowColor="#2ec4a6";ctx.shadowBlur=8;}
+    if(hz)ctx.fillRect(6,fl,W-12,2);else ctx.fillRect(fl,40,2,504);
+    ctx.shadowBlur=0;
+   }
+  }
+  for(const q of cs){
+   const x=hz?q-pw/2:p.seat===1?face-7:face,y=hz?(p.seat===0?face:face-7):q-pw/2,w=hz?pw:7,h=hz?7:pw;
+   ctx.save();ctx.fillStyle=active?color:(V?"#483052":"#414546");
+   if(!C&&active){ctx.shadowColor=color;ctx.shadowBlur=11;}
+   ctx.beginPath();ctx.roundRect(x,y,w,h,3.5);ctx.fill();
+   if(active&&!C){ctx.shadowBlur=0;ctx.fillStyle="rgba(255,255,255,.55)";
+    if(hz)ctx.fillRect(x+3,p.seat===0?y+1:y+h-2,w-6,1);
+    else ctx.fillRect(p.seat===1?x+w-2:x+1,y+3,1,h-6);}
+   ctx.restore();
+  }
+ }
+ // The serve's aim path starts at the spot in front of your paddle, wherever your finger has taken it.
+ const serve=playing&&me&&sim&&holdingServe(),simMe=serve?sim.players.find(p=>p.id===you):null;
+ let spot=null;
+ if(simMe){
+  simMe.c=centres[you];simMe.aim=aimAng;
+  spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
+  sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
+  drawPath(E.predict(sim,you,900),V?"#01cdfe":"#ffffff");
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
- const serve=playing&&me?s.balls?.find(b=>b.held&&b.source===you):null,spot=serve?serveSpot(arena,me.seat,localPos):null;
- if(spot){
-  const path=aimPath(spot,me.seat,radius,transform);
-  ctx.fillStyle=V?"#01cdfe":"#ffffff";
-  for(let i=0;i<path.length;i+=2){ctx.globalAlpha=.7*(1-i/path.length/1.2);ctx.fillRect(path[i]-.75,path[i+1]-.75,1.5,1.5);}
-  ctx.globalAlpha=1;
- }
  if(s?.balls){
   // Predict each ball forward from the last snapshot; cap the guess so a late packet cannot fling it off the court.
   const ahead=live?Math.min((performance.now()-lastStateAt)/1000,.1):0;
   for(const b of s.balls){
-   const x=b===serve?spot.x:Math.max(6+radius,Math.min(W-6-radius,b.x+b.vx*ahead)),y=b===serve?spot.y:Math.max(40+radius,Math.min(544-radius,b.y+b.vy*ahead));
-   const ownBall=b.source===you,hot=Math.hypot(b.vx,b.vy)>cruise*1.14;
+   const held=b[5],ownBall=s.players[b[4]]?.id===you,mineHeld=held&&ownBall&&spot;
+   const x=mineHeld?spot.x:Math.max(6+radius,Math.min(W-6-radius,b[0]+b[2]*ahead)),y=mineHeld?spot.y:Math.max(40+radius,Math.min(544-radius,b[1]+b[3]*ahead));
+   const hot=Math.hypot(b[2],b[3])>cruise*1.14;
    const color=hot?(V?"#fffb96":"#ffd166"):ownBall?(V?"#ff71ce":"#ffa58a"):(V?"#01cdfe":"#a7dce9");
-   if(live&&!b.held){
+   if(live&&!held){
     ctx.lineCap="round";ctx.strokeStyle=color;
     for(let k=3;k>=1;k--){
      ctx.globalAlpha=.16*(4-k);ctx.lineWidth=radius*(2-k*.4);
-     ctx.beginPath();ctx.moveTo(x-b.vx*.022*k,y-b.vy*.022*k);ctx.lineTo(x,y);ctx.stroke();
+     ctx.beginPath();ctx.moveTo(x-b[2]*.022*k,y-b[3]*.022*k);ctx.lineTo(x,y);ctx.stroke();
     }
     ctx.globalAlpha=1;ctx.lineCap="butt";
    }
@@ -833,9 +870,20 @@ function draw(now){
    ctx.fillStyle=ownBall?(V?"#ffe3f6":"#fff"):(V?"#c9f6ff":"#e3f4f8");ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
   }
  }
+ // Laser bolts fly inward from the paddle that fired them.
+ if(s?.lasers?.length){
+  ctx.fillStyle="#ff4060";
+  for(const L of s.lasers){const hz=L[2]===0||L[2]===2;if(hz)ctx.fillRect(L[0]-.75,L[1]-5,1.5,6);else ctx.fillRect(L[0]-5,L[1]-.75,6,1.5);}
+ }
+ for(let i=beams.length-1;i>=0;i--){
+  const bm=beams[i];bm.t-=dt*1.6;if(bm.t<=0){beams.splice(i,1);continue;}
+  ctx.globalAlpha=bm.t*.7;ctx.fillStyle=bm.c;
+  if(bm.w)ctx.fillRect(bm.x,40,bm.w,504);else ctx.fillRect(6,bm.y,W-12,bm.h);
+ }
+ ctx.globalAlpha=1;
  for(let i=sparks.length-1;i>=0;i--){const p=sparks[i];p.t-=dt*1.25;p.x+=p.vx*dt;p.y+=p.vy*dt;if(p.t<=0){sparks[i]=sparks[sparks.length-1];sparks.pop();continue;}ctx.globalAlpha=Math.min(1,p.t);ctx.fillStyle=V?"#01cdfe":p.c;ctx.fillRect(p.x-1.5,p.y-1.5,3,3);}
  ctx.globalAlpha=1;
- for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t-=dt*1.2;if(r.t<=0){rings[i]=rings[rings.length-1];rings.pop();continue;}ctx.strokeStyle=V?"#ff71ce":r.c;ctx.globalAlpha=r.t;ctx.lineWidth=1;ctx.beginPath();ctx.arc(r.x,r.y,20*(1-r.t)+1,0,Math.PI*2);ctx.stroke();}
+ for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t-=dt*1.2;if(r.t<=0){rings[i]=rings[rings.length-1];rings.pop();continue;}ctx.strokeStyle=V&&!r.big?"#ff71ce":r.c;ctx.globalAlpha=r.t;ctx.lineWidth=r.big?1.5:1;ctx.beginPath();ctx.arc(r.x,r.y,r.big?r.r*(1.6-r.t):20*(1-r.t)+1,0,Math.PI*2);ctx.stroke();}
  ctx.globalAlpha=1;
  ctx.restore();
  const small=C?"bold 9px ui-monospace,monospace":"7px 'Press Start 2P',monospace";
@@ -852,12 +900,13 @@ function draw(now){
   const size=GRID_SIZE*1.5;
   ctx.font=C?"bold 8px ui-monospace,monospace":"6px 'Press Start 2P',monospace";
   for(const pup of s.pups){
-   const [icon,color]=CAPSULES[pup.kind]||["?","#aaa"],point=viewPoint(view,pup.x,pup.y),mine=pup.owner===you;
-   ctx.globalAlpha=mine?1:.4;
-   ctx.fillStyle=color;ctx.beginPath();ctx.arc(point.x,point.y,size,0,Math.PI*2);ctx.fill();
-   if(mine){ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.stroke();}
-   ctx.lineWidth=2;ctx.strokeStyle="rgba(0,0,0,.55)";ctx.strokeText(icon,point.x+.5,point.y+1);
-   ctx.fillStyle="#fff";ctx.fillText(icon,point.x+.5,point.y+1);
+   const d=E.puDef(s.set,pup[2],s.mode),point=viewPoint(view,pup[0],pup[1]),own=s.players[pup[3]]?.id===you;
+   ctx.globalAlpha=own?1:.4;
+   ctx.fillStyle=d.c;ctx.beginPath();ctx.arc(point.x,point.y,size,0,Math.PI*2);ctx.fill();
+   if(d.bad){ctx.strokeStyle="#ff3030";ctx.lineWidth=1.5;ctx.setLineDash([2,2]);ctx.stroke();ctx.setLineDash([]);}
+   else if(own){ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.stroke();}
+   ctx.lineWidth=2;ctx.strokeStyle="rgba(0,0,0,.55)";ctx.strokeText(d.ic,point.x+.5,point.y+1);
+   ctx.fillStyle="#fff";ctx.fillText(d.ic,point.x+.5,point.y+1);
   }
   ctx.globalAlpha=1;
  }
@@ -876,20 +925,17 @@ function draw(now){
  }
  ctx.restore();
  const trackStart=Math.max(40,viewW*.11),trackEnd=viewW-trackStart,controlY=viewH-26;
- const position=playing?localPos:(me?.pos??localPos);
- const handle=trackStart+(view.seat===2||view.seat===3?1-position:position)*(trackEnd-trackStart);
+ const handle=trackStart+(playing?localPos:.5)*(trackEnd-trackStart);
  ctx.fillStyle="#262626";ctx.beginPath();ctx.roundRect(trackStart-14,controlY-14,trackEnd-trackStart+28,28,14);ctx.fill();
  ctx.fillStyle="#3a3a3a";ctx.fillRect(trackStart,controlY-1.5,trackEnd-trackStart,3);
  ctx.fillStyle=V?"#ff71ce":"#c96a5a";ctx.beginPath();ctx.roundRect(handle-24,controlY-11,48,22,11);ctx.fill();
  ctx.fillStyle="#0003";for(const o of [-6,0,6])ctx.fillRect(handle+o-.75,controlY-5,1.5,10);
- const until=serverNow(),effects=s?.effects||{};
- const boosts=[effects.wideUntil>until?"WIDE":null,effects.pierceUntil>until?"PIERCE":null,effects.hyperUntil>until?"HYPER":null,effects.slowUntil>until?"SLOW":null].filter(Boolean);
  ctx.font=small;
  if(playing&&me){
   const mult=1+Math.min(4,Math.floor((me.combo||0)/5));
   ctx.fillStyle=V?"#ff9de0":"#e8b9ad";
-  const yours=me.lives>0?"YOU "+me.score:"OUT · "+me.score;
-  ctx.fillText(s.mode==="coop"?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-80);
+  const yours=me.out?"OUT · "+me.score:"YOU "+me.score;
+  ctx.fillText(s.mode==="coop"?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-84);
   if(mult>1){
    const beat=1+.12*Math.sin(now/90);
    ctx.save();ctx.translate(viewW/2,view.height-112);ctx.scale(beat,beat);
@@ -899,11 +945,23 @@ function draw(now){
    ctx.fillText("COMBO x"+mult,0,0);ctx.restore();ctx.font=small;
   }
  }
- if(live&&s.balls?.some(b=>b.held&&b.source===you)){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-64);}
- else if(boosts.length){ctx.fillStyle=V?"#ff71ce":"#ffd08e";ctx.fillText(boosts.join("  ·  "),viewW/2,viewH-64);}
- else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-64);}
- if(live&&me&&me.lives===0){
-  const left=s.players.filter(p=>p.lives>0).length,half=Math.min(150,viewW/2-12);
+ if(live&&serve){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-72);}
+ else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-72);}
+ // Active effects: yours, then the ones everybody shares.
+ if(playing&&me){
+  const act=[];
+  for(const [k,v] of Object.entries({...s.fx,...me.fx}))if(E.PU_BY_ID[k])act.push([E.PU_BY_ID[k],v.toFixed(1)]);
+  if(s.lucky>0)act.push([E.PU_BY_ID.lucky,String(s.lucky)]);
+  if(act.length){
+   ctx.font=C?"bold 7px ui-monospace,monospace":"5px 'Press Start 2P',monospace";ctx.textAlign="left";
+   let x=12,y=viewH-60;
+   for(const [d,v] of act){const t=d.nm+" "+v,w=ctx.measureText(t).width+10;if(x+w>viewW-8){x=12;y+=10;}
+    ctx.fillStyle=d.c;ctx.fillRect(x,y-2,4,4);ctx.fillText(t,x+6,y);x+=w;}
+   ctx.textAlign="center";ctx.font=small;
+  }
+ }
+ if(live&&me&&me.out){
+  const left=s.players.filter(p=>!p.out).length,half=Math.min(150,viewW/2-12);
   ctx.fillStyle=V?"rgba(26,5,51,.82)":"rgba(7,9,12,.8)";ctx.fillRect(view.cx-half,view.cy-34,half*2,68);
   ctx.fillStyle=V?"#ff71ce":"#f6d29e";ctx.font=C?"bold 16px monospace":"12px 'Press Start 2P',monospace";
   ctx.fillText("YOU'RE OUT",view.cx,view.cy-10);
@@ -928,10 +986,12 @@ let lastInputSent=0,pendingInput=null;
 function flushInput(){
  pendingInput=null;
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
- socket.send(JSON.stringify({type:"paddle-input",version:1,pos:localPos,aim:aimAng,seq:++inputSeq}));
+ socket.send(JSON.stringify({type:"paddle-input",version:1,pos:amInverted()?1-localPos:localPos,aim:aimAng,seq:++inputSeq}));
  lastInputSent=performance.now();
 }
 let moved=false;
+// Your slider position runs from your own left to your own right; INVERTED flips what it does to the paddle.
+const amInverted=()=>state?.players.find(p=>p.id===you)?.fx?.invert>0;
 function send(pos){
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
  moved=true;
@@ -949,9 +1009,9 @@ function queueInput(){
  if(remaining<=0){if(pendingInput!==null)clearTimeout(pendingInput);flushInput();}
  else if(pendingInput===null)pendingInput=setTimeout(flushInput,remaining);
 }
-function holdingServe(){return state?.status==="playing"&&!!state.balls?.some(b=>b.held&&b.source===you);}
+function holdingServe(){return state?.status==="playing"&&!!state.balls?.some(b=>b[5]&&state.players[b[4]]?.id===you);}
 function launch(){
- if(socket?.readyState===WebSocket.OPEN&&holdingServe())socket.send(JSON.stringify({type:"launch",version:1,aim:aimAng}));
+ if(socket?.readyState===WebSocket.OPEN&&holdingServe()&&serverNow()>=state.startedAt)socket.send(JSON.stringify({type:"launch",version:1,aim:aimAng}));
 }
 function pointer(event){
  const rect=event.currentTarget.getBoundingClientRect();
@@ -1004,7 +1064,7 @@ $("nicknameForm").addEventListener("submit",async event=>{
  finally{$("saveName").disabled=false;}
 });
 for(const [id,mode] of [["modeCoop","coop"],["modeVersus","versus"]])$(id).addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"mode",mode});}catch(e){$("finishText").textContent=e.message;}});
-$("start").addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"start"});}catch(e){$("finishText").textContent=e.message;}});
+$("start").addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"start",set:style});}catch(e){$("finishText").textContent=e.message;}});
 $("copy").addEventListener("click",async()=>{
  const url=location.origin+"/multiplayer/"+roomCode;
  try{await navigator.clipboard.writeText(url);$("copy").textContent="COPIED";setTimeout(()=>$("copy").textContent="COPY LINK",1800);}
@@ -1013,7 +1073,7 @@ $("copy").addEventListener("click",async()=>{
 $("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent=soundOn?"♪":"×";$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn){audioInit();beep();}});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
- socket?.close();socket=null;roomCode="";you="";state=null;lastHits=-1;lastHP=null;drawnHP=null;clearFx();localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
+ socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
 });
 function closeMenu(){$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");}
 $("hudMenuToggle").addEventListener("click",()=>{
@@ -1024,7 +1084,7 @@ $("hudMenuToggle").addEventListener("click",()=>{
 document.addEventListener("pointerdown",event=>{if(!event.target.closest("#hudMenu,#hudMenuToggle"))closeMenu();});
 // A mouse click should not leave focus on a HUD button, or the next key press would trigger it again.
 $("hud").addEventListener("click",event=>{if(event.detail>0)event.target.closest("button")?.blur();});
-$("sty").addEventListener("click",()=>{style=STYLES[(STYLES.indexOf(style)+1)%STYLES.length];try{localStorage.setItem("brick-asmr-style",style);}catch{}applyStyle();drawnHP=null;});
+$("sty").addEventListener("click",()=>{style=STYLES[(STYLES.indexOf(style)+1)%STYLES.length];try{localStorage.setItem("brick-asmr-style",style);}catch{}applyStyle();tilesFull=true;});
 applyStyle();resize();
 $("playerName").value=localStorage.getItem("bricksPlayerName")||"";
 const invitedPath=location.pathname.match(/^\/multiplayer\/([A-Z2-9]{6})\/?$/i);

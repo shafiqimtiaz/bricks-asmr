@@ -1,6 +1,6 @@
 # Bricks ASMR — Unified Solo & Shared-Board Multiplayer Plan
 
-**Status:** Shared level generator, bounce/velocity helpers, brick art, ASMR synth, and crusher cadence now reused across Solo and Multiplayer; full effect and input-flow parity remains open  
+**Status:** Solo and Multiplayer run the same simulation (`src/engine.mjs`); the room only adds lobby, seats, auth, reconnects and broadcasting (section 12)  
 **Updated:** 2026-11-09  
 **Repository:** [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr)
 
@@ -215,3 +215,17 @@ Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seede
 - **Combo.** Bricks broken within 1.5s of each other build a combo; every five links add a multiple to brick score, up to x5. A miss resets it.
 - **Rally.** Each paddle return speeds that ball up 3%, to 30% at most. A replacement ball starts at base speed.
 - **Difficulty.** Base ball speed is 300 (was 330) in both modes via `ballSpeed()`. Solo starts with 5 lives and only previews the launch aim. Multiplayer starts with 4 lives (max 6) and 2px of paddle grace.
+
+## 12. Multiplayer runs on the shared engine
+
+Supersedes the room-simulation details in sections 9–11 (the room's own ball, power-up and crusher code is gone).
+
+- **One simulation.** `BrickRoom` keeps one engine state (`room.sim`, created by `brickEngine().create`) per round: mode `coop` or `versus`, `holdSeconds` 5, at most 40 balls. Coop has a shared pool of lives (3 per player, up to that plus 3); Versus gives each player 4 (up to 6). Every paddle rule is written in the owning player's frame, so the top and side paddles deflect exactly as the bottom one does.
+- **Rules are Solo's.** Slow-mo halves and Hyper doubles ball speed, combos use a 0.7s window, and a ball lost while others remain in play costs nothing; a life goes only when the balls on the board fall below the target (Coop 1, Versus one per player standing). The old rally speed-up, the 11 room power-ups and wall-clock effect timers are removed. Crushed: Coop ends the round, Versus puts that player out. Solo-only timer power-ups (`time`, `freeze`) become SLOW-MO.
+- **Power-ups.** The set is the host's theme when the round starts (the client sends `set` with the start action: Clean, CRT or Vapor); each player still draws with their own theme. Effects marked `own` (wide, laser, floor, shrink, mitosis, twin, sunbeam, invert) affect only the catcher and are drawn on that player's paddle; INVERTED flips the catcher's own controls on their client.
+- **Seeds.** Each round gets a fresh random seed (same for everyone because the room builds the board); `round` is just a counter.
+- **Inputs.** `paddle-input` carries a slider position from the player's own left (0) to right (1) and an aim; `launch` carries an aim. The room maps them with the engine (`paddleAt`, `setAim`, `launch`). Sequence checks and the 25ms rate limit stay; launches before the countdown ends are ignored.
+- **Presence.** Disconnecting marks the player offline in the engine (nobody serves for them); after 30s offline, or on an explicit leave, they are out. A Coop round in which everyone is out ends as `allout`.
+- **Broadcast.** Each tick sends balls (`[x,y,vx,vy,server,held]`), capsules, lasers, per-player paddle centre/width/effects, shared effects, the crusher transform and the events since the last send (break/hit/paddle with owner, power/miss/life/out/crushed with owner, crush, beam, ring). The whole board goes out once per round; after that only the cells that changed. Capsule contents never leave the server.
+- **Client.** The page includes the engine, builds a light copy of the world from each snapshot, and uses `predict` for the aim path and `puDef` for capsule icons and the effects strip. Bricks are drawn through the crusher transform (`world = k * grid + b`).
+- **Storage.** The engine state is plain data (typed arrays included) and is stored with the room; a stored room reloads and continues. A room stored before the engine existed returns to its lobby.

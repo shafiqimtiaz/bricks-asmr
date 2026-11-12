@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, boardView, paddleShape, sliderPos, stageFit, viewPoint } from "../src/game-core.mjs";
+import { arenaLayout, boardView, sliderPos, stageFit, viewPoint } from "../src/game-core.mjs";
+import { brickEngine } from "../src/engine.mjs";
 import { multiHtml, soloHtml } from "./helpers.mjs";
+
+const E = brickEngine();
+// A player's paddle as the client draws it: the engine's centre, face and width.
+function paddleRect(arena, seat, t) {
+  const S = { W: arena.width, players: [{ id: "me", seat, pw: 64 * arena.cell / 6 }] }, pw = S.players[0].pw;
+  const c = E.paddleAt(S, "me", t), face = E.face(S, seat), horizontal = seat === 0 || seat === 2;
+  return { x: horizontal ? c - pw / 2 : seat === 1 ? face - 7 : face, y: horizontal ? (seat === 0 ? face : face - 7) : c - pw / 2,
+    w: horizontal ? pw : 7, h: horizontal ? 7 : pw, half: pw / 2 };
+}
 
 const viewports = [
   [320, 568], [375, 812], [390, 844], [844, 390], [768, 1024], [1024, 768],
@@ -59,19 +69,20 @@ test("every seat's camera puts that player's paddle at the bottom, above the sli
       assert.ok(Math.abs(Math.min(...xs) - 6) < 1e-9 && Math.abs(Math.max(...xs) - (view.width - 6)) < 1e-9);
       assert.ok(Math.abs(Math.min(...ys) - 40) < 1e-9 && Math.abs(Math.max(...ys) - (view.height - 96)) < 1e-9);
       // Own paddle: just inside the bottom of the court, clear of the slider track that starts 40px from the bottom.
-      const own = paddleShape(arena, seat, 0.5, false);
+      const own = paddleRect(arena, seat, 0.5);
       const a = viewPoint(view, own.x, own.y), b = viewPoint(view, own.x + own.w, own.y + own.h);
       const bottom = Math.max(a.y, b.y);
       assert.ok(Math.abs(bottom - (view.height - 97)) < 1e-9, "seat " + seat + " paddle bottom " + bottom);
       assert.ok(Math.abs((a.x + b.x) / 2 - view.width / 2) < 1e-9);
       // Sliding right always moves the on-screen paddle right.
       const margin = Math.max(40, view.width * 0.11);
-      const left = paddleShape(arena, seat, sliderPos(view, margin), false);
-      const right = paddleShape(arena, seat, sliderPos(view, view.width - margin), false);
+      const left = paddleRect(arena, seat, sliderPos(view, margin));
+      const right = paddleRect(arena, seat, sliderPos(view, view.width - margin));
       const lx = viewPoint(view, left.x + left.w / 2, left.y + left.h / 2).x;
       const rx = viewPoint(view, right.x + right.w / 2, right.y + right.h / 2).x;
       assert.ok(lx < rx);
-      assert.ok(Math.abs(lx - left.half - 6) < 1e-9 && Math.abs(rx + right.half - (view.width - 6)) < 1e-9, "paddle reaches both walls");
+      const wall = seat === 0 || seat === 2 ? 0 : 6; // a top or bottom paddle runs the full width, a side one the court height
+      assert.ok(Math.abs(lx - left.half - wall) < 1e-9 && Math.abs(rx + right.half - (view.width - wall)) < 1e-9, "paddle reaches both ends");
     }
   }
 });

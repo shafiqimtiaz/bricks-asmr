@@ -224,20 +224,6 @@ function genLevel(){
 
 // One ball speed for Solo and Multiplayer; wider arenas are a little faster so crossing them takes similar time.
 function ballSpeed(arena){return Math.round(300*Math.pow(arena.width/360,.35));}
-function bounceBall(ball,side,offset,speed=330){
- const angle=Math.max(-1,Math.min(1,offset))*1.05;
- const parallel=Math.sin(angle)*speed,inward=Math.cos(angle)*speed;
- if(side===0){ball.vx=parallel;ball.vy=-inward;}
- else if(side===2){ball.vx=-parallel;ball.vy=inward;}
- else if(side===1){ball.vx=inward;ball.vy=parallel;}
- else {ball.vx=-inward;ball.vy=-parallel;}
- return ball;
-}
-// Where a served ball waits in front of its paddle.
-function serveSpot(arena,seat,pos){
- const coord=paddleShape(arena,seat,pos,false).center;
- return seat===0?{x:coord,y:484}:seat===2?{x:coord,y:100}:seat===1?{x:66,y:coord}:{x:arena.width-66,y:coord};
-}
 // A serve aimed `angle` radians off straight-in, measured on the server's own screen (positive = their right).
 function aimVelocity(seat,angle,speed){
  const sx=Math.sin(angle)*speed,sy=-Math.cos(angle)*speed;
@@ -290,24 +276,6 @@ function createASMR(host){
 function crusherInterval(daily=false){
  return daily?5:8;
 }
-function crusherTransform(steps,players,cx=180,cy=292){
- const seats=new Set(players.map(p=>p.seat));
- const n=Math.max(0,steps||0);
- return {
-  sx:seats.has(1)||seats.has(3)?1+Math.min(14,n)*.04:1,
-  sy:seats.has(0)||seats.has(2)?1+Math.min(14,n)*.06:1,
-  cx,cy
- };
-}
-// Paddle geometry shared by the authoritative room and every client, so what is drawn is what the ball hits.
-function paddleShape(arena,seat,pos,wide){
- const horizontal=seat===0||seat===2,low=horizontal?6:40,span=horizontal?arena.width-12:504;
- const half=(wide?51.2:32)*span/348,center=low+half+Math.max(0,Math.min(1,pos))*(span-2*half);
- const face=seat===0?536:seat===2?48:seat===1?14:arena.width-14;
- return {horizontal,half,center,face,
-  x:horizontal?center-half:seat===1?face-7:face,y:horizontal?(seat===0?face:face-7):center-half,
-  w:horizontal?half*2:7,h:horizontal?7:half*2};
-}
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
 function boardView(arena,seat){
  const side=seat===1||seat===3,w=side?504:arena.width-12,h=side?arena.width-12:504;
@@ -322,8 +290,8 @@ function viewPoint(view,x,y){
  return {x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
 }
 function sliderPos(view,x){
- const margin=Math.max(40,view.width*.11),t=Math.max(0,Math.min(1,(x-margin)/(view.width-2*margin)));
- return view.seat===2||view.seat===3?1-t:t;
+ const margin=Math.max(40,view.width*.11);
+ return Math.max(0,Math.min(1,(x-margin)/(view.width-2*margin)));
 }
 // Fits a logical stage into the viewport. The top 36 logical pixels are the HUD band; a taller HUD hangs above the stage.
 function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
@@ -338,13 +306,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-function crusherPoint(transform,x,y){
- return {x:transform.cx+(x-transform.cx)*transform.sx,y:transform.cy+(y-transform.cy)*transform.sy};
-}
-function uncrushPoint(transform,x,y){
- return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
-}
-export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity,serveSpot};
+export {arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity,serveSpot].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");

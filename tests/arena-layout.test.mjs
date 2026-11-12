@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadServer } from "./helpers.mjs";
-import { arenaLayout, bricks, crusherInterval, crusherTransform, uncrushPoint, bounceBall } from "../src/game-core.mjs";
+import { loadServer, makeRoom, roomInstance } from "./helpers.mjs";
+import { arenaLayout, bricks } from "../src/game-core.mjs";
 
 test("Arena geometry uses square cells and covers tall through ultrawide screens", () => {
   for (const ratio of [0.4, 375 / 812, 9 / 16, 3 / 4, 1, 4 / 3, 16 / 9, 21 / 9, 32 / 9]) {
@@ -34,40 +34,43 @@ test("Shared generator reflows both Solo and 2–4-player boards deterministical
 
 const { spawnPlayerBall, startRound, advanceBall } = loadServer();
 
+const server = loadServer();
+const { E } = server;
+
 test("Multiplayer spawn and authoritative wall collision respect room width", () => {
   for (const ratio of [9 / 16, 16 / 9, 21 / 9]) {
     const arena = arenaLayout(ratio);
-    const room = { arena, board: bricks("qa", 2, arena), players: [], crushSteps: 0, effects: {} };
-    const leftBall = spawnPlayerBall(room, { seat: 1, pos: 0.5, id: "left" });
-    const rightBall = spawnPlayerBall(room, { seat: 3, pos: 0.5, id: "right" });
-    assert.ok(leftBall.x < arena.width / 2 && leftBall.vx > 0);
-    assert.ok(rightBall.x > arena.width / 2 && rightBall.vx < 0);
-    assert.equal(leftBall.y, 292);
-    const ball = { x: arena.width - 20, y: 500, vx: 250, vy: 0 };
-    advanceBall(room, ball, 0.04);
-    assert.ok(ball.x < arena.width);
-    assert.ok(ball.vx < 0, "right boundary should reflect the ball");
+    const S = E.create({ arena, board: bricks("qa", 2, arena), mode: "versus", set: "clean", lives: 4,
+      players: [{ id: "left", seat: 1 }, { id: "right", seat: 3 }] });
+    const [left, right] = S.balls;
+    assert.ok(left.x < arena.width / 2 && left.vx === 0 && left.held);
+    assert.ok(right.x > arena.width / 2 && right.held);
+    assert.equal(left.y, 292);
+    E.launch(S, "left");E.launch(S, "right");
+    assert.ok(left.vx > 0 && right.vx < 0, "each serve heads inward from its own edge");
+    // With nobody on the top and bottom edges they are walls.
+    S.balls = [{ x: arena.width / 2, y: 60, vx: 0, vy: -250, owner: null, source: null }];
+    for (let i = 0; i < 10; i++) E.step(S, 1 / 60);
+    assert.ok(S.balls[0].vy > 0, "an empty edge reflects the ball");
+    assert.ok(S.balls[0].y > 40 && S.balls[0].x === arena.width / 2);
   }
 });
 
 test("Authoritative 1–4-player rounds run across every arena shape", () => {
-  for (const ratio of [0.46, 1, 16 / 9, 21 / 9]) for (const playerCount of [1, 2, 3, 4]) {
+  for (const ratio of [0.46, 1, 16 / 9, 21 / 9]) for (const mode of ["coop", "versus"]) for (const playerCount of [2, 3, 4]) {
     const arena = arenaLayout(ratio);
-    const room = {
-      arena, code: "AAABBB",
-      players: [0, 2, 1, 3].slice(0, playerCount)
-        .map((seat, id) => ({ id: String(id), seat, pos: 0.5, lives: 3, score: 0, online: true })),
-    };
-    startRound(room);
+    const room = makeRoom(server, mode, playerCount, "vapor");
+    room.arena = arena;
+    server.startRound(room, "vapor");
     assert.equal(room.status, "playing");
-    assert.equal(room.board.hp.length, arena.cols * arena.rows);
-    assert.equal(room.balls.length, playerCount);
-    for (let tick = 0; tick < 25; tick++) {
-      for (const ball of [...room.balls]) advanceBall(room, ball, 1 / 60);
-    }
-    for (const ball of room.balls) {
+    assert.equal(room.sim.hp.length, arena.cols * arena.rows);
+    assert.equal(room.sim.balls.length, mode === "coop" ? 1 : playerCount);
+    const inst = roomInstance(server, room);
+    for (const b of room.sim.balls) b.hold = 0;
+    for (let tick = 0; tick < 100; tick++) inst.step(1 / 20, Date.now());
+    for (const ball of room.sim.balls) {
       assert.ok(Number.isFinite(ball.x) && Number.isFinite(ball.y));
-      assert.ok(ball.x >= 0 && ball.x <= arena.width);
+      assert.ok(ball.x >= -11 && ball.x <= arena.width + 11);
     }
   }
 });
