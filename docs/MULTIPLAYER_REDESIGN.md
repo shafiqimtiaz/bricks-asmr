@@ -1,6 +1,6 @@
 # Bricks ASMR — Unified Solo & Shared-Board Multiplayer Plan
 
-**Status:** Solo and Multiplayer run the same simulation (`src/engine.mjs`); the room only adds lobby, seats, auth, reconnects and broadcasting (section 12)  
+**Status:** Solo and Multiplayer run the same simulation (`src/engine.js`); the room only adds lobby, seats, auth, reconnects and broadcasting (section 12)  
 **Updated:** 2026-11-09  
 **Repository:** [shafiqimtiaz/bricks-asmr](https://github.com/shafiqimtiaz/bricks-asmr)
 
@@ -55,7 +55,7 @@ Themes are a **local display preference**: Clean, CRT-Vintage and Vapor change h
 
 ## 3. Technical architecture
 
-Preserve the current Cloudflare Worker, its D1 leaderboard binding, Durable Object namespace, room-code concept and `wrangler.jsonc`. The current source files, `src/index.mjs` and `src/multi.mjs`, are migration inputs: the Solo implementation supplies the shared rendering and mechanics, and the existing Durable Object supplies room coordination. Do **not** retain the current square-arena game as a second gameplay engine.
+Preserve the current Cloudflare Worker, its D1 leaderboard binding, Durable Object namespace, room-code concept and `wrangler.jsonc`. The current source files, `src/index.js` and `src/multi.js`, are migration inputs: the Solo implementation supplies the shared rendering and mechanics, and the existing Durable Object supplies room coordination. Do **not** retain the current square-arena game as a second gameplay engine.
 
 Suggested module boundaries (targets, not claims of existing files):
 
@@ -192,14 +192,14 @@ The multiplayer release includes the core shared-board gameplay, synchronized bo
 
 ## 9. Shared JavaScript gameplay foundation (November 9, 2026)
 
-Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seeded brick generator, brick/palette metadata, velocity normalization, equivalent Solo-angle paddle bounce, per-cell pixel drawing, the compressed ASMR oscillator, brick-note scale, and crusher timing. Solo calls the level generator without multiplayer pruning; Multiplayer keeps one server-authoritative world and removes bricks to make space for extra players. The multiplayer crusher applies a synchronized 2D transform toward all occupied sides, with physics coordinates inverted through the same transform. Each client then rotates that single world into its personal bottom-paddle view.
+Solo and Multiplayer now consume `src/game-core.js` for the deterministic seeded brick generator, brick/palette metadata, velocity normalization, equivalent Solo-angle paddle bounce, per-cell pixel drawing, the compressed ASMR oscillator, brick-note scale, and crusher timing. Solo calls the level generator without multiplayer pruning; Multiplayer keeps one server-authoritative world and removes bricks to make space for extra players. The multiplayer crusher applies a synchronized 2D transform toward all occupied sides, with physics coordinates inverted through the same transform. Each client then rotates that single world into its personal bottom-paddle view.
 
 **Remaining gameplay parity gaps:** Solo still includes theme-specific power-ups (and falling pickups), manual aiming/launch, a stopwatch and extra visual feedback that Multiplayer has not completely adopted. Multiplayer currently uses a room-timed round and simplified immediate power-ups. Those differences must not be described as full Solo/Multiplayer mechanic parity. The new shared core is JavaScript, not the planned TypeScript migration. Browser-based live 2–4-player endurance verification also remains outstanding.
 
 ## 10. Level alignment, camera and layout fixes (November 11, 2026)
 
 - **Levels.** Multiplayer no longer crops and thins a Solo board. `bricks()` runs Solo's generator on the multiplayer field itself (smaller as players join), so every round is a whole level with the same archetypes, walls, symmetry and palettes. Each round gets a fresh random seed (a board is identified by its seed alone; there are no levels), shown in the HUD and on the countdown card with the board's archetype, as in Solo. Power-up density stays higher than Solo and corridor length scales with the field.
-- **One geometry.** `paddleShape()`, `boardView()`, `viewPoint()`, `sliderPos()` and `stageFit()` live in `game-core.mjs` and are used by the room server and both pages. Paddles are drawn where the room collides them (the room allows 4px of grace for latency), and all four paddles sit symmetrically inside the court.
+- **One geometry.** `paddleShape()`, `boardView()`, `viewPoint()`, `sliderPos()` and `stageFit()` live in `game-core.js` and are used by the room server and both pages. Paddles are drawn where the room collides them (the room allows 4px of grace for latency), and all four paddles sit symmetrically inside the court.
 - **Camera.** Each client rotates the court about its centre, so every seat sees its own paddle directly above the slider. Previously top and side seats had their paddle hidden under the slider and labels over the bricks.
 - **HUD.** The HUD owns the top 36 logical pixels; on small screens the remainder hangs above the stage instead of covering the top paddle or brick rows.
 - **Play feel.** A replacement ball rides its owner's paddle for 1.2s before launching. Players start with 5 lives. Remote paddles are eased between snapshots, held keys move the paddle smoothly, countdown and buff timers use the room's clock, and bricks are cached at device resolution.

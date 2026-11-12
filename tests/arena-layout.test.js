@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadServer, makeRoom, roomInstance } from "./helpers.mjs";
-import { arenaLayout, bricks } from "../src/game-core.mjs";
+import { loadServer, makeRoom, roomInstance } from "./helpers.js";
+import { arenaLayout, bricks } from "../src/game-core.js";
 
 test("Arena geometry uses square cells and covers tall through ultrawide screens", () => {
   for (const ratio of [0.4, 375 / 812, 9 / 16, 3 / 4, 1, 4 / 3, 16 / 9, 21 / 9, 32 / 9]) {

@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "bricks-asmr",
-  "main": "./src/index.mjs",
+  "main": "./src/index.js",
   "account_id": "0f477dd8124eb3a644ac0c0e5f159ef0",
   "compatibility_date": "2026-11-08",
   "workers_dev": true,

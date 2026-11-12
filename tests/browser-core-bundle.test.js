@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
-import * as core from "../src/game-core.mjs";
-import { browserCoreSource, crusherInterval, soloCoreSource } from "../src/game-core.mjs";
-import { engineSource } from "../src/engine.mjs";
-import { multiHtml, serverSource, soloHtml } from "./helpers.mjs";
+import * as core from "../src/game-core.js";
+import { browserCoreSource, crusherInterval, soloCoreSource } from "../src/game-core.js";
+import { engineSource } from "../src/engine.js";
+import { multiHtml, serverSource, soloHtml } from "./helpers.js";
 
 test("Solo browser helpers include the crusher cadence used by the game loop", () => {
   const actual = runInNewContext(soloCoreSource + "\ncrusherInterval()");

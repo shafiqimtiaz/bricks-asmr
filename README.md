@@ -50,12 +50,12 @@ Do not change, clear, or recreate these resources as part of app deployment. `sc
 
 ### Current source
 
-- `src/index.mjs` — routing and the leaderboard API
+- `src/index.js` — routing and the leaderboard API
 - `src/solo.html`, `src/leaderboard.html` — the Solo game and leaderboard pages
-- `src/engine.mjs` — the one game simulation (bricks, balls, paddles, power-ups, lives, crusher) used by Solo in the browser and by every multiplayer room
-- `src/multi.mjs` — multiplayer routing and the Durable Object that owns lobby, seats, auth, reconnects and broadcasts around one engine state per round
+- `src/engine.js` — the one game simulation (bricks, balls, paddles, power-ups, lives, crusher) used by Solo in the browser and by every multiplayer room
+- `src/multi.js` — multiplayer routing and the Durable Object that owns lobby, seats, auth, reconnects and broadcasts around one engine state per round
 - `src/multiplayer.html` — the multiplayer lobby and game client
-- `src/game-core.mjs` — code shared by both modes and by the room server: board generator, player camera, stage layout, aim and ball-speed helpers, brick art and sound. The pages are imported as text and the shared functions are injected into them when served.
+- `src/game-core.js` — code shared by both modes and by the room server: board generator, player camera, stage layout, aim and ball-speed helpers, brick art and sound. The pages are imported as text and the shared functions are injected into them when served.
 - `docs/MULTIPLAYER_REDESIGN.md` — shared-board implementation, accepted layout and remaining TypeScript/physics parity tasks
 
 The future TypeScript migration is described in the design document, not implemented by this build-system change.

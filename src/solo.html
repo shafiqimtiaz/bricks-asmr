@@ -246,7 +246,7 @@ const SY = 614, SZONE = 572, PY = 536, PH = 7, MAX_BALLS = 2500;
 let SX0 = Math.max(40, W * .11), SX1 = W - SX0;
 let BR = CS * .45, PU_R = CS * 1.5;
 
-// ---------- seeded RNG: game-core.mjs ----------
+// ---------- seeded RNG: game-core.js ----------
 // ---------- URL state ----------
 // A board is its seed. An old '#seed-3' link opens the seed and ignores the number.
 const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
@@ -393,7 +393,7 @@ function brickNote(r){
  blip(note.frequency,note.volume,note.duration+Math.random()*.04,note.wave);
 }
 
-// ---------- game state: the shared engine (engine.mjs) ----------
+// ---------- game state: the shared engine (engine.js) ----------
 // The engine owns the rules; these mirrors of its state are refreshed after every step for drawing and input.
 let S = null, me = null;
 let fx = {}, luckyLeft = 0, lasers = [], beams = [], rings = [], fxClock = 0;

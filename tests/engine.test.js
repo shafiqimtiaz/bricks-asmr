@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import * as core from "../src/game-core.mjs";
-import { brickEngine, engineSource } from "../src/engine.mjs";
+import * as core from "../src/game-core.js";
+import { brickEngine, engineSource } from "../src/engine.js";
 
 const { arenaLayout, bricks, soloCoreSource } = core;
 function seeded(seed) { let a = seed; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }

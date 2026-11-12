@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, bricks } from "../src/game-core.mjs";
+import { arenaLayout, bricks } from "../src/game-core.js";
 
-import { loadServer, multiHtml as html } from "./helpers.mjs";
+import { loadServer, multiHtml as html } from "./helpers.js";
 
 test("multiplayer layouts keep substantially more square bricks across player counts", () => {
   for (const ratio of [375 / 812, 9 / 16, 1, 16 / 9, 21 / 9]) {

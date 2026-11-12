@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aimVelocity, viewMatrix, boardView, arenaLayout } from "../src/game-core.mjs";
-import { loadServer, makeRoom, roomInstance } from "./helpers.mjs";
+import { aimVelocity, viewMatrix, boardView, arenaLayout } from "../src/game-core.js";
+import { loadServer, makeRoom, roomInstance } from "./helpers.js";
 
 const server = loadServer();
 const { E, BrickRoom, startRound, eliminate } = server;

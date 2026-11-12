@@ -1,7 +1,7 @@
-import multiplayer from "./multi.mjs";
-import { soloCoreSource } from "./game-core.mjs";
-import { engineSource } from "./engine.mjs";
-export { BrickRoom } from "./multi.mjs";
+import multiplayer from "./multi.js";
+import { soloCoreSource } from "./game-core.js";
+import { engineSource } from "./engine.js";
+export { BrickRoom } from "./multi.js";
 import GAME from "./solo.html";
 import LEADERBOARD from "./leaderboard.html";
 

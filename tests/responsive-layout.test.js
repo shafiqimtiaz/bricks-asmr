@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, boardView, sliderPos, stageFit, viewPoint } from "../src/game-core.mjs";
-import { brickEngine } from "../src/engine.mjs";
-import { multiHtml, soloHtml } from "./helpers.mjs";
+import { arenaLayout, boardView, sliderPos, stageFit, viewPoint } from "../src/game-core.js";
+import { brickEngine } from "../src/engine.js";
+import { multiHtml, soloHtml } from "./helpers.js";
 
 const E = brickEngine();
 // A player's paddle as the client draws it: the engine's centre, face and width.

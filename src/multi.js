@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import { arenaLayout, bricks, browserCoreSource } from "./game-core.mjs";
-import { brickEngine, engineSource } from "./engine.mjs";
+import { arenaLayout, bricks, browserCoreSource } from "./game-core.js";
+import { brickEngine, engineSource } from "./engine.js";
 import MULTIPLAYER_HTML from "./multiplayer.html";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
