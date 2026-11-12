@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { arenaLayout, bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint, paddleShape, ballSpeed } from "./game-core.mjs";
+import { arenaLayout, bricks, bounceBall, browserCoreSource, crusherInterval, crusherTransform, uncrushPoint, paddleShape, ballSpeed, aimVelocity, serveSpot } from "./game-core.mjs";
 import MULTIPLAYER_HTML from "./multiplayer.html";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
@@ -23,37 +23,64 @@ function assignSides(players){
  }
 }
 
-const POWER_LABELS={1:"MULTIBALL",2:"BALL SPLIT",3:"WIDE PADDLES",4:"PIERCE",5:"SHOCKWAVE",6:"+1 LIFE",7:"HYPER",8:"SLOW TIME",9:"CHAIN BLAST",10:"+8 SECONDS",11:"STARTER SPLIT"};
+const POWER_LABELS={1:"MULTIBALL",2:"BALL SPLIT",3:"WIDE PADDLES",4:"PIERCE",5:"SHOCKWAVE",6:"+1 LIFE",7:"HYPER",8:"SLOW TIME",9:"CHAIN BLAST",10:"+1 LIFE",11:"STARTER SPLIT"};
+const MODES=["coop","versus"],HOLD_SECONDS=5,OFFLINE_GRACE=30000,MAX_AIM=1.05;
 function markEvent(r,type,x,y,owner=null){
  r.eventSeq=(r.eventSeq||0)+1;
  r.lastEvent={seq:r.eventSeq,type,x,y,owner};
 }
 function spawnPlayerBall(room,p){
  const arena=room.arena||arenaLayout();
- const a=(((room.hits||0)*47+p.seat*19+19)%61-30)*Math.PI/180,speed=ballSpeed(arena);
- const sideways=Math.sin(a)*speed,forward=Math.cos(a)*speed;
- const coord=paddleShape(arena,p.seat,p.pos,false).center;
- if(p.seat===0)return {x:coord,y:484,vx:sideways,vy:-forward,owner:p.id,source:p.id};
- if(p.seat===2)return {x:coord,y:100,vx:-sideways,vy:forward,owner:p.id,source:p.id};
- if(p.seat===1)return {x:66,y:coord,vx:forward,vy:sideways,owner:p.id,source:p.id};
- return {x:arena.width-66,y:coord,vx:-forward,vy:-sideways,owner:p.id,source:p.id};
+ return {...serveSpot(arena,p.seat,p.pos),...aimVelocity(p.seat,p.aim||0,ballSpeed(arena)),owner:p.id,source:p.id};
 }
+function inPlay(p){return p.lives>0&&p.online!==false;}
 function resetBall(room){
- room.balls=room.players.filter(p=>p.lives>0&&p.online!==false).slice(0,MAX_BALLS).map(p=>spawnPlayerBall(room,p));
+ room.balls=room.players.filter(inPlay).slice(0,MAX_BALLS).map(p=>spawnPlayerBall(room,p));
 }
-// A replacement ball rides its owner's paddle for a moment before launching, as Solo's does after a miss.
-function replenishBalls(room){
- for(const p of room.players)if(p.lives>0&&p.online!==false&&!room.balls.some(b=>b.source===p.id)&&room.balls.length<MAX_BALLS)room.balls.push({...spawnPlayerBall(room,p),hold:2.5});
+// Coop shares one ball; Versus keeps one ball per player still in play.
+function ballTarget(r){return r.mode==="coop"?1:r.players.filter(inPlay).length;}
+// A served ball rides the server's paddle while they aim, then launches. Whoever missed serves when they can.
+function replenishBalls(room,preferred=null){
+ const own=p=>room.balls.filter(b=>b.source===p.id).length;
+ while(room.balls.length<Math.min(MAX_BALLS,ballTarget(room))){
+  const candidates=room.players.filter(inPlay).sort((a,b)=>own(a)-own(b));
+  const server=preferred&&inPlay(preferred)?preferred:candidates[0];
+  if(!server)return;
+  room.balls.push({...spawnPlayerBall(room,server),hold:HOLD_SECONDS});
+  preferred=null;
+ }
+}
+function launchBall(r,ball){
+ const p=r.players.find(v=>v.id===ball.source);
+ ball.hold=0;
+ if(p)Object.assign(ball,aimVelocity(p.seat,p.aim||0,ballSpeed(r.arena)));
+}
+function eliminate(r,p){
+ p.lives=0;
+ r.balls=r.balls.filter(b=>!(b.source===p.id&&b.hold>0));
+ replenishBalls(r);
 }
 function startRound(r){
  r.status="playing";r.round=(r.round||0)+1;r.seed=r.code.toLowerCase();r.level=r.round;
- r.startedAt=Date.now()+3000;r.endsAt=r.startedAt+90000;
+ r.mode=MODES.includes(r.mode)?r.mode:"versus";
+ r.startedAt=Date.now()+3000;r.finishedAt=0;r.result=null;
  r.arena=r.arena||arenaLayout();
  r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
- for(const p of r.players){p.score=0;p.combo=0;p.comboAt=0;p.lives=4;p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;}
- resetBall(r);
+ for(const p of r.players){p.score=0;p.combo=0;p.comboAt=0;p.lives=4;p.pos=.5;p.aim=0;p.lastSeq=-1;p.lastInputAt=0;}
+ r.balls=[];
+ const host=r.players.find(p=>p.id===r.hostId);
+ replenishBalls(r,host);
+}
+// Coop ends when the board is cleared or everyone is out; Versus when one player (or none) is left standing.
+function finishCheck(r){
+ const alive=r.players.filter(p=>p.lives>0);
+ if(r.board.remaining===0)r.result={reason:"cleared"};
+ else if(r.mode==="coop"?alive.length===0:alive.length<=1)r.result=alive.length?{reason:"last",winner:alive[0].id}:{reason:"allout"};
+ else return false;
+ r.status="finished";r.finishedAt=Date.now();
+ return true;
 }
 function paddleFor(r,side){return r.players.find(p=>p.seat===side&&p.lives>0&&p.online!==false)||null;}
 function damageBrick(r,index,owner,amount=1){
@@ -103,10 +130,9 @@ function grantPower(r,idx,ball,caught=0){
    damageBrick(r,y*GRID_COLS+x,ball.owner,kind===9?2:1);
   }
  }
- else if(kind===6){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(6,p.lives+1);}
+ else if(kind===6||kind===10){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(6,p.lives+1);}
  else if(kind===7)e.hyperUntil=now+7000;
  else if(kind===8)e.slowUntil=now+7000;
- else if(kind===10)r.endsAt=Math.min(r.startedAt+150000,r.endsAt+8000);
  markEvent(r,POWER_LABELS[kind]||"POWER UP",ball.x,ball.y,ball.owner);
 }
 // As in Solo, a power-up brick releases a capsule. It falls toward the player whose ball broke the brick,
@@ -142,8 +168,8 @@ function miss(r,p,ball){
  const index=r.balls.indexOf(ball);
  if(index!==-1)r.balls.splice(index,1);
  markEvent(r,"MISS",ball.x,ball.y,p.id);
- if(p.lives===0)r.balls=r.balls.filter(other=>other.source!==p.id);
- replenishBalls(r);
+ if(p.lives===0)eliminate(r,p);
+ else replenishBalls(r,p);
 }
 function advanceBall(r,ball,dt){
  const {width,cell:GRID_SIZE,cols:GRID_COLS,rows:GRID_ROWS,gridX:GRID_X,gridY:GRID_Y}=r.arena||(r.arena=arenaLayout());
@@ -206,7 +232,8 @@ export class BrickRoom extends DurableObject{
   const r=this.room,live=this.liveIds();
   const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,arena:r.arena||arenaLayout(),
    seed:r.seed,level:r.level,startedAt:r.startedAt,
-   remaining:r.endsAt?Math.max(0,Math.ceil((r.endsAt-Math.max(Date.now(),r.startedAt||0))/1000)):90,
+   mode:r.mode||"versus",result:r.result||null,
+   elapsed:r.startedAt?Math.max(0,Math.floor((((r.status==="finished"&&r.finishedAt)||Date.now())-r.startedAt)/1000)):0,
    players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,combo:Date.now()-(p.comboAt||0)<1500?p.combo||0:0,online:live.has(p.id)})),
    balls:(r.balls||[]).map(b=>({x:Math.round(b.x*10)/10,y:Math.round(b.y*10)/10,vx:b.hold>0?0:Math.round(b.vx),vy:b.hold>0?0:Math.round(b.vy),owner:b.owner,source:b.source,held:b.hold>0||undefined})),
    pups:(r.pups||[]).map(p=>({x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,kind:p.kind,owner:p.owner})),
@@ -263,20 +290,27 @@ export class BrickRoom extends DurableObject{
   }
   if(action==="action"&&req.method==="POST"){
    if(r.hostId!==existing.id)return reply({error:"Only the lobby host can start the game"},403);
-   const body=await req.json().catch(()=>({}));if(body.action!=="start")return reply({error:"Unknown action"},400);
+   const body=await req.json().catch(()=>({}));if(body.action!=="start"&&body.action!=="mode")return reply({error:"Unknown action"},400);
    if(r.status!=="waiting"&&r.status!=="finished")return reply({error:"Round already active"},409);
+   if(body.action==="mode"){
+    if(!MODES.includes(body.mode))return reply({error:"Unknown mode"},400);
+    r.mode=body.mode;await this.save();this.broadcast();return reply({ok:true});
+   }
    const online=this.liveIds();if(r.players.filter(p=>online.has(p.id)).length<2)return reply({error:"At least two connected players are required"},409);
    for(const p of r.players)p.online=online.has(p.id);
    startRound(r);await this.save();this.broadcast();this.ensureLoop();return reply({ok:true});
   }
   if(action==="leave"&&req.method==="POST"){
    if(r.status==="playing"){
+    if(existing.lives>0){eliminate(r,existing);markEvent(r,"OUT",0,0,existing.id);}
     if(r.hostId===existing.id){
      const online=this.liveIds();
      const nextHost=r.players.find(p=>p.id!==existing.id&&online.has(p.id))||r.players.find(p=>p.id!==existing.id);
-     if(nextHost){r.hostId=nextHost.id;await this.save();this.broadcast();}
+     if(nextHost)r.hostId=nextHost.id;
     }
-    return reply({ok:true,note:"Seat reserved for reconnection"});
+    if(finishCheck(r))this.stopLoop();
+    await this.save();this.broadcast();
+    return reply({ok:true,note:"Left the round"});
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
@@ -297,13 +331,15 @@ export class BrickRoom extends DurableObject{
   if(v?.type==="paddle-input"&&v.version===1&&this.room.status==="playing"&&typeof v.pos==="number"&&Number.isFinite(v.pos)&&Number.isSafeInteger(v.seq)&&v.seq>(p.lastSeq??-1)){
    const now=Date.now();if(now-(p.lastInputAt||0)<25)return;
    p.pos=clamp(v.pos,0,1);p.lastSeq=v.seq;p.lastInputAt=now;
+   if(typeof v.aim==="number"&&Number.isFinite(v.aim))p.aim=clamp(v.aim,-MAX_AIM,MAX_AIM);
    if(!this.loop)this.ensureLoop();
   }else if(v?.type==="launch"&&v.version===1&&this.room.status==="playing"){
-   for(const ball of this.room.balls||[])if(ball.source===p.id&&ball.hold>0)ball.hold=0;
+   if(typeof v.aim==="number"&&Number.isFinite(v.aim))p.aim=clamp(v.aim,-MAX_AIM,MAX_AIM);
+   for(const ball of this.room.balls||[])if(ball.source===p.id&&ball.hold>0)launchBall(this.room,ball);
   }else if(v?.type==="ping")ws.send(JSON.stringify({type:"pong"}));
  }
- async webSocketClose(ws,code,reason){try{ws.close(code,reason);}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id))p.online=false;this.broadcast();if(this.liveIds().size===0){this.stopLoop();await this.save();}}}
- async webSocketError(ws){try{ws.close(1011,"Connection error");}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id))p.online=false;this.broadcast();}}
+ async webSocketClose(ws,code,reason){try{ws.close(code,reason);}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id)){p.online=false;p.offlineAt=Date.now();}this.broadcast();if(this.liveIds().size===0){this.stopLoop();await this.save();}}}
+ async webSocketError(ws){try{ws.close(1011,"Connection error");}catch{}if(this.room){const p=this.room.players.find(p=>p.id===ws.deserializeAttachment()?.id);if(p&&!this.liveIds().has(p.id)){p.online=false;p.offlineAt=Date.now();}this.broadcast();}}
  stopLoop(){if(this.loop!==null){clearInterval(this.loop);this.loop=null;}}
  ensureLoop(){
   if(this.loop!==null||!this.room||this.room.status!=="playing"||this.liveIds().size===0)return;
@@ -317,10 +353,12 @@ export class BrickRoom extends DurableObject{
  }
  step(dt,now){
   const r=this.room;
-  if(!r.board||!r.balls?.length){if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());if(!r.balls?.length)resetBall(r);}
-  if(now>=r.endsAt||r.board.remaining===0||r.players.every(p=>p.lives===0)){
-   r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;
-  }
+  if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());
+  r.balls=r.balls||[];
+  // A player who stays disconnected past the grace period is out, so a round without a timer can still end.
+  for(const p of r.players)if(p.lives>0&&p.online===false&&now-(p.offlineAt||now)>OFFLINE_GRACE)eliminate(r,p);
+  replenishBalls(r);
+  if(finishCheck(r)){this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;}
   if(now<r.startedAt)return;
   r.crushClock=(r.crushClock??-10)+dt;
   const interval=crusherInterval(r.level||1);
@@ -335,13 +373,12 @@ export class BrickRoom extends DurableObject{
      ball.hold-=t;
      const owner=r.players.find(p=>p.id===ball.source);
      if(owner){const rest=spawnPlayerBall(r,owner);ball.x=rest.x;ball.y=rest.y;}
+     if(ball.hold<=0)launchBall(r,ball);
     }else advanceBall(r,ball,t*slow*hyper);
    }
    advancePowers(r,t);
   }
-  if(r.board.remaining===0||r.players.every(p=>p.lives===0)){
-   r.status="finished";this.stopLoop();this.save().catch(e=>console.error("room.finish",e));
-  }
+  if(finishCheck(r)){this.stopLoop();this.save().catch(e=>console.error("room.finish",e));}
  }
 }
 function newCode(){const bytes=new Uint8Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,n=>ABC[n%ABC.length]).join("");}

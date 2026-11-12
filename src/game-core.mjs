@@ -233,6 +233,17 @@ function bounceBall(ball,side,offset,speed=330){
  else {ball.vx=-inward;ball.vy=-parallel;}
  return ball;
 }
+// Where a served ball waits in front of its paddle.
+function serveSpot(arena,seat,pos){
+ const coord=paddleShape(arena,seat,pos,false).center;
+ return seat===0?{x:coord,y:484}:seat===2?{x:coord,y:100}:seat===1?{x:66,y:coord}:{x:arena.width-66,y:coord};
+}
+// A serve aimed `angle` radians off straight-in, measured on the server's own screen (positive = their right).
+function aimVelocity(seat,angle,speed){
+ const sx=Math.sin(angle)*speed,sy=-Math.cos(angle)*speed;
+ const [a,b,c,d]=seat===2?[-1,0,0,-1]:seat===1?[0,-1,1,0]:seat===3?[0,1,-1,0]:[1,0,0,1];
+ return {vx:a*sx+b*sy,vy:c*sx+d*sy};
+}
 function normalizeBallVelocity(ball,speed=330,axis="y"){
  const length=Math.hypot(ball.vx,ball.vy)||1;
  ball.vx*=speed/length;ball.vy*=speed/length;
@@ -333,7 +344,7 @@ function crusherPoint(transform,x,y){
 function uncrushPoint(transform,x,y){
  return {x:transform.cx+(x-transform.cx)/transform.sx,y:transform.cy+(y-transform.cy)/transform.sy};
 }
-export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed};
+export {arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity,serveSpot};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,crusherTransform,crusherPoint,uncrushPoint,paddleShape,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity,serveSpot].map(fn=>fn.toString()).join("\n");
 export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,bounceBall,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed].map(fn=>fn.toString()).join("\n");

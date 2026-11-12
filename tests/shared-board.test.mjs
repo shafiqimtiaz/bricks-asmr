@@ -249,13 +249,13 @@ test("a missed ball costs one life and the replacement rides the paddle before l
   assert.equal(room.lastEvent.type, "MISS");
   // While held, the ball follows its owner's paddle and is reported as stationary.
   const instance={room,ctx:{getWebSockets:()=>[]},liveIds:BrickRoom.prototype.liveIds,stopLoop(){},save:async()=>{}};
-  room.startedAt=Date.now()-1000;room.endsAt=Date.now()+60000;top.pos=.9;
+  room.startedAt=Date.now()-1000;top.pos=.9;
   BrickRoom.prototype.step.call(instance,.1,Date.now());
   assert.ok(Math.abs(fresh[0].x-paddleShape(room.arena,2,.9,false).center)<1e-9);
   assert.equal(fresh[0].y,100);
   const sent=BrickRoom.prototype.snapshot.call(instance).balls.find(b=>b.source==="p1");
   assert.equal(sent.vx,0);assert.equal(sent.vy,0);
-  for(let i=0;i<27;i++)BrickRoom.prototype.step.call(instance,.1,Date.now());
+  for(let i=0;i<52;i++)BrickRoom.prototype.step.call(instance,.1,Date.now());
   assert.ok(!(fresh[0].hold>0)&&fresh[0].y>100,"the held ball launches inward");
 });
 
@@ -317,7 +317,7 @@ function paddlePosFor(room, seat, coord) {
   return Math.max(0, Math.min(1, (coord - (seat === 0 || seat === 2 ? 6 : 40) - half) / (span - 2 * half)));
 }
 
-test("power-ups extend a bounded timer and expose active buffs", () => {
+test("power-ups expose active buffs and the old +8 seconds capsule grants a life", () => {
   const room = roomForPlayers(2);
   const ball = room.balls[0];ball.owner = "p0";
   const setPower = (kind) => {
@@ -332,8 +332,9 @@ test("power-ups extend a bounded timer and expose active buffs", () => {
   assert.ok(room.effects.slowUntil > Date.now());
   setPower(7);
   assert.ok(room.effects.hyperUntil > Date.now());
-  for (let i = 0; i < 12; i++) setPower(10);
-  assert.equal(room.endsAt, room.startedAt + 150000);
+  const lives = room.players[0].lives;
+  setPower(10);
+  assert.equal(room.players[0].lives, lives + 1);
 });
 
 test("wider paddles remain inside the arena boundaries", () => {
@@ -380,12 +381,16 @@ test("frequent snapshots omit immutable map data but send brick HP changes", () 
   assert.equal(packets[3].state.board.colors.length, 58 * 64);
 });
 
-test("a timed out match finishes and halts the simulation", () => {
+test("rounds have no timer: a long round keeps playing and a cleared board finishes it", () => {
   const room = roomForPlayers(2);
-  room.endsAt = Date.now() - 1;
   let stopped = false;
-  BrickRoom.prototype.step.call({ room, stopLoop() { stopped = true; }, save: async () => {} }, .05, Date.now());
+  const handler = { room, stopLoop() { stopped = true; }, save: async () => {} };
+  BrickRoom.prototype.step.call(handler, .05, Date.now() + 10 * 60000);
+  assert.equal(room.status, "playing");
+  room.board.remaining = 0;
+  BrickRoom.prototype.step.call(handler, .05, Date.now());
   assert.equal(room.status, "finished");
+  assert.deepEqual(room.result, { reason: "cleared" });
   assert.ok(stopped);
 });
 
@@ -409,10 +414,10 @@ test("CRT and Vapor canvases both receive direct pointer input", () => {
   assert.match(html, /send\(sliderPos\(view,u\*viewW\)\)/);
 });
 
-test("shared countdown is visible but physics and the timer wait three seconds", () => {
+test("shared countdown is visible and physics wait three seconds", () => {
   const room = roomForPlayers(2);
   assert.ok(room.startedAt > Date.now());
-  assert.equal(room.endsAt - room.startedAt, 90000);
+  room.balls[0].hold = 0;
   const before = { ...room.balls[0] };
   const handler = { room, stopLoop() {}, save: async () => {} };
   BrickRoom.prototype.step.call(handler, .05, room.startedAt - 1000);
@@ -660,8 +665,8 @@ test("multiplayer lobby maps the current player to the bottom slot",()=>{
  const from=js.indexOf("function render(){"),to=js.indexOf("let GRID_X=",from);
  assert.ok(from>=0&&to>from);
  const players=[{id:"p0",name:"Host",seat:0,online:true,lives:3},{id:"p1",name:"Guest",seat:2,online:true,lives:3}];
- const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false,style:{}});return nodes.get(id);};
- const calls=[],state={code:"ABCD23",players,hostId:"p0",status:"waiting",round:0,remaining:90,balls:[],board:{hp:"0",remaining:0,total:1}};
+ const nodes=new Map();const $=id=>{if(!nodes.has(id))nodes.set(id,{textContent:"",hidden:false,style:{},classList:{toggle(){}}});return nodes.get(id);};
+ const calls=[],state={code:"ABCD23",players,hostId:"p0",status:"waiting",round:0,elapsed:0,balls:[],board:{hp:"0",remaining:0,total:1}};
  const fn=new Function("$","state","you","renderSeat",js.slice(from,to)+"return render;");
  const render=fn($,state,"p1",(side,p,mine)=>calls.push({side,id:p?.id,mine}));
  render();

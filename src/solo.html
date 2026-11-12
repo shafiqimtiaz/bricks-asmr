@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-visual">
 <title>Bricks ASMR · Single Player</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap" rel="stylesheet">
@@ -307,9 +307,9 @@ function roundArc(context, x, y, radius, start, end){
   context.ellipse(x, y, radius * correction, radius / correction, 0, start, end);
 }
 function fit(){
-  const vv = window.visualViewport;
-  const vw = Math.max(1, Math.floor(vv ? vv.width : window.innerWidth));
-  const vh = Math.max(1, Math.floor(vv ? vv.height : window.innerHeight));
+  // Size to the layout viewport: an on-screen keyboard or page zoom only shrinks the visual viewport.
+  const vw = Math.max(1, Math.floor(window.innerWidth));
+  const vh = Math.max(1, Math.floor(window.innerHeight));
   const panelOpen = !document.getElementById('panel').hidden || !document.getElementById('homeLobby').hidden;
   wrap.style.setProperty('--u', stageFit(vw, vh, W, H, panelOpen).unit + 'px');
   const f = stageFit(vw, vh, W, H, panelOpen, document.getElementById('hud').offsetHeight);

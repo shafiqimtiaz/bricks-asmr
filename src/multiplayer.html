@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-visual">
 <title>Bricks ASMR · Multiplayer Lobby</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap" rel="stylesheet">
@@ -145,6 +145,9 @@ body.vapor #panel .pb #pnext{border-color:var(--lb-accent);color:var(--lb-accent
 #panel .actions{display:flex;gap:calc(var(--u)*1.6);justify-content:center;flex-wrap:wrap}
 #panel .actions button{flex:1}
 #panel .note{font-size:.8em;line-height:1.5;color:var(--lb-soft)}
+#panel .modePick{display:flex;gap:calc(var(--u)*1.5)}
+#panel .modePick button{flex:1}
+#panel .modePick button.on{background:var(--lb-accent);border-color:var(--lb-accent);color:#111;opacity:1}
 #panel #intro,#panel #room{display:flex;flex-direction:column;gap:calc(var(--u)*2.5)}
 #panel #room[hidden],#panel #intro[hidden]{display:none}
 #panel #roomTitle{font-size:1.4em;color:var(--lb-accent)}
@@ -291,7 +294,7 @@ body.clean #hud .pips i{box-shadow:none}
  <canvas id="c"></canvas><canvas id="g"></canvas>
  <div id="hud" aria-label="Game status and settings">
   <span id="hudMode">LOBBY</span>
-  <div id="hudStats" hidden><span id="lvl" class="chip">L1</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">1:30</span></div>
+  <div id="hudStats" hidden><span id="lvl" class="chip">L1</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
   <span class="sp"></span>
   <button id="sty" type="button" title="Change visual style" aria-label="Change visual style">crt</button>
   <button id="sound" type="button" title="Toggle sound" aria-label="Toggle sound" aria-pressed="true">♪</button>
@@ -337,10 +340,12 @@ body.clean #hud .pips i{box-shadow:none}
     </form>
    <div class="statLine"><span id="playerCount">1/4</span><span>CONNECTED: <b id="connection">CONNECTING…</b></span></div>
    <div class="seatGrid"><div id="slot0" class="seat"></div><div id="slot2" class="seat"></div><div id="slot1" class="seat"></div><div id="slot3" class="seat"></div></div>
+   <div class="modePick" role="group" aria-label="Game mode"><button id="modeCoop" type="button">COOP</button><button id="modeVersus" type="button">VERSUS</button></div>
+   <p id="modeNote" class="note"></p>
    <div id="glass"><strong id="glassTitle">Waiting for friends</strong><p id="glassText">Share the code to fill the other sides.</p></div>
    <div id="finishText" aria-live="polite"></div>
    <div class="actions"><button id="start" class="primary" type="button" hidden>START ROUND</button><button id="leave" type="button">LEAVE</button></div>
-   <div class="note">ROUND <span id="round">—</span> · <span id="timer">1:30</span></div>
+   <div class="note">ROUND <span id="round">—</span> · <span id="timer">0:00</span></div>
   </section>
  </div>
  <div id="toast" role="status" aria-live="polite"></div>
@@ -351,11 +356,12 @@ body.clean #hud .pips i{box-shadow:none}
 "use strict";
 const $=id=>document.getElementById(id);
 const API=location.pathname.startsWith("/multiplayer")?"/api/multiplayer/rooms":"/api/rooms";
+let aimAng=0,heldBefore=false,drag=null;
 let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,lastHits=-1,localPos=.5,inputSeq=0;
 let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
 const serverNow=()=>Date.now()+clock,shownPos={},held={};
 // Power-up capsules look the same in every theme because all players share them.
-const CAPSULES={1:["+2","#3fa9d8"],2:["x3","#9cc23a"],3:["W","#f0a040"],4:["P","#ff5a2a"],5:["S","#01cdfe"],6:["♥","#ff6fa3"],7:["H","#ff3df0"],8:["Z","#6a8cff"],9:["C","#d9b22a"],10:["+8","#ffe066"],11:["x2","#9cc23a"]};
+const CAPSULES={1:["+2","#3fa9d8"],2:["x3","#9cc23a"],3:["W","#f0a040"],4:["P","#ff5a2a"],5:["S","#01cdfe"],6:["♥","#ff6fa3"],7:["H","#ff3df0"],8:["Z","#6a8cff"],9:["C","#d9b22a"],10:["♥","#ff6fa3"],11:["x2","#9cc23a"]};
 const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
 // ---------- canvas ----------
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -405,9 +411,9 @@ function postFX(now){
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 function fit(){
-  const vv = window.visualViewport;
-  const vw = Math.max(1, Math.floor(vv ? vv.width : window.innerWidth));
-  const vh = Math.max(1, Math.floor(vv ? vv.height : window.innerHeight));
+  // Size to the layout viewport: an on-screen keyboard or page zoom only shrinks the visual viewport.
+  const vw = Math.max(1, Math.floor(window.innerWidth));
+  const vh = Math.max(1, Math.floor(window.innerHeight));
   const panelOpen = !$('panel').hidden;
   view = boardView(arena, state?.players.find(p=>p.id===you)?.seat ?? 0);
   viewW = view.width; viewH = view.height;
@@ -455,14 +461,13 @@ for(const id of ['panel', 'homeLobby']){
 
 let W=arena.width,H=arena.height,viewW=W,viewH=H;
 const colors=["#d57d70","#8dbbca","#d0a768","#a5ae91"];
-let sparks=[],rings=[],flash=0,shake=0,lastHP=null,drawnHP=null,drawnStyle=null;
+let sparks=[],rings=[],lastHP=null,drawnHP=null,drawnStyle=null;
 let soundOn=true,soundKit=null,notesThisFrame=0;
-function clearFx(){sparks=[];rings=[];floats=[];flash=0;shake=0;}
+function clearFx(){sparks=[];rings=[];floats=[];}
 function sparkle(b){
  const c=(style==="vapor"?state?.board?.vaporPalette:state?.board?.palette)?.[b.c]||colors[b.c%4];const x=b.x,y=b.y;
  rings.push({x,y,r:2,t:1,c});
  for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2,v=35+Math.random()*105;sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:.6+Math.random()*.5,c});}
- flash=Math.max(flash,.12);shake=Math.max(shake,2);
 }
 function audioInit(){
  if(!soundOn)return;
@@ -580,6 +585,8 @@ let lastUiRender=0,lastEventSeq=-1,toastTimeout=0;
 function showPower(event){
  if(!event||event.seq===lastEventSeq)return;
  lastEventSeq=event.seq;
+ // Other players' misses and pickups stay on their screens; shared buffs still show in the status line.
+ if(event.owner!==you)return;
  const el=$("toast");el.textContent=event.type;el.classList.add("visible");
  clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>el.classList.remove("visible"),1400);
  if(event.type==="MISS")blip(95,.13,.18);
@@ -617,10 +624,14 @@ function accept(s){
  }
  lastHP=next;
  if(s.lastEvent)showPower(s.lastEvent);
+ // Each new serve starts aimed straight in.
+ const holding=s.status==="playing"&&!!s.balls?.some(b=>b.held&&b.source===you);
+ if(holding&&!heldBefore){aimAng=0;queueInput();}
+ heldBefore=holding;
  const me=s.players.find(p=>p.id===you);
  if(previous?.status!=="playing"&&me)localPos=me.pos;
  const connectionChanged=s.hostId!==previous?.hostId||s.players.some((p,i)=>p.online!==previous?.players?.[i]?.online||p.name!==previous?.players?.[i]?.name);
- if(connectionChanged||performance.now()-lastUiRender>175||s.status!==previous?.status||s.round!==previous?.round||s.players.length!==previous?.players?.length){
+ if(connectionChanged||performance.now()-lastUiRender>175||s.status!==previous?.status||s.mode!==previous?.mode||s.round!==previous?.round||s.players.length!==previous?.players?.length){
   render();lastUiRender=performance.now();
  }
 }
@@ -646,12 +657,12 @@ function render(){
  $("playerCount").textContent=s.players.length+" PADDLES · "+online+" ONLINE";
  $("currentName").textContent=me.name;
  $("round").textContent=s.round||"—";
- const secs=Math.max(0,s.remaining|0);
+ const secs=Math.max(0,s.elapsed|0),mode=s.mode||"versus";
  $("timer").textContent=Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
  $("lvl").textContent="LEVEL "+(s.level||1);
  let pips="";for(let k=0;k<Math.max(4,me.lives);k++)pips+=k<me.lives?"<i></i>":'<i class="off"></i>';
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
- $("tmr").textContent=$("timer").textContent;$("tmr").className="clock"+(s.status==="playing"&&secs<=10?" low":"");
+ $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
  $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.board.remaining/s.board.total).toFixed(3):0)+")";
  $("hudStats").hidden=s.status!=="playing";
  $("hudMode").hidden=s.status==="playing";
@@ -660,9 +671,24 @@ function render(){
  $("roomTitle").textContent=s.status==="waiting"?"Invite your friends.":s.status==="playing"?"Playing together.":"Well played.";
  $("start").hidden=!(hosting&&(s.status==="waiting"||s.status==="finished"));
  $("start").textContent=s.status==="finished"?"PLAY AGAIN":"START ROUND";$("start").disabled=online<2;
+ $("modeCoop").classList.toggle("on",mode==="coop");$("modeVersus").classList.toggle("on",mode==="versus");
+ $("modeCoop").disabled=$("modeVersus").disabled=!hosting||s.status==="playing";
+ $("modeNote").textContent=(mode==="coop"?"COOP · ONE SHARED BALL · CLEAR THE BOARD TOGETHER":"VERSUS · A BALL EACH · LAST PLAYER STANDING WINS")+(hosting?"":" · HOST PICKS");
  $("glass").hidden=s.status==="playing";$("panel").hidden=s.status==="playing";
  if(s.status==="waiting"){$("glassTitle").textContent="WAITING FOR PLAYERS";$("glassText").textContent="Share "+s.code+" · "+s.players.length+" active paddle"+(s.players.length===1?"":"s")+" · start with two online.";}
- if(s.status==="finished"){$("glassTitle").textContent="ROUND COMPLETE";const top=Math.max(...s.players.map(p=>p.score));$("glassText").textContent=s.players.filter(p=>p.score===top).map(p=>p.name).join(" & ")+" · "+top+" POINTS";}
+ if(s.status==="finished"){
+  const result=s.result||{},top=Math.max(...s.players.map(p=>p.score)),winner=s.players.find(p=>p.id===result.winner);
+  if(mode==="coop"){
+   $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":"ALL OUT";
+   $("glassText").textContent="TEAM SCORE "+s.players.reduce((t,p)=>t+p.score,0)+" · "+Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
+  }else if(winner){
+   $("glassTitle").textContent=winner.name+" WINS";
+   $("glassText").textContent="LAST PLAYER STANDING · "+winner.score+" POINTS";
+  }else{
+   $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":"ROUND COMPLETE";
+   $("glassText").textContent=s.players.filter(p=>p.score===top).map(p=>p.name).join(" & ")+" · "+top+" POINTS";
+  }
+ }
  $("finishText").textContent=s.status==="finished"?(hosting?"Ready for another round.":"Waiting for the host to restart."):"";
  for(let relativeSide=0;relativeSide<4;relativeSide++){const worldSide=(me.seat+relativeSide)%4;const p=s.players.find(v=>v.seat===worldSide);renderSeat(relativeSide,p,p?.id===you);}
 }
@@ -726,6 +752,22 @@ function paintCourt(){
  c.strokeStyle=V?"#ff71ce":C?"#5a5d60":"#56605c";c.lineWidth=1;c.beginPath();c.roundRect(6.5,40.5,W-13,503,5);c.stroke();
 }
 let floats=[];
+// The serve's straight-line path: it reflects off empty edges and stops at the first brick or occupied edge.
+function aimPath(from,seat,radius,transform){
+ const v=aimVelocity(seat,aimAng,1),points=[],occupied=new Set(state.players.filter(p=>p.online&&p.lives>0).map(p=>p.seat));
+ let x=from.x,y=from.y,vx=v.vx,vy=v.vy;
+ for(let d=0;d<700;d+=2){
+  x+=vx*2;y+=vy*2;
+  if(x<15+radius){if(occupied.has(1))break;x=15+radius;vx=Math.abs(vx);}
+  if(x>W-15-radius){if(occupied.has(3))break;x=W-15-radius;vx=-Math.abs(vx);}
+  if(y<49+radius){if(occupied.has(2))break;y=49+radius;vy=Math.abs(vy);}
+  if(y>535-radius){if(occupied.has(0))break;y=535-radius;vy=-Math.abs(vy);}
+  const p=uncrushPoint(transform,x,y),col=Math.floor((p.x-GRID_X)/GRID_SIZE),row=Math.floor((p.y-GRID_Y)/GRID_SIZE);
+  if(col>=0&&col<GRID_COLS&&row>=0&&row<GRID_ROWS&&state.board?.hp?.[row*GRID_COLS+col]>"0")break;
+  if(d%8===0)points.push(x,y);
+ }
+ return points;
+}
 function label(text,x,y,angle){
  ctx.save();ctx.translate(x,y);if(angle)ctx.rotate(angle);ctx.fillText(text,0,0);ctx.restore();
 }
@@ -736,10 +778,11 @@ function draw(now){
  const playing=s?.status==="playing",live=playing&&s.startedAt<=serverNow(),wide=s?.effects?.wideUntil>serverNow();
  const dir=(held.arrowright||held.d?1:0)-(held.arrowleft||held.a?1:0);
  if(dir&&playing&&$("hudMenu").hidden)send(localPos+dir*(view.seat===2||view.seat===3?-1:1)*dt*1.5);
+ const turn=(held.arrowup||held.w?1:0)-(held.arrowdown||held.s?1:0);
+ if(turn&&$("hudMenu").hidden&&holdingServe())setAim(aimAng+turn*dt*1.2);
  ctx.setTransform(scaleX,0,0,scaleY,0,0);
  ctx.fillStyle=V?"#0d0221":C?"#1b1b1b":"#151715";ctx.fillRect(0,0,viewW,viewH);
- const qx=(Math.random()-.5)*shake,qy=(Math.random()-.5)*shake;shake*=Math.pow(.87,dt*60);
- ctx.save();ctx.translate(qx,qy);
+ ctx.save();
  ctx.save();ctx.transform(...viewMatrix(view));
  paintCourt();ctx.drawImage(court,0,0,W,H);
  paintTiles(s?.board);
@@ -764,11 +807,18 @@ function draw(now){
   ctx.restore();
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
+ const serve=playing&&me?s.balls?.find(b=>b.held&&b.source===you):null,spot=serve?serveSpot(arena,me.seat,localPos):null;
+ if(spot){
+  const path=aimPath(spot,me.seat,radius,transform);
+  ctx.fillStyle=V?"#01cdfe":"#ffffff";
+  for(let i=0;i<path.length;i+=2){ctx.globalAlpha=.7*(1-i/path.length/1.2);ctx.fillRect(path[i]-.75,path[i+1]-.75,1.5,1.5);}
+  ctx.globalAlpha=1;
+ }
  if(s?.balls){
   // Predict each ball forward from the last snapshot; cap the guess so a late packet cannot fling it off the court.
   const ahead=live?Math.min((performance.now()-lastStateAt)/1000,.1):0;
   for(const b of s.balls){
-   const x=Math.max(6+radius,Math.min(W-6-radius,b.x+b.vx*ahead)),y=Math.max(40+radius,Math.min(544-radius,b.y+b.vy*ahead));
+   const x=b===serve?spot.x:Math.max(6+radius,Math.min(W-6-radius,b.x+b.vx*ahead)),y=b===serve?spot.y:Math.max(40+radius,Math.min(544-radius,b.y+b.vy*ahead));
    const ownBall=b.source===you,hot=Math.hypot(b.vx,b.vy)>cruise*1.14;
    const color=hot?(V?"#fffb96":"#ffd166"):ownBall?(V?"#ff71ce":"#ffa58a"):(V?"#01cdfe":"#a7dce9");
    if(live&&!b.held){
@@ -787,7 +837,6 @@ function draw(now){
  ctx.globalAlpha=1;
  for(let i=rings.length-1;i>=0;i--){const r=rings[i];r.t-=dt*1.2;if(r.t<=0){rings[i]=rings[rings.length-1];rings.pop();continue;}ctx.strokeStyle=V?"#ff71ce":r.c;ctx.globalAlpha=r.t;ctx.lineWidth=1;ctx.beginPath();ctx.arc(r.x,r.y,20*(1-r.t)+1,0,Math.PI*2);ctx.stroke();}
  ctx.globalAlpha=1;
- if(flash>.001){ctx.fillStyle="rgba(255,255,255,"+flash+")";ctx.fillRect(6,40,W-12,504);flash*=Math.pow(.82,dt*60);}
  ctx.restore();
  const small=C?"bold 9px ui-monospace,monospace":"7px 'Press Start 2P',monospace";
  ctx.textAlign="center";ctx.textBaseline="middle";
@@ -838,7 +887,9 @@ function draw(now){
  ctx.font=small;
  if(playing&&me){
   const mult=1+Math.min(4,Math.floor((me.combo||0)/5));
-  ctx.fillStyle=V?"#ff9de0":"#e8b9ad";ctx.fillText(me.lives>0?"YOU "+me.score:"OUT · "+me.score,viewW/2,viewH-80);
+  ctx.fillStyle=V?"#ff9de0":"#e8b9ad";
+  const yours=me.lives>0?"YOU "+me.score:"OUT · "+me.score;
+  ctx.fillText(s.mode==="coop"?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-80);
   if(mult>1){
    const beat=1+.12*Math.sin(now/90);
    ctx.save();ctx.translate(viewW/2,view.height-112);ctx.scale(beat,beat);
@@ -848,7 +899,7 @@ function draw(now){
    ctx.fillText("COMBO x"+mult,0,0);ctx.restore();ctx.font=small;
   }
  }
- if(live&&s.balls?.some(b=>b.held&&b.source===you)){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("TAP BOARD OR SPACE TO LAUNCH",viewW/2,viewH-64);}
+ if(live&&s.balls?.some(b=>b.held&&b.source===you)){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-64);}
  else if(boosts.length){ctx.fillStyle=V?"#ff71ce":"#ffd08e";ctx.fillText(boosts.join("  ·  "),viewW/2,viewH-64);}
  else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-64);}
  if(playing&&!live){
@@ -869,7 +920,7 @@ let lastInputSent=0,pendingInput=null;
 function flushInput(){
  pendingInput=null;
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
- socket.send(JSON.stringify({type:"paddle-input",version:1,pos:localPos,seq:++inputSeq}));
+ socket.send(JSON.stringify({type:"paddle-input",version:1,pos:localPos,aim:aimAng,seq:++inputSeq}));
  lastInputSent=performance.now();
 }
 let moved=false;
@@ -877,12 +928,22 @@ function send(pos){
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
  moved=true;
  localPos=Math.max(0,Math.min(1,pos));
+ queueInput();
+}
+function setAim(angle){
+ if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
+ aimAng=Math.max(-1.05,Math.min(1.05,angle));
+ queueInput();
+}
+function queueInput(){
+ if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
  const remaining=42-(performance.now()-lastInputSent);
  if(remaining<=0){if(pendingInput!==null)clearTimeout(pendingInput);flushInput();}
  else if(pendingInput===null)pendingInput=setTimeout(flushInput,remaining);
 }
+function holdingServe(){return state?.status==="playing"&&!!state.balls?.some(b=>b.held&&b.source===you);}
 function launch(){
- if(socket?.readyState===WebSocket.OPEN&&state?.status==="playing"&&state.balls?.some(b=>b.held&&b.source===you))socket.send(JSON.stringify({type:"launch",version:1}));
+ if(socket?.readyState===WebSocket.OPEN&&holdingServe())socket.send(JSON.stringify({type:"launch",version:1,aim:aimAng}));
 }
 function pointer(event){
  const rect=event.currentTarget.getBoundingClientRect();
@@ -891,15 +952,23 @@ function pointer(event){
  if(useGL()){const k=FX[style].k,cx=u*2-1,cy=(event.clientY-rect.top)/rect.height*2-1;u=cx*(1+k*cy*cy)*.5+.5;}
  send(sliderPos(view,u*viewW));
 }
+// As in Solo: the strip below the board moves the paddle; while serving, dragging the board aims and a tap launches.
+const boardX=event=>{const rect=event.currentTarget.getBoundingClientRect();return (event.clientX-rect.left)/rect.width*viewW;};
 for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
-  audioInit();canvas.setPointerCapture(event.pointerId);pointer(event);
+  audioInit();canvas.setPointerCapture(event.pointerId);
   const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96)launch();
+  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())drag={x:boardX(event),aim:aimAng,moved:false};
+  else{drag=null;pointer(event);}
  });
- canvas.addEventListener("pointermove",event=>{if(event.buttons||event.pointerType==="touch")pointer(event);});
+ canvas.addEventListener("pointermove",event=>{
+  if(drag){const dx=boardX(event)-drag.x;if(Math.abs(dx)>4)drag.moved=true;if(drag.moved)setAim(drag.aim+dx*.006);}
+  else if(event.buttons||event.pointerType==="touch")pointer(event);
+ });
+ canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
+ canvas.addEventListener("pointercancel",()=>{drag=null;});
 }
-const MOVE_KEYS=["arrowleft","arrowright","a","d"];
+const MOVE_KEYS=["arrowleft","arrowright","a","d","arrowup","arrowdown","w","s"];
 window.addEventListener("keydown",event=>{
  const key=event.key.toLowerCase();
  if(key==="escape")closeMenu();
@@ -926,6 +995,7 @@ $("nicknameForm").addEventListener("submit",async event=>{
  }catch(e){$("nameError").textContent=e.message;}
  finally{$("saveName").disabled=false;}
 });
+for(const [id,mode] of [["modeCoop","coop"],["modeVersus","versus"]])$(id).addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"mode",mode});}catch(e){$("finishText").textContent=e.message;}});
 $("start").addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"start"});}catch(e){$("finishText").textContent=e.message;}});
 $("copy").addEventListener("click",async()=>{
  const url=location.origin+"/multiplayer/"+roomCode;
