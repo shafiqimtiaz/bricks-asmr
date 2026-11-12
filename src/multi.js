@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { arenaLayout, bricks, browserCoreSource } from "./game-core.js";
+import { arenaLayout, squareArena, bricks, browserCoreSource } from "./game-core.js";
 import { brickEngine, engineSource } from "./engine.js";
 import MULTIPLAYER_HTML from "./multiplayer.html";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
@@ -30,12 +30,14 @@ const num=(v,k=10)=>Math.round(v*k)/k;
 const simPlayer=(r,id)=>r.sim?.players.find(p=>p.id===id)||null;
 // Whether a player can no longer take part: explicitly out, or (Versus) without lives, or (Coop) the pool is empty.
 const outOf=(S,p)=>p.out||(S.mode==="versus"?p.lives<=0:S.pool<=0);
+// Two players share the room's tall board; three or four play on the square one.
+function arenaFor(count,current){return count>=3?squareArena():current&&!current.square?current:arenaLayout();}
 function randomSeed(){return Math.random().toString(36).slice(2,8);}
 function startRound(r,set="vintage"){
  r.status="playing";r.round=(r.round||0)+1;r.seed=randomSeed();
  r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set=SETS.includes(set)?set:"vintage";
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
- r.arena=r.arena||arenaLayout();
+ r.arena=arenaFor(r.players.length,r.arena);
  r.board=bricks(r.seed,r.players.length,r.arena);
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 4.
@@ -140,7 +142,7 @@ export class BrickRoom extends DurableObject{
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5};r.players.push(player);assignSides(r.players);
-   if(r.status==="waiting"){r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena||arenaLayout());this.sent=null;}
+   if(r.status==="waiting"){r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena);this.sent=null;}
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }
   if(!existing)return reply({error:"Join the lobby first"},401);
@@ -183,7 +185,7 @@ export class BrickRoom extends DurableObject{
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
-    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),Math.max(2,r.players.length),r.arena||arenaLayout());this.sent=null;
+    assignSides(r.players);r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),Math.max(2,r.players.length),r.arena);this.sent=null;
    }
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;

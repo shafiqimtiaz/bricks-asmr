@@ -59,7 +59,7 @@ function brickEngine(rng=Math.random){
  // o is +1 where the outward direction is +x/+y, and q the coordinate across the edge.
  const OUT={0:1,2:-1,1:-1,3:1};
  function across(seat,x,y){return horizontal(seat)?y:x;}
- function edgeSpan(S,seat){return horizontal(seat)?[0,S.W]:[40,544];}
+ function edgeSpan(S,seat){return horizontal(seat)?[S.wx,S.W-S.wx]:[40,544];}
  // The point `d` pixels inside the edge (negative: beyond it).
  function point(S,seat,a,d){const q=face(S,seat)-OUT[seat]*d;return horizontal(seat)?{x:a,y:q}:{x:q,y:a};}
  function floorDepth(seat){return seat===0||seat===2?22:10;}
@@ -71,7 +71,7 @@ function brickEngine(rng=Math.random){
   let minR=a.rows,maxR=-1,minC=a.cols,maxC=-1;
   for(let i=0;i<N;i++)if(hp[i]){const r=(i/a.cols)|0,c=i%a.cols;rowCount[r]++;colCount[c]++;minR=Math.min(minR,r);maxR=Math.max(maxR,r);minC=Math.min(minC,c);maxC=Math.max(maxC,c);}
   const S={
-   W:a.width,H:a.height,CS:a.cell,COLS:a.cols,ROWS:a.rows,GX:a.gridX,GY:a.gridY,N,BR:a.cell*.45,PU_R:a.cell*1.5,speed:ballSpeed(a),
+   W:a.width,H:a.height,wx:a.square?6:0,CS:a.cell,COLS:a.cols,ROWS:a.rows,GX:a.gridX,GY:a.gridY,N,BR:a.cell*.45,PU_R:a.cell*1.5,speed:ballSpeed(a),
    mode:o.mode||'solo',set:o.set||'vintage',daily:!!o.daily,maxBalls:o.maxBalls||2500,holdSeconds:o.holdSeconds||0,
    hp,col,pu,rowCount,colCount,remaining:b.remaining,total:b.total,
    bounds:{X0:a.gridX+minC*a.cell,X1:a.gridX+(maxC+1)*a.cell,Y0:a.gridY+minR*a.cell,Y1:a.gridY+(maxR+1)*a.cell},
@@ -247,7 +247,7 @@ function brickEngine(rng=Math.random){
     let nx=b.x+b.vx*sdt;
     let i=solid(S,nx+Math.sign(b.vx)*BR,b.y);
     if(i>=0&&impact(i,b.owner)){b.vx=-b.vx;nx=b.x;}
-    if(!open[1]&&nx<BR){nx=BR;b.vx=Math.abs(b.vx);}else if(!open[3]&&nx>S.W-BR){nx=S.W-BR;b.vx=-Math.abs(b.vx);}
+    if(!open[1]&&nx<S.wx+BR){nx=S.wx+BR;b.vx=Math.abs(b.vx);}else if(!open[3]&&nx>S.W-S.wx-BR){nx=S.W-S.wx-BR;b.vx=-Math.abs(b.vx);}
     let ny=b.y+b.vy*sdt;
     i=solid(S,nx,ny+Math.sign(b.vy)*BR);
     if(i>=0&&impact(i,b.owner)){b.vy=-b.vy;ny=b.y;}
@@ -409,7 +409,7 @@ function brickEngine(rng=Math.random){
   for(let k=0;k<maxSteps;k++){
    let nx=x+vx*st;
    if(!fire&&solid(S,nx+Math.sign(vx)*BR,y)>=0){vx=-vx;nx=x;marks.push(x,y);}
-   if(!open[1]&&nx<BR){nx=BR;vx=Math.abs(vx);marks.push(nx,y);}else if(!open[3]&&nx>S.W-BR){nx=S.W-BR;vx=-Math.abs(vx);marks.push(nx,y);}
+   if(!open[1]&&nx<S.wx+BR){nx=S.wx+BR;vx=Math.abs(vx);marks.push(nx,y);}else if(!open[3]&&nx>S.W-S.wx-BR){nx=S.W-S.wx-BR;vx=-Math.abs(vx);marks.push(nx,y);}
    let ny=y+vy*st;
    if(!fire&&solid(S,nx,ny+Math.sign(vy)*BR)>=0){vy=-vy;ny=y;marks.push(nx,y);}
    if(!open[2]&&ny<S.GY-4+BR){ny=S.GY-4+BR;vy=Math.abs(vy);marks.push(nx,ny);}

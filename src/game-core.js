@@ -8,12 +8,15 @@ function arenaLayout(aspect=9/16){
  const rows=Math.max(18,2*Math.floor(Math.min(64,384/cell)/2));
  return {width,height,cell,cols,rows,gridX:(width-cols*cell)/2,gridY:40};
 }
+// Rooms of three or four play on a square court: the paddle lines are 488 apart both ways, so every seat's view is the same.
+function squareArena(){return {width:516,height:640,cell:8,cols:62,rows:62,gridX:10,gridY:44,square:true};}
 function bricks(seed,playerCount=2,arena=arenaLayout()){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
  // Multiplayer runs Solo's board generator on a smaller field that leaves a lane in front of every paddle.
  const crowd=playerCount>=4?[13,28,54]:playerCount===3?[11,26,56]:playerCount===2?[7,24,58]:[0,0,63];
- const FIELD_C=Math.round(GRID_COLS*crowd[0]/58),FIELD_R=Math.round(GRID_ROWS*crowd[1]/64);
- const COLS=GRID_COLS-2*FIELD_C,ROWS=Math.round(GRID_ROWS*(crowd[2]+1)/64)-FIELD_R,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
+  // On the square court the formation is a centred square with the same 110-pixel lane in front of every edge.
+ const FIELD_C=arena.square?Math.round((124-GRID_X)/GRID_SIZE):Math.round(GRID_COLS*crowd[0]/58),FIELD_R=arena.square?Math.round((158-GRID_Y)/GRID_SIZE):Math.round(GRID_ROWS*crowd[1]/64);
+ const COLS=GRID_COLS-2*FIELD_C,ROWS=arena.square?GRID_ROWS-2*FIELD_R:Math.round(GRID_ROWS*(crowd[2]+1)/64)-FIELD_R,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
  const SCALES=[[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8],[0,2,4,6,7,9,11],[0,2,3,5,7,9,10],[0,4,5,7,11]];
  const PU_W=[14,12,10,9,8,8,8,7,6,6],PU_WSUM=PU_W.reduce((a,b)=>a+b,0);
  const pickPU=u=>{let x=u*PU_WSUM;for(let j=0;j<PU_W.length;j++){x-=PU_W[j];if(x<0)return j+1;}return 10;};
@@ -306,7 +309,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
 export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");

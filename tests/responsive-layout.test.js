@@ -7,7 +7,7 @@ import { multiHtml, soloHtml } from "./helpers.js";
 const E = brickEngine();
 // A player's paddle as the client draws it: the engine's centre, face and width.
 function paddleRect(arena, seat, t) {
-  const S = { W: arena.width, players: [{ id: "me", seat, pw: 64 * arena.cell / 6 }] }, pw = S.players[0].pw;
+  const S = { W: arena.width, wx: arena.square ? 6 : 0, players: [{ id: "me", seat, pw: 64 * arena.cell / 6 }] }, pw = S.players[0].pw;
   const c = E.paddleAt(S, "me", t), face = E.face(S, seat), horizontal = seat === 0 || seat === 2;
   return { x: horizontal ? c - pw / 2 : seat === 1 ? face - 7 : face, y: horizontal ? (seat === 0 ? face : face - 7) : c - pw / 2,
     w: horizontal ? pw : 7, h: horizontal ? 7 : pw, half: pw / 2 };

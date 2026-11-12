@@ -616,7 +616,7 @@ let popAt=null;
 // The live world the shared engine reads (aim path, paddle geometry), rebuilt from each snapshot.
 function buildSim(s){
  const bi=s.board||{},[kx,bx,ky,by]=s.crush;
- return {W,H,CS:GRID_SIZE,COLS:GRID_COLS,ROWS:GRID_ROWS,GX:GRID_X,GY:GRID_Y,BR:GRID_SIZE*.45,speed:ballSpeed(arena),mode:s.mode,pool:s.players[0]?.lives||0,
+ return {W,H,wx:arena.square?6:0,CS:GRID_SIZE,COLS:GRID_COLS,ROWS:GRID_ROWS,GX:GRID_X,GY:GRID_Y,BR:GRID_SIZE*.45,speed:ballSpeed(arena),mode:s.mode,pool:s.players[0]?.lives||0,
   hp:hpArr,col:colArr,crush:{kx,bx,ky,by},fx:s.fx,
   players:s.players.map(p=>({id:p.id,seat:p.seat,online:p.online,out:!!p.out,lives:p.lives,fx:p.fx,c:p.c,pw:p.pw,aim:0})),
   balls:s.balls.map(b=>({x:b[0],y:b[1],vx:b[2],vy:b[3],source:s.players[b[4]]?.id,held:!!b[5]}))};
@@ -624,7 +624,7 @@ function buildSim(s){
 function accept(s){
  if(!s)return;
  popAt=null;
- if(s.arena && s.arena.width!==W)adoptArena(s.arena);
+ if(s.arena && (s.arena.width!==W||!!s.arena.square!==!!arena.square))adoptArena(s.arena);
  if(typeof s.now==="number")clock=s.now-Date.now();
  const previous=state,sameRound=!!previous&&previous.code===s.code&&previous.round===s.round;
  if(!sameRound){clearFx();tilesFull=true;localPos=.5;}
@@ -716,7 +716,7 @@ function sizeTiles(){
  tileScale=next;tiles.width=W*next;tiles.height=H*next;tilesFull=true;
 }
 function adoptArena(next){
- arena=arenaLayout(next.width/next.height);
+ arena={...next};
  W=arena.width;H=arena.height;
  GRID_X=arena.gridX;GRID_Y=arena.gridY;GRID_SIZE=arena.cell;
  GRID_COLS=arena.cols;GRID_ROWS=arena.rows;
@@ -813,7 +813,7 @@ function draw(now){
   const own=p.id===you,active=p.online&&!p.out,c=cOf(p),pw=p.pw;
   centres[p.id]=c;
   const color=own?(V?"#ff71ce":"#e07a66"):V?["#01cdfe","#05ffa1","#ff71ce","#b967ff"][p.seat]:"#8dbbca";
-  const hz=p.seat===0||p.seat===2,face=E.face({W},p.seat),span=hz?[0,W]:[40,544];
+  const hz=p.seat===0||p.seat===2,face=E.face({W},p.seat),span=hz?[arena.square?6:0,arena.square?W-6:W]:[40,544];
   // A twin paddle mirrors the first across the edge.
   const cs=active&&p.fx.twin>0?[c,span[0]+span[1]-c]:[c];
   if(active){

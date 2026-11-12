@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadServer, makeRoom, roomInstance } from "./helpers.js";
-import { arenaLayout, bricks } from "../src/game-core.js";
+import { arenaLayout, squareArena, bricks } from "../src/game-core.js";
 
 test("Arena geometry uses square cells and covers tall through ultrawide screens", () => {
   for (const ratio of [0.4, 375 / 812, 9 / 16, 3 / 4, 1, 4 / 3, 16 / 9, 21 / 9, 32 / 9]) {
@@ -63,14 +63,17 @@ test("Authoritative 1–4-player rounds run across every arena shape", () => {
     room.arena = arena;
     server.startRound(room, "vapor");
     assert.equal(room.status, "playing");
-    assert.equal(room.sim.hp.length, arena.cols * arena.rows);
+    // Two players keep the room's own board shape; three or four always move to the square court.
+    const played = playerCount >= 3 ? squareArena() : arena;
+    assert.deepEqual(room.arena, played);
+    assert.equal(room.sim.hp.length, played.cols * played.rows);
     assert.equal(room.sim.balls.length, mode === "coop" ? 1 : playerCount);
     const inst = roomInstance(server, room);
     for (const b of room.sim.balls) b.hold = 0;
     for (let tick = 0; tick < 100; tick++) inst.step(1 / 20, Date.now());
     for (const ball of room.sim.balls) {
       assert.ok(Number.isFinite(ball.x) && Number.isFinite(ball.y));
-      assert.ok(ball.x >= -11 && ball.x <= arena.width + 11);
+      assert.ok(ball.x >= -11 && ball.x <= played.width + 11);
     }
   }
 });

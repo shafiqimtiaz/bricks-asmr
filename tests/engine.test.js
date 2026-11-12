@@ -114,3 +114,16 @@ test("the engine runs from its injected browser source alongside the core helper
   for (let i = 0; i < 120; i++) E.step(S, 1 / 60);
   assert.ok(S.remaining <= S.total);
 });
+
+test("rooms of three or four play on a square court where every seat's view is the same size", () => {
+  const a = core.squareArena();
+  assert.deepEqual(new Set([0, 1, 2, 3].map(s => { const v = core.boardView(a, s); return v.width + "x" + v.height; })), new Set(["516x640"]));
+  const E = brickEngine(() => .5), S = E.create({ arena: a, board: bricks("square", 4, a), players: [0, 1, 2, 3].map(seat => ({ id: "s" + seat, seat })), mode: "versus", set: "clean", lives: 4 });
+  const B = S.bounds;
+  // The formation is centred left-right, and each paddle line is the same distance from the court's centre.
+  assert.equal((B.X0 + B.X1) / 2, (E.face(S, 1) + E.face(S, 3)) / 2);
+  assert.equal(E.face(S, 3) - E.face(S, 1), E.face(S, 0) - E.face(S, 2));
+  // Paddles travel the same distance on every edge.
+  const travel = seat => { const p = S.players.find(v => v.seat === seat); return E.paddleAt(S, p.id, 1) - E.paddleAt(S, p.id, 0); };
+  assert.ok(Math.abs(Math.abs(travel(0)) - Math.abs(travel(1))) < 1e-9);
+});
