@@ -3,7 +3,7 @@ import test from "node:test";
 import { aimVelocity, viewMatrix, boardView, arenaLayout } from "../src/game-core.mjs";
 import { loadServer } from "./helpers.mjs";
 
-const { assignSides, startRound, advanceBall, BrickRoom } = loadServer();
+const { assignSides, startRound, advanceBall, grantPower, BrickRoom } = loadServer();
 
 function room(mode, count = 2) {
   const players = Array.from({ length: count }, (_, i) =>
@@ -106,4 +106,23 @@ test("players who stay disconnected past the grace period are out", () => {
   assert.equal(player(r, "p1").lives, 0);
   assert.equal(r.status, "finished");
   assert.equal(r.result.winner, "p0");
+});
+
+test("coop shares one pool of lives: any miss costs everyone a life, and +1 LIFE refills everyone", () => {
+  const r = room("coop");
+  assert.deepEqual(r.players.map(p => p.lives), [6, 6]);
+  const missed = topMiss("p0");
+  r.balls = [missed];
+  advanceBall(r, missed, .01);
+  assert.deepEqual(r.players.map(p => p.lives), [5, 5]);
+  r.board.powerups = "6" + r.board.powerups.slice(1);
+  grantPower(r, 0, { x: 1, y: 1, owner: "p0" });
+  assert.deepEqual(r.players.map(p => p.lives), [6, 6]);
+  for (const p of r.players) p.lives = 1;
+  const last = topMiss("p0");
+  r.balls = [last];
+  advanceBall(r, last, .01);
+  assert.deepEqual(r.players.map(p => p.lives), [0, 0]);
+  BrickRoom.prototype.step.call(handler(r), .05, Date.now());
+  assert.deepEqual(r.result, { reason: "allout" });
 });

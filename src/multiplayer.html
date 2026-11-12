@@ -902,6 +902,14 @@ function draw(now){
  if(live&&s.balls?.some(b=>b.held&&b.source===you)){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-64);}
  else if(boosts.length){ctx.fillStyle=V?"#ff71ce":"#ffd08e";ctx.fillText(boosts.join("  ·  "),viewW/2,viewH-64);}
  else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-64);}
+ if(live&&me&&me.lives===0){
+  const left=s.players.filter(p=>p.lives>0).length,half=Math.min(150,viewW/2-12);
+  ctx.fillStyle=V?"rgba(26,5,51,.82)":"rgba(7,9,12,.8)";ctx.fillRect(view.cx-half,view.cy-34,half*2,68);
+  ctx.fillStyle=V?"#ff71ce":"#f6d29e";ctx.font=C?"bold 16px monospace":"12px 'Press Start 2P',monospace";
+  ctx.fillText("YOU'RE OUT",view.cx,view.cy-10);
+  ctx.font=small;ctx.fillStyle=V?"#9ff3ff":"#ccc";
+  ctx.fillText("SPECTATING · "+left+" PLAYER"+(left===1?"":"S")+" LEFT",view.cx,view.cy+14);
+ }
  if(playing&&!live){
   const seconds=Math.max(1,Math.ceil((s.startedAt-serverNow())/1000)),half=Math.min(162,viewW/2-12);
   ctx.fillStyle=V?"rgba(26,5,51,.86)":"rgba(7,9,12,.84)";ctx.fillRect(view.cx-half,view.cy-88,half*2,176);

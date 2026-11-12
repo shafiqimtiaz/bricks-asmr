@@ -68,7 +68,9 @@ function startRound(r){
  r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
- for(const p of r.players){p.score=0;p.combo=0;p.comboAt=0;p.lives=4;p.pos=.5;p.aim=0;p.lastSeq=-1;p.lastInputAt=0;}
+ // Coop shares one pool of lives (3 per player); every player still in carries the same count.
+ const lives=r.mode==="coop"?3*r.players.length:4;r.maxLives=r.mode==="coop"?lives+3:6;
+ for(const p of r.players){p.score=0;p.combo=0;p.comboAt=0;p.lives=lives;p.pos=.5;p.aim=0;p.lastSeq=-1;p.lastInputAt=0;}
  r.balls=[];
  const host=r.players.find(p=>p.id===r.hostId);
  replenishBalls(r,host);
@@ -130,7 +132,10 @@ function grantPower(r,idx,ball,caught=0){
    damageBrick(r,y*GRID_COLS+x,ball.owner,kind===9?2:1);
   }
  }
- else if(kind===6||kind===10){const p=r.players.find(x=>x.id===ball.owner);if(p)p.lives=Math.min(6,p.lives+1);}
+ else if(kind===6||kind===10){
+  const gainers=r.mode==="coop"?r.players.filter(x=>x.lives>0):r.players.filter(x=>x.id===ball.owner);
+  for(const p of gainers)p.lives=Math.min(r.maxLives||6,p.lives+1);
+ }
  else if(kind===7)e.hyperUntil=now+7000;
  else if(kind===8)e.slowUntil=now+7000;
  markEvent(r,POWER_LABELS[kind]||"POWER UP",ball.x,ball.y,ball.owner);
@@ -164,7 +169,9 @@ function advancePowers(r,dt){
  });
 }
 function miss(r,p,ball){
- p.lives=Math.max(0,p.lives-1);p.combo=0;
+ p.combo=0;
+ if(r.mode==="coop"){for(const q of r.players)if(q.lives>0)q.lives--;}
+ else p.lives=Math.max(0,p.lives-1);
  const index=r.balls.indexOf(ball);
  if(index!==-1)r.balls.splice(index,1);
  markEvent(r,"MISS",ball.x,ball.y,p.id);
