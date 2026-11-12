@@ -6,13 +6,13 @@ import { browserCoreSource, crusherInterval, soloCoreSource } from "../src/game-
 import { multiHtml, soloHtml } from "./helpers.mjs";
 
 test("Solo browser helpers include the crusher cadence used by the game loop", () => {
-  const actual = runInNewContext(soloCoreSource + "\ncrusherInterval(1)");
-  assert.equal(actual, crusherInterval(1));
+  const actual = runInNewContext(soloCoreSource + "\ncrusherInterval()");
+  assert.equal(actual, crusherInterval());
 });
 
 test("Multiplayer browser helpers include the same crusher cadence", () => {
-  const actual = runInNewContext(browserCoreSource + "\ncrusherInterval(1)");
-  assert.equal(actual, crusherInterval(1));
+  const actual = runInNewContext(browserCoreSource + "\ncrusherInterval()");
+  assert.equal(actual, crusherInterval());
 });
 
 test("Solo browser bundle provides the build-injected function name helper", () => {
@@ -26,7 +26,7 @@ test("Multiplayer browser bundle provides the build-injected function name helpe
 });
 
 test("Solo browser bundle can generate a brick board after serialization", () => {
-  const result = runInNewContext(soloCoreSource + "\nbricks(\"qa-seed\", 1, 1).total");
+  const result = runInNewContext(soloCoreSource + "\nbricks(\"qa-seed\", 1).total");
   assert.ok(result > 0);
 });
 

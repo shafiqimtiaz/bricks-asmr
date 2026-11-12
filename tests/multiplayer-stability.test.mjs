@@ -9,13 +9,14 @@ test("multiplayer layouts keep substantially more square bricks across player co
     const arena = arenaLayout(ratio);
     for (const count of [2, 3, 4]) {
       const totals = [];
-      for (let level = 1; level <= 8; level++) {
-        const board = bricks("QAARENA", level, count, arena);
-        const repeated = bricks("QAARENA", level, count, arena);
+      for (let n = 1; n <= 8; n++) {
+        const seed = "QAARENA" + n;
+        const board = bricks(seed, count, arena);
+        const repeated = bricks(seed, count, arena);
         assert.equal(board.hp, repeated.hp);
         assert.equal(board.colors, repeated.colors);
         assert.equal(board.hp.length, arena.cols * arena.rows);
-        assert.ok(board.total < bricks("QAARENA", level, 1, arena).total);
+        assert.ok(board.total < bricks(seed, 1, arena).total);
         totals.push(board.total);
       }
       const average = totals.reduce((sum, value) => sum + value, 0) / totals.length;
@@ -38,7 +39,6 @@ test("multiplayer rooms generate a fresh layout on each new round", () => {
   const layouts = [];
   for (let round = 1; round <= 8; round++) {
     startRound(room);
-    assert.equal(room.level, round);
     assert.equal(room.round, round);
     layouts.push(room.board.hp);
   }
@@ -70,7 +70,7 @@ let style="clean",drawnStyle=null,drawnPalette=null,drawnVaporPalette=null,drawn
 ${html.slice(start, end)}
 return {paintTiles,reset:()=>{drawnHP=null;},setStyle:s=>{style=s;}};`
   )(tileCtx, drawer);
-  const board = bricks("CACHEQA", 1, 2);
+  const board = bricks("CACHEQA", 2);
   cache.paintTiles(board);
   assert.ok(clears.some(args => args[0] === 0 && args[1] === 0 && args[2] === 360 && args[3] === 640));
   const initialDraws = draws.length, initialClears = clears.length;

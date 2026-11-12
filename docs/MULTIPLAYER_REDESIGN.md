@@ -45,7 +45,7 @@ The host picks a mode in the lobby; neither mode has a timer. **Coop:** the whol
 
 The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and matching Clean / CRT / Vapor styling. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
 
-The host may start when **at least two players are connected**. While waiting, the same board remains visible with only joined paddles. Starting locks the round's paddle assignments and shared level state. Late joins to an active round are not allowed unless joining as an authenticated reconnect to an existing seat.
+The host may start when **at least two players are connected**. While waiting, the same board remains visible with only joined paddles. Starting locks the round's paddle assignments and shared board state. Late joins to an active round are not allowed unless joining as an authenticated reconnect to an existing seat.
 
 ### Responsive presentation
 
@@ -104,7 +104,7 @@ Use the existing authenticated room sessions and Durable Object WebSockets with 
 | Client → room | `join` / `resume` | Establish or resume a single authenticated player seat |
 | Host → room | `start` | Request match start (requires two online players) |
 | Room → all | `room-state` | Current members and occupied paddle edges |
-| Room → all | `match-start` | Round ID, common seed/level, paddle assignments and start time |
+| Room → all | `match-start` | Round ID, common seed, paddle assignments and start time |
 | Client → room | `paddle-input` | Authenticated player's normalized paddle position |
 | Room → all | `game-state` | Authoritative shared balls, bricks, paddles, power-ups, scores and lifecycle |
 | Room → all | `match-end` | Final room result, restart eligibility |
@@ -198,7 +198,7 @@ Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seede
 
 ## 10. Level alignment, camera and layout fixes (November 11, 2026)
 
-- **Levels.** Multiplayer no longer crops and thins a Solo board. `bricks()` runs Solo's generator on the multiplayer field itself (smaller as players join), so every round is a whole level with the same archetypes, walls, symmetry and palettes. Round number = level number, shown in the HUD and on the countdown card with the level's archetype, as in Solo. Power-up density stays higher than Solo and corridor length scales with the field.
+- **Levels.** Multiplayer no longer crops and thins a Solo board. `bricks()` runs Solo's generator on the multiplayer field itself (smaller as players join), so every round is a whole level with the same archetypes, walls, symmetry and palettes. Each round gets a fresh random seed (a board is identified by its seed alone; there are no levels), shown in the HUD and on the countdown card with the board's archetype, as in Solo. Power-up density stays higher than Solo and corridor length scales with the field.
 - **One geometry.** `paddleShape()`, `boardView()`, `viewPoint()`, `sliderPos()` and `stageFit()` live in `game-core.mjs` and are used by the room server and both pages. Paddles are drawn where the room collides them (the room allows 4px of grace for latency), and all four paddles sit symmetrically inside the court.
 - **Camera.** Each client rotates the court about its centre, so every seat sees its own paddle directly above the slider. Previously top and side seats had their paddle hidden under the slider and labels over the bricks.
 - **HUD.** The HUD owns the top 36 logical pixels; on small screens the remainder hangs above the stage instead of covering the top paddle or brick rows.
@@ -210,7 +210,7 @@ Solo and Multiplayer now consume `src/game-core.mjs` for the deterministic seede
 
 ## 11. Top bar, visual pass and new mechanics (November 11, 2026)
 
-- **Top bar (both modes).** Level chip, lives as brick pips, clock (red in the last 10 seconds of a round) and a line along the bottom edge that fills as the board is cleared. Solo's speed button is removed.
+- **Top bar (both modes).** Seed chip, lives as brick pips, clock (red in the last 10 seconds of a round) and a line along the bottom edge that fills as the board is cleared. Solo's speed button is removed.
 - **Multiplayer visuals.** Pre-rendered court backdrop with glow, grid and frame; rounded paddles with a highlight; tapered ball trails that turn gold as a rally speeds up; score pop-ups; a pulsing combo banner.
 - **Combo.** Bricks broken within 1.5s of each other build a combo; every five links add a multiple to brick score, up to x5. A miss resets it.
 - **Rally.** Each paddle return speeds that ball up 3%, to 30% at most. A replacement ball starts at base speed.

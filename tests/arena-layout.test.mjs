@@ -18,8 +18,8 @@ test("Arena geometry uses square cells and covers tall through ultrawide screens
 test("Shared generator reflows both Solo and 2–4-player boards deterministically", () => {
   for (const ratio of [0.45, 0.75, 1, 16 / 9, 21 / 9]) for (const players of [1, 2, 3, 4]) {
     const arena = arenaLayout(ratio);
-    const board = bricks("qa-seed", 1, players, arena);
-    const other = bricks("qa-seed", 1, players, arena);
+    const board = bricks("qa-seed", players, arena);
+    const other = bricks("qa-seed", players, arena);
     assert.deepEqual(board.arena, arena);
     assert.equal(board.hp.length, arena.cols * arena.rows);
     assert.equal(board.colors.length, board.hp.length);
@@ -37,7 +37,7 @@ const { spawnPlayerBall, startRound, advanceBall } = loadServer();
 test("Multiplayer spawn and authoritative wall collision respect room width", () => {
   for (const ratio of [9 / 16, 16 / 9, 21 / 9]) {
     const arena = arenaLayout(ratio);
-    const room = { arena, board: bricks("qa", 1, 2, arena), players: [], crushSteps: 0, effects: {} };
+    const room = { arena, board: bricks("qa", 2, arena), players: [], crushSteps: 0, effects: {} };
     const leftBall = spawnPlayerBall(room, { seat: 1, pos: 0.5, id: "left" });
     const rightBall = spawnPlayerBall(room, { seat: 3, pos: 0.5, id: "right" });
     assert.ok(leftBall.x < arena.width / 2 && leftBall.vx > 0);

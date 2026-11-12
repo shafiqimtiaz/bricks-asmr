@@ -266,7 +266,7 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
 #hud{top:calc(var(--hud-over,0px)*-1)}
 #hud #hudMenu a{white-space:nowrap}
 
-/* Top bar: level chip, lives as bricks, clock, and a line that fills as the board is cleared. */
+/* Top bar: seed chip, lives as bricks, clock, and a line that fills as the board is cleared. */
 #hud{gap:calc(var(--u)*2);padding:calc(var(--u)*1.5) calc(var(--u)*2.2);min-height:calc(var(--u)*10);
  background:linear-gradient(180deg,#080c10f5,#0b1116d9);border:1px solid #ffffff16;border-top:0;
  border-radius:0 0 calc(var(--u)*2.6) calc(var(--u)*2.6);box-shadow:0 6px 18px #0008;color:var(--l-ink)}
@@ -294,7 +294,7 @@ body.clean #hud .pips i{box-shadow:none}
  <canvas id="c"></canvas><canvas id="g"></canvas>
  <div id="hud" aria-label="Game status and settings">
   <span id="hudMode">LOBBY</span>
-  <div id="hudStats" hidden><span id="lvl" class="chip">L1</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
+  <div id="hudStats" hidden><span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
   <span class="sp"></span>
   <button id="sty" type="button" title="Change visual style" aria-label="Change visual style">crt</button>
   <button id="sound" type="button" title="Toggle sound" aria-label="Toggle sound" aria-pressed="true">♪</button>
@@ -659,7 +659,7 @@ function render(){
  $("round").textContent=s.round||"—";
  const secs=Math.max(0,s.elapsed|0),mode=s.mode||"versus";
  $("timer").textContent=Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
- $("lvl").textContent="LEVEL "+(s.level||1);
+ $("lvl").textContent="SEED "+String(s.seed||"").toUpperCase();
  let pips="";for(let k=0;k<Math.max(4,me.lives);k++)pips+=k<me.lives?"<i></i>":'<i class="off"></i>';
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
  $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
@@ -917,7 +917,7 @@ function draw(now){
   ctx.font=C?"bold 56px monospace":"48px 'Press Start 2P',monospace";
   ctx.fillText(String(seconds),view.cx,view.cy-22);
   ctx.font=C?"bold 12px monospace":"9px 'Press Start 2P',monospace";
-  ctx.fillText("LEVEL "+(s.level||1),view.cx,view.cy+34);
+  ctx.fillText("SEED "+String(s.seed||"").toUpperCase(),view.cx,view.cy+34);
   ctx.font=small;ctx.fillStyle=V?"#9ff3ff":"#ccc";
   ctx.fillText((ARCH_NAMES[s.board?.archetype]||"").toUpperCase()+(s.board?.quad?" · QUAD":"")+" · GET READY",view.cx,view.cy+58);
  }

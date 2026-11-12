@@ -58,14 +58,11 @@ h1 span{color:var(--txt)}
 .config{padding:20px 0 17px;display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
 .control-title{font-size:9px;color:var(--muted);letter-spacing:.12em;margin:0 0 9px}
 .mode{display:flex;gap:6px}
-.mode button,.stepper button,.smallbtn,.action{min-height:42px;border:1px solid var(--line);background:var(--cell);color:var(--muted);padding:0 12px;font-size:10px;border-radius:4px;transition:border-color .15s,background .15s,color .15s}
+.mode button,.smallbtn,.action{min-height:42px;border:1px solid var(--line);background:var(--cell);color:var(--muted);padding:0 12px;font-size:10px;border-radius:4px;transition:border-color .15s,background .15s,color .15s}
 .mode button[aria-pressed="true"]{color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:900;text-shadow:none;box-shadow:0 0 16px var(--glow)}
-.mode button:hover,.stepper button:hover,.smallbtn:hover{color:var(--txt);border-color:var(--second)}
+.mode button:hover,.smallbtn:hover{color:var(--txt);border-color:var(--second)}
 .mode button[aria-pressed="true"]:hover{color:var(--bg)}
 .steps{display:flex;align-items:center;gap:6px}
-.stepper{display:flex;align-items:center;gap:0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
-.stepper button{border:0;border-radius:0;min-width:42px;padding:0 6px;font-size:13px}
-.stepper strong{min-width:52px;text-align:center;font-size:11px;color:var(--txt);font-variant-numeric:tabular-nums}
 .smallbtn{padding:0 13px}
 .smallbtn[aria-pressed="true"]{border-color:var(--second);color:var(--second)}
 .board-top{padding:21px 0 13px;display:flex;align-items:start;justify-content:space-between;gap:14px}
@@ -157,8 +154,8 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
  .foot{font-size:8px}
  .outside{font-size:9px}
 }
-@media(max-width:380px){.art{width:84px}.art span{height:10px}.mode button{padding:0 8px}.stat{padding:2px 6px}.stat dd{font-size:13px}.stepper strong{min-width:37px}}
-@media(prefers-reduced-motion:reduce){body,.mode button,.stepper button,.smallbtn,.action{transition:none}}
+@media(max-width:380px){.art{width:84px}.art span{height:10px}.mode button{padding:0 8px}.stat{padding:2px 6px}.stat dd{font-size:13px}}
+@media(prefers-reduced-motion:reduce){body,.mode button,.smallbtn,.action{transition:none}}
 </style></head>
 <body data-theme="vintage">
 <div class="noise" aria-hidden="true"></div>
@@ -177,17 +174,17 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
 </dl>
 <div class="config">
 <div><p class="control-title">VISUAL MODE</p><div class="mode" aria-label="Visual mode"><button type="button" data-theme-btn="clean" aria-pressed="false">CLEAN</button><button type="button" data-theme-btn="vintage" aria-pressed="true">CRT</button><button type="button" data-theme-btn="vapor" aria-pressed="false">VAPOR</button></div></div>
-<div><p class="control-title">CHALLENGE</p><div class="steps"><button id="today" class="smallbtn" type="button" aria-pressed="true">TODAY</button><div class="stepper"><button type="button" id="previous" aria-label="Previous level">−</button><strong id="level">L01</strong><button type="button" id="next" aria-label="Next level">+</button></div></div></div>
+<div><p class="control-title">CHALLENGE</p><div class="steps"><button id="today" class="smallbtn" type="button" aria-pressed="true">TODAY</button></div></div>
 </div>
 <section aria-label="Leaderboard">
 <div class="board-top">
-<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">DAILY // LEVEL 01</h2><p class="board-description" id="description">UTC DAILY CHALLENGE · CRT MODE</p></div>
+<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">DAILY</h2><p class="board-description" id="description">UTC DAILY CHALLENGE · CRT MODE</p></div>
 <div class="board-actions"><button class="action secondary" type="button" id="refresh">↻ REFRESH</button><a class="action" id="play" href="/">▶ PLAY</a></div>
 </div>
 <div class="podium" id="podium" hidden></div>
 <div class="board"><div class="board-head"><span>RANK</span><span>PLAYER</span><span style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
 </section>
-<div class="foot"><span>01 · One best clear per player, level and visual mode. Times are community-submitted and not independently verified.</span><span class="state" id="updated">● READY</span></div>
+<div class="foot"><span>01 · One best clear per player, board and visual mode. Times are community-submitted and not independently verified.</span><span class="state" id="updated">● READY</span></div>
 </div>
 <div class="outside">BRICK ASMR / INSERT SKILL, NOT COINS</div>
 </main>
@@ -197,7 +194,6 @@ const P=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
 const utcSeed=()=>'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
 let seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):utcSeed();
-let level=/^[1-9]\d{0,2}$/.test(params.get('level')||'')?Number(params.get('level')):1;
 let preferred='vintage';
 try{preferred=localStorage.getItem('brick-asmr-style')||'vintage';}catch{}
 let theme=['clean','vintage','vapor'].includes(params.get('style'))?params.get('style'):(['clean','vintage','vapor'].includes(preferred)?preferred:'vintage');
@@ -207,7 +203,7 @@ try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.par
 const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
 const arenaParam=params.get('arena')||'';
 const arenaWidth=/^\d{3,4}$/.test(arenaParam)?Number(arenaParam):360;
-const challengeKey=()=>seed+'-'+level+'-'+theme+(arenaWidth===360?'':'-a'+arenaWidth);
+const challengeKey=()=>seed+'-'+theme+(arenaWidth===360?'':'-a'+arenaWidth);
 let currentFetch=0;
 const brickBox=P('bricks');
 for(let i=0;i<40;i++){brickBox.append(document.createElement('span'));}
@@ -226,18 +222,16 @@ function empty(title,message){
 function updateTheme(){
  document.body.dataset.theme=theme;
  try{localStorage.setItem('brick-asmr-style',theme);}catch{}
- const game=new URL('/?style='+encodeURIComponent(theme),location.origin);game.hash=seed+'-'+level;document.querySelector('.back').href=game.pathname+game.search+game.hash;
+ const game=new URL('/?style='+encodeURIComponent(theme),location.origin);game.hash=seed;document.querySelector('.back').href=game.pathname+game.search+game.hash;
  for(const b of document.querySelectorAll('[data-theme-btn]'))b.setAttribute('aria-pressed',String(b.dataset.themeBtn===theme));
  P('today').setAttribute('aria-pressed',String(seed===utcSeed()));
- P('level').textContent='L'+String(level).padStart(2,'0');
- P('previous').disabled=level===1;P('next').disabled=level>=999;
  const isDaily=/^d\d{8}$/.test(seed);
  const daily=seed===utcSeed();
- P('challenge').textContent=(daily?'DAILY':(isDaily?'DAILY ARCHIVE':'LEVEL'))+' // LEVEL '+String(level).padStart(2,'0');
+ P('challenge').textContent=daily?'DAILY':(isDaily?'DAILY ARCHIVE':'SEED // '+seed.toUpperCase());
  P('description').textContent=(isDaily?seed.slice(1,5)+'-'+seed.slice(5,7)+'-'+seed.slice(7):'SEED '+seed.toUpperCase())+' · '+({clean:'CLEAN',vintage:'CRT',vapor:'VAPOR'}[theme])+' MODE';
- const u=new URL('/?style='+encodeURIComponent(theme)+'&arena='+arenaWidth,location.origin);u.hash=seed+'-'+level;
+ const u=new URL('/?style='+encodeURIComponent(theme)+'&arena='+arenaWidth,location.origin);u.hash=seed;
  P('play').href=u.pathname+u.search+u.hash;
- history.replaceState(null,'','/leaderboard?'+new URLSearchParams({seed,level:String(level),style:theme,arena:String(arenaWidth)}));
+ history.replaceState(null,'','/leaderboard?'+new URLSearchParams({seed,style:theme,arena:String(arenaWidth)}));
  const mine=localBest[challengeKey()];
  P('mine').textContent=Number.isFinite(mine)?fmt(mine):'--:--';
 }
@@ -276,9 +270,7 @@ async function load(){
  finally{if(run===currentFetch)P('refresh').disabled=false;}
 }
 P('refresh').onclick=load;
-P('today').onclick=()=>{seed=utcSeed();level=1;load();};
-P('previous').onclick=()=>{if(level>1){level--;load();}};
-P('next').onclick=()=>{if(level<999){level++;load();}};
+P('today').onclick=()=>{seed=utcSeed();load();};
 for(const btn of document.querySelectorAll('[data-theme-btn]'))btn.onclick=()=>{theme=btn.dataset.themeBtn;try{localStorage.setItem('brick-asmr-style',theme);}catch{}load();};
 load();
 })();

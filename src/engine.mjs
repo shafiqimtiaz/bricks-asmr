@@ -72,7 +72,7 @@ function brickEngine(rng=Math.random){
   for(let i=0;i<N;i++)if(hp[i]){const r=(i/a.cols)|0,c=i%a.cols;rowCount[r]++;colCount[c]++;minR=Math.min(minR,r);maxR=Math.max(maxR,r);minC=Math.min(minC,c);maxC=Math.max(maxC,c);}
   const S={
    W:a.width,H:a.height,CS:a.cell,COLS:a.cols,ROWS:a.rows,GX:a.gridX,GY:a.gridY,N,BR:a.cell*.45,PU_R:a.cell*1.5,speed:ballSpeed(a),
-   mode:o.mode||'solo',set:o.set||'vintage',level:o.level||1,daily:!!o.daily,maxBalls:o.maxBalls||2500,holdSeconds:o.holdSeconds||0,
+   mode:o.mode||'solo',set:o.set||'vintage',daily:!!o.daily,maxBalls:o.maxBalls||2500,holdSeconds:o.holdSeconds||0,
    hp,col,pu,rowCount,colCount,remaining:b.remaining,total:b.total,
    bounds:{X0:a.gridX+minC*a.cell,X1:a.gridX+(maxC+1)*a.cell,Y0:a.gridY+minR*a.cell,Y1:a.gridY+(maxR+1)*a.cell},
    seats:[...new Set(o.players.map(p=>p.seat))],
@@ -364,7 +364,7 @@ function brickEngine(rng=Math.random){
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
   for(const p of S.players)for(const k in p.fx)if(p.fx[k]>0)p.fx[k]-=dt;
   const c=S.crush;c.clock+=dt;
-  if(c.clock>=crusherInterval(S.level,S.daily)){c.clock=0;for(const s of S.seats)c.target[s]+=S.CS;ev.push({t:'crush'});}
+  if(c.clock>=crusherInterval(S.daily)){c.clock=0;for(const s of S.seats)c.target[s]+=S.CS;ev.push({t:'crush'});}
   for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
   updateTransform(S);
   for(const p of S.players){p.comboT+=dt;if(p.comboT>COMBO_WINDOW){p.combo=0;p.milestone=0;}}

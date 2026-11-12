@@ -8,9 +8,9 @@ function arenaLayout(aspect=9/16){
  const rows=Math.max(18,2*Math.floor(Math.min(64,384/cell)/2));
  return {width,height,cell,cols,rows,gridX:(width-cols*cell)/2,gridY:40};
 }
-function bricks(seed,level,playerCount=2,arena=arenaLayout()){
+function bricks(seed,playerCount=2,arena=arenaLayout()){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
- // Multiplayer runs Solo's level generator on a smaller field that leaves a lane in front of every paddle.
+ // Multiplayer runs Solo's board generator on a smaller field that leaves a lane in front of every paddle.
  const crowd=playerCount>=4?[13,28,54]:playerCount===3?[11,26,56]:playerCount===2?[7,24,58]:[0,0,63];
  const FIELD_C=Math.round(GRID_COLS*crowd[0]/58),FIELD_R=Math.round(GRID_ROWS*crowd[1]/64);
  const COLS=GRID_COLS-2*FIELD_C,ROWS=Math.round(GRID_ROWS*(crowd[2]+1)/64)-FIELD_R,N=COLS*ROWS,originalPortrait=COLS===58&&ROWS===64;
@@ -20,7 +20,7 @@ function bricks(seed,level,playerCount=2,arena=arenaLayout()){
  const mulberry=random;
  let hp,col,pu,palette,wallCols,vPal,vWall,rootSemi,scale_,wave,decay,archetype,quad,remaining,total;
 function genLevel(){
-  const rng = mulberry(hash(seed + ':' + level));
+  const rng = mulberry(hash(seed + ':1'));
   const R = (a,b) => a + rng() * (b - a), RI = (a,b) => Math.floor(R(a, b + 1));
   hp = new Uint8Array(N); col = new Uint8Array(N); pu = new Uint8Array(N);
   const region = new Int16Array(N).fill(1);  // 1 = outer fill
@@ -34,11 +34,11 @@ function genLevel(){
   palette = [];
   for (let k = 0; k < 16; k++) palette.push(`hsl(${hueFor(k) % 360},${sat + (k % 3) * 6}%,${R(36, 50)}%)`);
   wallCols = ['', `hsl(${baseH},4%,38%)`, `hsl(${baseH},5%,48%)`, `hsl(${baseH},6%,58%)`];
-  { const vr = mulberry(hash(seed + ':' + level + ':vapor')), VH = [322, 292, 188, 265, 176, 338, 205], o = Math.floor(vr() * 7);
+  { const vr = mulberry(hash(seed + ':1:vapor')), VH = [322, 292, 188, 265, 176, 338, 205], o = Math.floor(vr() * 7);
     vPal = []; for (let k = 0; k < 16; k++) vPal.push(`hsl(${VH[(k + o) % 7]},${68 + vr() * 18}%,${54 + vr() * 12}%)`);
     vWall = ['', '#4a2f78', '#6a46a3', '#8f6bd0']; }
   rootSemi = RI(0, 11) - 5;
-  scale_ = SCALES[(level + RI(0, SCALES.length - 1)) % SCALES.length];
+  scale_ = SCALES[(1 + RI(0, SCALES.length - 1)) % SCALES.length];
   wave = ['triangle', 'sine', 'triangle', 'square'][RI(0, 3)];
   decay = R(0.06, 0.16);
 
@@ -68,9 +68,9 @@ function genLevel(){
       }
     }
   }
-  // archetype rotates per level so consecutive levels never share a layout family
+  // the seed picks the layout family
   const ARCH = 8;
-  archetype = (hash(seed) + level * 3) % ARCH;
+  archetype = (hash(seed) + 3) % ARCH;
   const setCell = (c, r, reg, wall, hol) => { const i = r * COLS + c; region[i] = reg; isWall[i] = wall; hollow[i] = hol; };
   if (archetype === 0) { // scattered nested shapes
     const nTop = RI(1, 4);
@@ -165,7 +165,7 @@ function genLevel(){
       c = nc; r = nr;
     }
   }
-  // symmetry: always left-right; some levels four-way (bottom half mirrored to top)
+  // symmetry: always left-right; some boards four-way (bottom half mirrored to top)
   quad = rng() < 0.35;
   const copy = (a, b) => { region[b] = region[a]; isWall[b] = isWall[a]; hollow[b] = hollow[a]; };
   for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS / 2; c++) copy(r * COLS + c, r * COLS + COLS - 1 - c);
@@ -287,8 +287,8 @@ function createASMR(host){
  };
 }
 
-function crusherInterval(level,daily=false){
- return daily?5:Math.max(3,8.3-level*.3);
+function crusherInterval(daily=false){
+ return daily?5:8;
 }
 function crusherTransform(steps,players,cx=180,cy=292){
  const seats=new Set(players.map(p=>p.seat));

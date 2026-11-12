@@ -23,7 +23,7 @@ test("there is one board and each occupied player gets a unique side", () => {
 
 test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",()=>{
  assert.match(soloWorker,/import \{ soloCoreSource \} from "\.\/game-core\.mjs"/);
- assert.match(soloHtml,/bricks\(seed,level,1,arena\)/);
+ assert.match(soloHtml,/bricks\(seed,1,arena\)/);
  assert.match(soloHtml,/drawBrickTile\(bctx/);
  assert.match(html,/drawBrickTile\(tileCtx/);
  assert.match(soloWorker,/GAME\.replace\('<script>'/);
@@ -31,7 +31,7 @@ test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",
  assert.match(soloCoreSource,/function bricks\(/);
  assert.match(browserCoreSource,/function drawBrickTile\(/);
  for(const [seed,total] of [["ALPHA",3184],["TEST123",3476],["BRICKS",3226]]){
-  const board=bricks(seed,1,1);
+  const board=bricks(seed, 1);
   assert.equal(board.total,total);
   assert.equal(board.hp.length,58*64);
   assert.equal(board.total,[...board.hp].filter(c=>c!=="0").length);
@@ -62,8 +62,8 @@ test("crusher uses one shared cadence and advances toward occupied edges",()=>{
  const a=crusherTransform(6,[{seat:0},{seat:2}],180,286);
  const b=crusherTransform(6,[{seat:0},{seat:2},{seat:1}],180,286);
  const c=crusherTransform(6,[{seat:0},{seat:2},{seat:1},{seat:3}],180,286);
- assert.equal(crusherInterval(1),8);
- assert.equal(crusherInterval(1,true),5);
+ assert.equal(crusherInterval(),8);
+ assert.equal(crusherInterval(true),5);
  assert.equal(a.sx,1);
  assert.ok(a.sy>1&&b.sy===a.sy&&c.sy===a.sy);
  assert.ok(b.sx>1&&c.sx===b.sx);
@@ -77,7 +77,7 @@ test("crusher uses one shared cadence and advances toward occupied edges",()=>{
 
 test("multiplayer crusher advances once per Solo interval and preserves brick collisions",()=>{
  const room=roomForPlayers(2),now=room.startedAt+5000;
- room.crushClock=crusherInterval(room.level)-.01;
+ room.crushClock=crusherInterval()-.01;
  const handler={room,stopLoop(){},save:async()=>{}};
  BrickRoom.prototype.step.call(handler,.05,now);
  assert.equal(room.crushSteps,1);
@@ -97,20 +97,20 @@ test("multiplayer crusher advances once per Solo interval and preserves brick co
  assert.equal(room.board.remaining,0);
 });
 
-test("multiplayer uses Solo's grid size and a deterministic level", () => {
-  const first = bricks("TEST123", 1);
-  assert.deepEqual(first, bricks("TEST123", 1));
+test("multiplayer uses Solo's grid size and a deterministic board", () => {
+  const first = bricks("TEST123");
+  assert.deepEqual(first, bricks("TEST123"));
   assert.equal(first.hp.length, 58 * 64);
   assert.equal(first.colors.length, first.hp.length);
   assert.equal(first.powerups.length, first.hp.length);
   assert.ok(first.palette.length === 16);
   assert.equal(first.total, [...first.hp].filter(digit => digit !== "0").length);
-  assert.notEqual(first.hp, bricks("TEST123", 2).hp);
+  assert.notEqual(first.hp, bricks("TEST124").hp);
 });
 
 test("multiplayer plays a whole Solo-style level on a field that leaves a lane before every paddle",()=>{
  const fields={2:[7,50,24,58],3:[11,46,26,56],4:[13,44,28,54]};
- const layouts=[2,3,4].map(n=>bricks("BRICKS",1,n));
+ const layouts=[2,3,4].map(n=>bricks("BRICKS", n));
  for(const [i,board] of layouts.entries()){
   const [c0,c1,r0,r1]=fields[i+2],cells=(c1-c0+1)*(r1-r0+1);
   assert.equal(board.hp.length,58*64);
@@ -126,7 +126,7 @@ test("multiplayer plays a whole Solo-style level on a field that leaves a lane b
   for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++)assert.equal(board.hp[r*58+c],board.hp[r*58+57-c]);
   assert.ok(Math.abs(board.centerX-180)<1&&Math.abs(board.centerY-292)<12);
  }
- assert.deepEqual(layouts[2],bricks("BRICKS",1,4));
+ assert.deepEqual(layouts[2],bricks("BRICKS", 4));
 });
 
 function roomForPlayers(count = 4) {
@@ -807,4 +807,12 @@ test("host explicitly leaving a live round hands control to an online player wit
  assert.equal(room.players.length,3);
  assert.equal(saves,1);
  assert.equal(broadcasts,1);
+});
+
+test("a board is identified by its seed: leaderboard keys carry no level and old keys are rejected", () => {
+ const KEY = new Function("return " + /const KEY=(\/.*?\/),ID=/.exec(soloWorker)[1])();
+ for (const ok of ["abc123-clean", "d20261112-vapor-a480", "zz9q-vintage"]) assert.ok(KEY.test(ok), ok);
+ for (const bad of ["abc123-1-clean", "abc123-12-vintage-a480", "abc123", "abc123-crt"]) assert.ok(!KEY.test(bad), bad);
+ assert.doesNotMatch(soloHtml, /level\+\+|&level=|\blevel\b\s*=/);
+ assert.match(soloHtml, /const boardId=\(\)=>seed\+'-'\+style/);
 });

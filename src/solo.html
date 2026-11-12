@@ -176,7 +176,7 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
 #wrap canvas{border-radius:inherit}
 #hud{top:calc(var(--hud-over,0px)*-1)}
 
-/* Top bar: level chip, lives as bricks, clock, and a line that fills as the board is cleared. */
+/* Top bar: seed chip, lives as bricks, clock, and a line that fills as the board is cleared. */
 #hud{gap:calc(var(--u)*2);padding:calc(var(--u)*1.5) calc(var(--u)*2.2);min-height:calc(var(--u)*10);
  background:linear-gradient(180deg,#080c10f5,#0b1116d9);border:1px solid #ffffff16;border-top:0;
  border-radius:0 0 calc(var(--u)*2.6) calc(var(--u)*2.6);box-shadow:0 6px 18px #0008;color:var(--l-ink)}
@@ -203,7 +203,7 @@ body.clean #hud .pips i{box-shadow:none}
   <canvas id="c"></canvas>
   <canvas id="g"></canvas>
   <div id="hud">
-   <span id="lvl" class="chip">L1</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span><span class="sp"></span>
+   <span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span><span class="sp"></span>
    <button id="sty" type="button" title="Visual style">crt</button>
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
    <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
@@ -211,7 +211,7 @@ body.clean #hud .pips i{box-shadow:none}
     <button id="home" type="button">LOBBY</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
     <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
-    <button id="share" type="button">SHARE LEVEL</button><button id="newb" type="button">NEW RUN</button>
+    <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
    </div>
   </div>
   <div id="homeLobby" role="dialog" aria-label="Game lobby">
@@ -230,7 +230,7 @@ body.clean #hud .pips i{box-shadow:none}
     <div id="lbidentity"><button id="pname" type="button">Player</button><a id="pfull" target="_blank" rel="noopener" href="/leaderboard">World ↗</a></div><div id="ptime"></div>
     <div id="pnote"></div>
     <ol id="plist"></ol>
-    <div class="pb"><button id="pbrag">brag ⤴</button><button id="pretry">retry</button><button id="pnext">next ▶</button><button id="pclose">close</button></div>
+    <div class="pb"><button id="pbrag">brag ⤴</button><button id="pretry">retry</button><button id="pnext">new board ▶</button><button id="pclose">close</button></div>
   </div>
 </div>
 <div id="crt"></div>
@@ -248,11 +248,12 @@ let BR = CS * .45, PU_R = CS * 1.5;
 
 // ---------- seeded RNG: game-core.mjs ----------
 // ---------- URL state ----------
-const hm = /^#([a-z0-9]+)-(\d+)$/i.exec(location.hash || '');
-let seed = hm ? hm[1].toLowerCase() : Math.random().toString(36).slice(2, 8);
-let level = hm ? Math.max(1, parseInt(hm[2])) : 1;
-function syncURL(){try{const h='#'+seed+'-'+level;if(location.hash!==h)location.hash=h}catch(e){}}
-window.addEventListener('hashchange',()=>{const m=/^#([a-z0-9]+)-(\d+)$/i.exec(location.hash||'');if(m&&(m[1].toLowerCase()!==seed||+m[2]!==level)){seed=m[1].toLowerCase();level=Math.max(1,+m[2]);startLevel()}});
+// A board is its seed. An old '#seed-3' link opens the seed and ignores the number.
+const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
+const randomSeed = () => Math.random().toString(36).slice(2, 8);
+let seed = hm ? hm[1].toLowerCase() : randomSeed();
+function syncURL(){try{const h='#'+seed;if(location.hash!==h)location.hash=h}catch(e){}}
+window.addEventListener('hashchange',()=>{const m=/^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash||'');if(m&&m[1].toLowerCase()!==seed){seed=m[1].toLowerCase();startBoard()}});
 
 // ---------- canvas ----------
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -347,7 +348,7 @@ for(const id of ['panel', 'homeLobby']){
   if(element)layoutObserver.observe(element,{attributes:true,attributeFilter:['hidden']});
 }
 
-// ---------- level data ----------
+// ---------- board data ----------
 let quad = false, hp, col, pu, remaining, total, palette, wallCols, vPal, vWall, rootSemi, scale_, wave, decay, archetype;
 const E = brickEngine();
 const PU_BY_ID = E.PU_BY_ID;
@@ -356,8 +357,8 @@ const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','orga
 let N = COLS * ROWS;
 
 let board;
-function genLevel(){
- board=bricks(seed,level,1,arena);
+function genBoard(){
+ board=bricks(seed,1,arena);
  hp=Uint8Array.from(board.hp,c=>c.charCodeAt(0)-48);
  col=Uint8Array.from(board.colors,c=>parseInt(c,16));
  pu=Uint8Array.from(board.powerups,c=>parseInt(c,16));
@@ -401,7 +402,7 @@ let maxBalls = MAX_BALLS, perfEma = 16, perfWarned = false;
 let drop = 0, combo = 0, comboPop = 0;
 let introT = 0, conf = [], flashW = 0, hbT = 0, danger = 0, squash = 0, crushed = false;
 const isDaily = () => /^d\d{8}$/.test(seed);
-const dropEvery = () => crusherInterval(level,isDaily()), GRACE = 10;
+const dropEvery = () => crusherInterval(isDaily()), GRACE = 10;
 function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e) {} }
 let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim';
 let msgText = '';
@@ -424,10 +425,11 @@ function sync(){
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
-function startLevel(){
+const newBoard = () => { seed = randomSeed(); startBoard(); };
+function startBoard(){
   syncArena();
-  genLevel();
-  S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, level, daily: isDaily(), maxBalls});
+  genBoard();
+  S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, daily: isDaily(), maxBalls});
   me = S.players[0]; hp = S.hp; col = S.col; pu = S.pu;
   me.c = me.target = Math.max(me.pw / 2, Math.min(W - me.pw / 2, px));
   redrawAll(); syncURL();
@@ -484,9 +486,9 @@ function react(e){
         const pal = style === 'vapor' ? ['#ff71ce', '#01cdfe', '#05ffa1', '#b967ff', '#fffb96'] : ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#ffffff'];
         for (let j = 0; j < 180; j++) conf.push({x: Math.random() * W, y: -10 - Math.random() * 200, vx: (Math.random() - .5) * 60, vy: 40 + Math.random() * 120, r: Math.random() * 6, vr: (Math.random() - .5) * 10, c: pal[j % pal.length]}); [0,4,7,12,16].forEach((s,j)=>setTimeout(()=>{notesThisFrame=0;blip(262*Math.pow(2,s/12),.2,.4)},j*90));
       } else if (e.reason === 'crushed') {
-        crushed = true; showMsg('CRUSHED!\ntap to restart level');
+        crushed = true; showMsg('CRUSHED!\ntap to restart');
         flashW = .8; shake = 12; vib([80, 40, 160]); [0, -3, -7, -12].forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(110 * Math.pow(2, s / 12), .3, .3, 'square'); }, j * 110));
-      } else { showMsg('out of lives\ntap to restart level'); flashW = .5; }
+      } else { showMsg('out of lives\ntap to restart'); flashW = .5; }
       break;
   }
 }
@@ -648,13 +650,13 @@ function render(fs = 1){
       if (c.y > H + 10) { conf[k] = conf[conf.length - 1]; conf.pop(); continue; }
       ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.r); ctx.fillStyle = c.c; ctx.fillRect(-2, -1, 4, 2.5); ctx.restore(); }
   }
-  // level intro card
+  // board intro card
   if (introT > 0) {
     introT -= fs / 60; const a = Math.min(1, introT / .4, (1.8 - introT) / .25), off = (1 - Math.min(1, (1.8 - introT) / .3)) * -60;
     ctx.globalAlpha = a * .8; ctx.fillStyle = V ? '#1a0533' : '#000'; ctx.fillRect(0, 210, W, 70);
     ctx.globalAlpha = a; ctx.fillStyle = V ? '#ff71ce' : style === 'clean' ? '#fff' : '#ffd166';
     ctx.font = style === 'clean' ? 'bold 22px ui-monospace,monospace' : "16px 'Press Start 2P',monospace";
-    ctx.fillText(isDaily() ? 'DAILY CHALLENGE' : 'LEVEL ' + level, W / 2 + off, 236);
+    ctx.fillText(isDaily() ? 'DAILY CHALLENGE' : 'SEED ' + seed.toUpperCase(), W / 2 + off, 236);
     ctx.font = style === 'clean' ? '11px ui-monospace,monospace' : "7px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#ccc';
     ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + ' · WALL DROPS IN ' + GRACE + 's, THEN EVERY ' + dropEvery().toFixed(1) + 's', W / 2 - off, 262);
     ctx.globalAlpha = 1;
@@ -678,7 +680,7 @@ function render(fs = 1){
     ctx.shadowBlur = 0;
   }
 
-  setText(hudLvl, isDaily() ? 'DAILY' : 'LEVEL ' + level);
+  setText(hudLvl, isDaily() ? 'DAILY' : 'SEED ' + seed);
   if (hudLives.shown !== lives) { hudLives.shown = lives; const top = Math.max(MAX_LIVES, lives); let pips = ''; for (let k = 0; k < top; k++) pips += k < lives ? '<i></i>' : '<i class="off"></i>'; hudLives.innerHTML = pips; hudLives.setAttribute('aria-label', lives + ' lives'); }
   setText(hudTmr, fmtTime(runTime));
   const cleared = total ? Math.round(1000 * (1 - remaining / total)) / 1000 : 0;
@@ -728,8 +730,8 @@ function endPtr(e){
   const wasBoard = onBoard; sliding = false; onBoard = false;
   if (!wasBoard || moved) return;
   if (state === 'aim') launch();
-  else if (state === 'clear') { level++; startLevel(); }
-  else if (state === 'over') startLevel();
+  else if (state === 'clear') newBoard();
+  else if (state === 'over') startBoard();
 }
 wrap.addEventListener('pointerup', endPtr);
 wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
@@ -737,7 +739,7 @@ const keys = {};
 window.addEventListener('keydown', e => {
   if(!document.getElementById('homeLobby').hidden||!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
   audioInit(); keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ') { if (state === 'aim') launch(); else if (state === 'clear') { level++; startLevel(); } else if (state === 'over') startLevel(); }
+  if (e.key === ' ') { if (state === 'aim') launch(); else if (state === 'clear') newBoard(); else if (state === 'over') startBoard(); }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -746,21 +748,21 @@ setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arr
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
 const SHARE_BASE = location.origin + location.pathname;
-const shareURL = () => SHARE_BASE + '?style=' + encodeURIComponent(style) + '&arena=' + W + '#' + seed + '-' + level;
+const shareURL = () => SHARE_BASE + '?style=' + encodeURIComponent(style) + '&arena=' + W + '#' + seed;
 async function copyText(t, ok){
   try { await navigator.clipboard.writeText(t); showToast(ok); }
   catch(e) { showToast(t, 8000); toast.style.pointerEvents = 'auto'; toast.style.userSelect = 'text'; }
 }
-document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'level link copied'); };
+document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'board link copied'); };
 document.getElementById('daily').onclick = () => {
   const d = new Date(), ymd = d.toISOString().slice(0,10).replace(/-/g,'');
-  seed = 'd' + ymd; level = 1; startLevel(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
+  seed = 'd' + ymd; startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
-document.getElementById('newb').onclick = () => { seed = Math.random().toString(36).slice(2, 8); level = 1; startLevel(); showToast('new seed ' + seed); };
+document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
-const levelKey=()=>seed+'-'+level+'-'+style+(W===360?'':'-a'+W);
+const boardId=()=>seed+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
 const SNAME={clean:'CLEAN',vintage:'CRT',vapor:'VAPOR'};
 let panelMode=null,panelTab='board',lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
@@ -772,22 +774,22 @@ try{
 }catch(e){myId=crypto.randomUUID();}
 if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName))myName='Brick-'+myId.slice(0,6).toUpperCase();
 function myBest(key){return Number.isFinite(localBest[key])?localBest[key]:undefined;}
-function setLinks(){P('pfull').href='/leaderboard?seed='+encodeURIComponent(seed)+'&level='+level+'&style='+style+'&arena='+W;P('pname').textContent='Player: '+myName+' ✎';}
+function setLinks(){P('pfull').href='/leaderboard?seed='+encodeURIComponent(seed)+'&style='+style+'&arena='+W;P('pname').textContent='Player: '+myName+' ✎';}
 async function loadBoard(){
- const key=levelKey(),seq=++boardSeq;boardKey=key;boardStatus='loading';boardRows=[];renderPanel();
+ const key=boardId(),seq=++boardSeq;boardKey=key;boardStatus='loading';boardRows=[];renderPanel();
  try{
   const res=await fetch('/api/leaderboard?key='+encodeURIComponent(key),{cache:'no-store'});
   if(!res.ok)throw Error('Failed');
   const body=await res.json();
-  if(seq!==boardSeq||key!==levelKey())return;
+  if(seq!==boardSeq||key!==boardId())return;
   boardRows=body.entries||[];boardStatus='ready';
  }catch(e){if(seq===boardSeq)boardStatus='error';}
  if(seq===boardSeq)renderPanel();
 }
 async function onClear(ms){
- const key=levelKey(),old=myBest(key);
+ const key=boardId(),old=myBest(key);
  lastTime=ms;
- if(styleRun!==style){lastNote='style changed mid-level · not ranked';showPanel('clear');return;}
+ if(styleRun!==style){lastNote='style changed mid-run · not ranked';showPanel('clear');return;}
  const improved=old===undefined||ms<old;
  lastNote=improved?(old===undefined?'first clear!':'new best! · was '+fmtTime(old)):'best '+fmtTime(old);
  if(improved){localBest[key]=ms;try{localStorage.setItem('brick-asmr-best',JSON.stringify(localBest));}catch(e){}}
@@ -795,36 +797,36 @@ async function onClear(ms){
  try{
   const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key,playerId:myId,name:myName,timeMs:ms})});
   if(!res.ok)throw Error('Rejected');
-  if(key===levelKey()){lastNote+=' · saved worldwide';await loadBoard();}
- }catch(e){if(key===levelKey()){lastNote+=' · saved on device';boardStatus='error';renderPanel();}}
+  if(key===boardId()){lastNote+=' · saved worldwide';await loadBoard();}
+ }catch(e){if(key===boardId()){lastNote+=' · saved on device';boardStatus='error';renderPanel();}}
 }
 function showPanel(mode){panelMode=mode;if(mode==='clear')panelTab='board';P('panel').hidden=false;setLinks();renderPanel();loadBoard();}
 function hidePanel(){panelMode=null;P('panel').hidden=true;}
 function emptyBoard(note){const li=document.createElement('li');li.className='empty';li.textContent=note;P('plist').append(li);}
 function renderPanel(){
  if(!panelMode)return;
- const key=levelKey(),mine=myBest(key);
- P('ptitle').textContent=(panelMode==='clear'?'CLEARED · ':'')+(isDaily()?'DAILY '+seed.slice(5,7)+'/'+seed.slice(7):'LEVEL '+level+' · '+seed)+' · '+SNAME[style];
+ const key=boardId(),mine=myBest(key);
+ P('ptitle').textContent=(panelMode==='clear'?'CLEARED · ':'')+(isDaily()?'DAILY '+seed.slice(5,7)+'/'+seed.slice(7):'SEED '+seed)+' · '+SNAME[style];
  P('ptime').textContent=panelMode==='clear'?fmtTime(lastTime):(mine!==undefined?fmtTime(mine):'--:--');
- P('pnote').textContent=(panelMode==='clear'?lastNote:(mine!==undefined?'your best time':'complete a level to set a record'))+(boardStatus==='error'?' · global board offline':'');
+ P('pnote').textContent=(panelMode==='clear'?lastNote:(mine!==undefined?'your best time':'clear this board to set a record'))+(boardStatus==='error'?' · global board offline':'');
  P('pnext').hidden=panelMode!=='clear';P('pclose').hidden=panelMode==='clear';
  P('pbrag').hidden=panelMode!=='clear'||styleRun!==style;
  P('ptabB').classList.toggle('on',panelTab==='board');P('ptabM').classList.toggle('on',panelTab==='mine');setLinks();
  const ol=P('plist');ol.replaceChildren();
  if(panelTab==='mine'){
   const suffix=W===360?'':'-a'+W,own=k=>suffix?k.endsWith(suffix)?k.slice(0,-suffix.length):'':k;
-  const entries=Object.entries(localBest).filter(([k,v])=>/^[a-z0-9]+-\d+-(clean|vintage|vapor)$/.test(own(k))&&Number.isFinite(v)).reverse().slice(0,75);
-  if(!entries.length){emptyBoard('Clear a level to see your times here');return;}
+  const entries=Object.entries(localBest).filter(([k,v])=>/^[a-z0-9]+-(clean|vintage|vapor)$/.test(own(k))&&Number.isFinite(v)).reverse().slice(0,75);
+  if(!entries.length){emptyBoard('Clear a board to see your times here');return;}
   for(const [k,time] of entries){
-   const m=/^([a-z0-9]+)-(\d+)-(clean|vintage|vapor)$/.exec(own(k)),li=document.createElement('li');li.className='go'+(k===key?' me':'');
-   const name=document.createElement('span');name.className='nm';name.textContent=(m[1].startsWith('d20')?'Daily '+m[1].slice(5):'L'+m[2]+' · '+m[1])+' · '+SNAME[m[3]];
+   const m=/^([a-z0-9]+)-(clean|vintage|vapor)$/.exec(own(k)),li=document.createElement('li');li.className='go'+(k===key?' me':'');
+   const name=document.createElement('span');name.className='nm';name.textContent=(m[1].startsWith('d20')?'Daily '+m[1].slice(5):m[1])+' · '+SNAME[m[2]];
    const t=document.createElement('span');t.textContent=fmtTime(time);li.append(name,t);ol.append(li);
-   li.onclick=()=>{seed=m[1];level=Number(m[2]);if(style!==m[3]){style=m[3];try{localStorage.setItem('brick-asmr-style',style)}catch(e){}applyStyle();}startLevel();};
+   li.onclick=()=>{seed=m[1];if(style!==m[2]){style=m[2];try{localStorage.setItem('brick-asmr-style',style)}catch(e){}applyStyle();}startBoard();};
   }
   return;
  }
  if(boardStatus!=='ready'){emptyBoard(boardStatus==='loading'?'Loading global times…':'Leaderboard unavailable · tap BOARD to retry');return;}
- if(!boardRows.length){emptyBoard('No world records for this level yet · be first!');return;}
+ if(!boardRows.length){emptyBoard('No world records for this board yet · be first!');return;}
  const rows=boardRows.slice(0,10),index=boardRows.findIndex(x=>x.playerId===myId);
  if(index>=10)rows.push(boardRows[index]);
  for(const row of rows){
@@ -843,15 +845,15 @@ P('pname').onclick=async()=>{
  if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){showToast('Invalid name: use 2–24 letters or numbers');return;}
  myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
  setLinks();showToast('Leaderboard name saved');
- const best=myBest(levelKey());
- if(best!==undefined){try{await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:levelKey(),playerId:myId,name:myName,timeMs:best})});loadBoard();}catch(e){}}
+ const best=myBest(boardId());
+ if(best!==undefined){try{await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:boardId(),playerId:myId,name:myName,timeMs:best})});loadBoard();}catch(e){}}
 };
-P('pnext').onclick=()=>{level++;startLevel();};
-P('pretry').onclick=()=>startLevel();
+P('pnext').onclick=()=>newBoard();
+P('pretry').onclick=()=>startBoard();
 P('pclose').onclick=()=>hidePanel();
 P('pbrag').onclick=()=>{
- const i=boardKey===levelKey()?boardRows.findIndex(x=>x.playerId===myId):-1;
- const t='BRICKS ASMR · '+(isDaily()?'Daily '+seed.slice(1):'Level '+level)+' · '+SNAME[style]+'\nTime: '+fmtTime(lastTime)+(i>=0?' · World #'+(i+1):'')+'\nBeat me: '+shareURL();
+ const i=boardKey===boardId()?boardRows.findIndex(x=>x.playerId===myId):-1;
+ const t='BRICKS ASMR · '+(isDaily()?'Daily '+seed.slice(1):'Seed '+seed)+' · '+SNAME[style]+'\nTime: '+fmtTime(lastTime)+(i>=0?' · World #'+(i+1):'')+'\nBeat me: '+shareURL();
  copyText(t,'Result copied');
 };
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
@@ -870,7 +872,7 @@ P('sty').onclick=()=>{
  try{localStorage.setItem('brick-asmr-style',style)}catch(e){}
  applyStyle();if(panelMode)loadBoard();showToast(style==='vintage'?'vintage CRT':style);
 };
-resize();applyStyle();startLevel();requestAnimationFrame(frame);
+resize();applyStyle();startBoard();requestAnimationFrame(frame);
 })();
 </script>
 

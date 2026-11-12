@@ -6,25 +6,26 @@ import { brickEngine, engineSource } from "../src/engine.mjs";
 const { arenaLayout, bricks, soloCoreSource } = core;
 function seeded(seed) { let a = seed; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-// Recorded from the Solo game code before it moved onto the shared engine: the same seeded randomness
+// Recorded (level-1 boards, the only kind left) from the Solo game code before it moved onto the shared engine: the same seeded randomness
 // and autopilot must play out frame for frame the same.
 const SOLO_GOLDEN = [
-  { seed: "abc123", level: 1, set: "clean", frames: 1415, state: "clear", remaining: 0, balls: 306, lives: 7, hp: 4066922503 },
-  { seed: "zz9q", level: 4, set: "clean", frames: 7454, state: "clear", remaining: 0, balls: 2500, lives: 9, hp: 4066922503 },
-  { seed: "d20261112", level: 1, set: "clean", frames: 6137, state: "over", remaining: 2629, balls: 1, lives: 3, hp: 1623717883 },
-  { seed: "abc123", level: 1, set: "vintage", frames: 3843, state: "clear", remaining: 0, balls: 7, lives: 5, hp: 4066922503 },
-  { seed: "k3k3", level: 7, set: "vintage", frames: 2560, state: "clear", remaining: 0, balls: 12, lives: 5, hp: 4066922503 },
-  { seed: "qq", level: 12, set: "vintage", frames: 5530, state: "over", remaining: 2824, balls: 1, lives: 5, hp: 1849668230 },
-  { seed: "zz9q", level: 4, set: "vapor", frames: 1062, state: "clear", remaining: 0, balls: 170, lives: 5, hp: 4066922503 },
-  { seed: "qq", level: 12, set: "vapor", frames: 4396, state: "clear", remaining: 0, balls: 1446, lives: 5, hp: 4066922503 },
-  { seed: "m0on", level: 2, set: "vapor", frames: 8590, state: "over", remaining: 2890, balls: 1, lives: 4, hp: 695253866 },
+  { seed: "abc123", set: "clean", frames: 1415, state: "clear", remaining: 0, balls: 306, lives: 7, hp: 4066922503 },
+  { seed: "zz9q", set: "clean", frames: 8896, state: "over", remaining: 2646, balls: 2, lives: 5, hp: 2379061491 },
+  { seed: "m0on", set: "clean", frames: 8896, state: "over", remaining: 2800, balls: 1, lives: 5, hp: 1378065626 },
+  { seed: "d20261112", set: "clean", frames: 6137, state: "over", remaining: 2629, balls: 1, lives: 3, hp: 1623717883 },
+  { seed: "abc123", set: "vintage", frames: 3843, state: "clear", remaining: 0, balls: 7, lives: 5, hp: 4066922503 },
+  { seed: "k3k3", set: "vintage", frames: 2075, state: "clear", remaining: 0, balls: 10, lives: 5, hp: 4066922503 },
+  { seed: "d20261113", set: "vintage", frames: 1735, state: "clear", remaining: 0, balls: 79, lives: 5, hp: 4066922503 },
+  { seed: "zz9q", set: "vapor", frames: 3352, state: "clear", remaining: 0, balls: 289, lives: 4, hp: 4066922503 },
+  { seed: "m0on", set: "vapor", frames: 10073, state: "clear", remaining: 0, balls: 142, lives: 4, hp: 4066922503 },
+  { seed: "d20261113", set: "vapor", frames: 760, state: "clear", remaining: 0, balls: 2229, lives: 5, hp: 4066922503 },
 ];
 
 test("Solo on the shared engine plays exactly as the original Solo did", () => {
   const arena = arenaLayout(9 / 16);
   for (const g of SOLO_GOLDEN) {
     const E = brickEngine(seeded(42));
-    const S = E.create({ arena, board: bricks(g.seed, g.level, 1, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: g.set, lives: 5, level: g.level, daily: /^d\d{8}$/.test(g.seed) });
+    const S = E.create({ arena, board: bricks(g.seed, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: g.set, lives: 5, daily: /^d\d{8}$/.test(g.seed) });
     const pilot = () => { let best = null; for (const b of S.balls) if (b.vy > 0 && (!best || b.y > best.y)) best = b; return best ? best.x + ((best.x * 7) % 11 - 5) : 180; };
     let frames = 0;
     while (frames < 30000 && S.status === "play") {
@@ -41,7 +42,7 @@ test("Solo on the shared engine plays exactly as the original Solo did", () => {
 
 function engineFor(seats, mode = "versus") {
   const arena = arenaLayout(9 / 16), E = brickEngine(() => .5);
-  const S = E.create({ arena, board: bricks("edges", 1, seats.length, arena), players: seats.map(seat => ({ id: "s" + seat, seat })), mode, set: "clean", lives: 4, maxBalls: 40 });
+  const S = E.create({ arena, board: bricks("edges", seats.length, arena), players: seats.map(seat => ({ id: "s" + seat, seat })), mode, set: "clean", lives: 4, maxBalls: 40 });
   S.balls = [];
   return { E, S };
 }
@@ -108,7 +109,7 @@ test("Coop and Solo share one pool of lives; Versus loses only the misser's life
 test("the engine runs from its injected browser source alongside the core helpers", () => {
   const make = new Function(soloCoreSource + "\n" + engineSource + "\nreturn brickEngine;");
   const E = make()(), arena = arenaLayout(9 / 16);
-  const S = E.create({ arena, board: bricks("web", 1, 1, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: "vapor", lives: 5 });
+  const S = E.create({ arena, board: bricks("web", 1, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: "vapor", lives: 5 });
   E.launch(S, "me");
   for (let i = 0; i < 120; i++) E.step(S, 1 / 60);
   assert.ok(S.remaining <= S.total);

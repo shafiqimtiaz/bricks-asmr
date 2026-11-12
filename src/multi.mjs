@@ -61,11 +61,11 @@ function eliminate(r,p){
  replenishBalls(r);
 }
 function startRound(r){
- r.status="playing";r.round=(r.round||0)+1;r.seed=r.code.toLowerCase();r.level=r.round;
+ r.status="playing";r.round=(r.round||0)+1;r.seed=Math.random().toString(36).slice(2,8);
  r.mode=MODES.includes(r.mode)?r.mode:"versus";
  r.startedAt=Date.now()+3000;r.finishedAt=0;r.result=null;
  r.arena=r.arena||arenaLayout();
- r.board=bricks(r.seed,r.level,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
+ r.board=bricks(r.seed,r.players.length,r.arena);r.hits=0;r.lastTouch=null;
  r.effects={wideUntil:0,pierceUntil:0,slowUntil:0,hyperUntil:0};
  r.eventSeq=0;r.lastEvent=null;r.crushClock=-10;r.crushSteps=0;r.pups=[];
  // Coop shares one pool of lives (3 per player); every player still in carries the same count.
@@ -238,7 +238,7 @@ export class BrickRoom extends DurableObject{
  snapshot(includeBoard=true){
   const r=this.room,live=this.liveIds();
   const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,hits:r.hits||0,arena:r.arena||arenaLayout(),
-   seed:r.seed,level:r.level,startedAt:r.startedAt,
+   seed:r.seed,startedAt:r.startedAt,
    mode:r.mode||"versus",result:r.result||null,
    elapsed:r.startedAt?Math.max(0,Math.floor((((r.status==="finished"&&r.finishedAt)||Date.now())-r.startedAt)/1000)):0,
    players:r.players.map(p=>({id:p.id,name:p.name,seat:p.seat,pos:p.pos,score:p.score,lives:p.lives,combo:Date.now()-(p.comboAt||0)<1500?p.combo||0:0,online:live.has(p.id)})),
@@ -266,7 +266,7 @@ export class BrickRoom extends DurableObject{
    const data=await req.json().catch(()=>({})),name=nameOf(data.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:4};
    const arena=arenaLayout(Number(data.aspect));
-   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],arena,board:bricks(code.toLowerCase(),1,2,arena),seed:code.toLowerCase(),level:1,startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
+   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,hits:0,balls:[],arena,board:bricks(code.toLowerCase(),2,arena),seed:code.toLowerCase(),startedAt:0,endsAt:0,lastActivity:Date.now()};assignSides(this.room.players);resetBall(this.room);
    await this.save();return reply({code,you:p.id},201,{"set-cookie":cookieFor(code,p.token)});
   }
   if(!this.room||this.room.code!==code||Date.now()-this.room.lastActivity>TTL)return reply({error:"Room not found or expired"},404);
@@ -277,7 +277,7 @@ export class BrickRoom extends DurableObject{
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5,score:0,lives:4};r.players.push(player);assignSides(r.players);
-   if(r.status==="waiting"){r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;}
+   if(r.status==="waiting"){r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;}
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }
   if(!existing)return reply({error:"Join the lobby first"},401);
@@ -321,7 +321,7 @@ export class BrickRoom extends DurableObject{
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
-    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,Math.max(2,r.players.length),r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;
+    assignSides(r.players);r.board=bricks(r.seed||r.code.toLowerCase(),Math.max(2,r.players.length),r.arena||arenaLayout());resetBall(r);this.lastBroadcastHP=null;
    }
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;
@@ -360,7 +360,7 @@ export class BrickRoom extends DurableObject{
  }
  step(dt,now){
   const r=this.room;
-  if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.level||1,r.players.length,r.arena||arenaLayout());
+  if(!r.board)r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena||arenaLayout());
   r.balls=r.balls||[];
   // A player who stays disconnected past the grace period is out, so a round without a timer can still end.
   for(const p of r.players)if(p.lives>0&&p.online===false&&now-(p.offlineAt||now)>OFFLINE_GRACE)eliminate(r,p);
@@ -368,7 +368,7 @@ export class BrickRoom extends DurableObject{
   if(finishCheck(r)){this.stopLoop();this.save().catch(e=>console.error("room.finish",e));return;}
   if(now<r.startedAt)return;
   r.crushClock=(r.crushClock??-10)+dt;
-  const interval=crusherInterval(r.level||1);
+  const interval=crusherInterval();
   if(r.crushClock>=interval){
    r.crushClock-=interval;r.crushSteps=(r.crushSteps||0)+1;
   }
