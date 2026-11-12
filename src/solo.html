@@ -244,8 +244,7 @@ let W = arena.width, H = arena.height, CS = arena.cell, COLS = arena.cols, ROWS 
 let GX = arena.gridX, GY = arena.gridY;
 const SY = 614, SZONE = 572, PY = 536, PH = 7, MAX_BALLS = 2500;
 let SX0 = Math.max(40, W * .11), SX1 = W - SX0;
-const basePaddle = () => 64 * CS / 6;
-let BR = CS * .45, SPEED = ballSpeed(arena), PU_R = CS * 1.5;
+let BR = CS * .45, PU_R = CS * 1.5;
 
 // ---------- seeded RNG: game-core.mjs ----------
 // ---------- URL state ----------
@@ -292,6 +291,7 @@ function applyStyle(){
   document.getElementById('sty').textContent = STY_LABEL[style];
   cv.style.visibility = useGL() ? 'hidden' : 'visible';
   gcv.style.visibility = useGL() ? 'visible' : 'hidden';
+  if (S) S.set = style;
   if (hp) redrawAll();
 }
 function postFX(now){
@@ -349,49 +349,15 @@ for(const id of ['panel', 'homeLobby']){
 
 // ---------- level data ----------
 let quad = false, hp, col, pu, remaining, total, palette, wallCols, vPal, vWall, rootSemi, scale_, wave, decay, archetype;
-const PU_SETS = {
-  clean: [
-    {id:'plus3', ic:'+3', nm:'+3 BALLS', c:'#3fa9d8'},
-    {id:'x3', ic:'×3', nm:'×3 SPLIT', c:'#9cc23a'},
-    {id:'wide', ic:'W', nm:'WIDE', c:'#f0a040', t:12},
-    {id:'fire', ic:'F', nm:'FIREBALL', c:'#ff5a2a', t:6},
-    {id:'laser', ic:'L', nm:'LASER', c:'#e83a5a', t:8},
-    {id:'floor', ic:'_', nm:'FLOOR', c:'#2ec4a6', t:8},
-    {id:'bomb', ic:'B', nm:'BOMB BALLS', c:'#d9b22a', t:6},
-    {id:'slow', ic:'S', nm:'SLOW-MO', c:'#6a8cff', t:8},
-    {id:'shrink', ic:'-', nm:'SHRINK', c:'#8a2030', t:8, bad:1},
-    {id:'life', ic:'♥', nm:'+1 LIFE', c:'#ff6fa3'}],
-  vintage: [
-    {id:'mitosis', ic:'M', nm:'MITOSIS', c:'#7be07b', t:10},
-    {id:'nuke', ic:'N', nm:'NUKE', c:'#ffb000'},
-    {id:'column', ic:'|', nm:'COLUMN BEAM', c:'#ff7a50'},
-    {id:'rows', ic:'≡', nm:'ROW SWEEP', c:'#50c8ff'},
-    {id:'ghost', ic:'G', nm:'GHOST', c:'#b8b8d8', t:8},
-    {id:'twin', ic:'T', nm:'TWIN PADDLE', c:'#e0904a', t:10},
-    {id:'hyper', ic:'»', nm:'HYPER', c:'#ff3df0', t:6},
-    {id:'rain', ic:'R', nm:'BALL RAIN', c:'#7ad0ff'},
-    {id:'soften', ic:'○', nm:'SOFTEN', c:'#a0a0a0'},
-    {id:'time', ic:'-3', nm:'-3 SECONDS', c:'#ffe066'}],
-  vapor: [
-    {id:'prism', ic:'P', nm:'PRISM', c:'#b388ff'},
-    {id:'chain', ic:'C', nm:'CHAIN', c:'#ff71ce', t:6},
-    {id:'shock', ic:'◎', nm:'SHOCKWAVE', c:'#01cdfe'},
-    {id:'mirror', ic:'||', nm:'MIRROR', c:'#05ffa1'},
-    {id:'sunbeam', ic:'☀', nm:'SUN BEAM', c:'#ffd319', t:2},
-    {id:'wobble', ic:'~', nm:'WOBBLE', c:'#9ff3ff', t:8},
-    {id:'scan', ic:'▤', nm:'SCAN SWEEP', c:'#ff9de0'},
-    {id:'lucky', ic:'7', nm:'LUCKY ×10', c:'#fffb96'},
-    {id:'invert', ic:'⇄', nm:'INVERTED', c:'#7a1f5a', t:6, bad:1},
-    {id:'freeze', ic:'❄', nm:'TIME FREEZE', c:'#bdf5ff', t:5}],
-};
-const STARTER = {clean: 'x3', vintage: 'rain', vapor: 'prism'};
-const PU_BY_ID = {}; for (const k in PU_SETS) for (const d of PU_SETS[k]) PU_BY_ID[d.id] = d;
-function puDef(k){ return k === 11 ? PU_BY_ID[STARTER[style]] : PU_SETS[style][k - 1]; }
+const E = brickEngine();
+const PU_BY_ID = E.PU_BY_ID;
+function puDef(k){ return E.puDef(style, k); }
 const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
 let N = COLS * ROWS;
 
+let board;
 function genLevel(){
- const board=bricks(seed,level,1,arena);
+ board=bricks(seed,level,1,arena);
  hp=Uint8Array.from(board.hp,c=>c.charCodeAt(0)-48);
  col=Uint8Array.from(board.colors,c=>parseInt(c,16));
  pu=Uint8Array.from(board.powerups,c=>parseInt(c,16));
@@ -426,120 +392,105 @@ function brickNote(r){
  blip(note.frequency,note.volume,note.duration+Math.random()*.04,note.wave);
 }
 
-// ---------- game state ----------
-let fx = {}, luckyLeft = 0, lasers = [], beams = [], rings = [], laserCd = 0, inChain = false, styleRun = null, fxClock = 0;
+// ---------- game state: the shared engine (engine.mjs) ----------
+// The engine owns the rules; these mirrors of its state are refreshed after every step for drawing and input.
+let S = null, me = null;
+let fx = {}, luckyLeft = 0, lasers = [], beams = [], rings = [], fxClock = 0;
 const FLOOR_Y = PY + 22, CRUSH_Y = PY - 10;
 let maxBalls = MAX_BALLS, perfEma = 16, perfWarned = false;
-let drop = 0, dropTarget = 0, dropClock = 0, rowCount = new Int16Array(64), combo = 0, comboT = 0, maxCombo = 0, comboPop = 0, nextMilestone = 0;
+let drop = 0, combo = 0, comboPop = 0;
 let introT = 0, conf = [], flashW = 0, hbT = 0, danger = 0, squash = 0, crushed = false;
-const MILESTONES = [25, 50, 100, 250, 500, 1000, 2500, 5000];
 const isDaily = () => /^d\d{8}$/.test(seed);
 const dropEvery = () => crusherInterval(level,isDaily()), GRACE = 10;
 function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e) {} }
-function lowestRow(){ for (let r = ROWS - 1; r >= 0; r--) if (rowCount[r] > 0) return r; return -1; }
-const brickBottom = () => GY + drop + (lowestRow() + 1) * CS;
-let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim', targetX = W / 2;
+let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim';
 let msgText = '';
+const AIM_MSG = 'slide below to move\ndrag board to fine-aim\ntap to launch';
 
 const MAX_LIVES = 5;
-let lives = MAX_LIVES, runTime = 0, timerOn = false;
+let lives = MAX_LIVES, runTime = 0, timerOn = false, styleRun = null;
 function syncArena(){
   const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
   if(next.width === W)return;
   arena=next;W=next.width;H=next.height;CS=next.cell;COLS=next.cols;ROWS=next.rows;
   GX=next.gridX;GY=next.gridY;N=COLS*ROWS;
   SX0=Math.max(40,W*.11);SX1=W-SX0;
-  BR=CS*.45;SPEED=ballSpeed(next);PU_R=CS*1.5;
-  px=targetX=W/2;
+  BR=CS*.45;PU_R=CS*1.5;
+  px=W/2;
   hp=null;resize();
+}
+function sync(){
+  balls = S.balls; pups = S.pups; lasers = S.lasers; fx = {...S.fx, ...me.fx}; luckyLeft = S.luckyLeft; fxClock = S.clock;
+  px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
+  state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
 function startLevel(){
   syncArena();
-  genLevel(); redrawAll(); syncURL();
-  balls = []; pups = []; flashes = []; debris = []; floats = []; pw = basePaddle();
-  lives = MAX_LIVES; runTime = 0; timerOn = false; styleRun = null;
-  fx = {}; luckyLeft = 0; lasers = []; beams = []; rings = [];
-  drop = dropTarget = 0; dropClock = -GRACE; rowCount = new Int16Array(ROWS); for (let i = 0; i < N; i++) if (hp[i]) rowCount[(i / COLS) | 0]++;
-  combo = comboT = maxCombo = 0; nextMilestone = 0; introT = 1.8; conf = []; crushed = false; danger = 0;
-  hidePanel(); resetBall();
+  genLevel();
+  S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, level, daily: isDaily(), maxBalls});
+  me = S.players[0]; hp = S.hp; col = S.col; pu = S.pu;
+  me.c = me.target = Math.max(me.pw / 2, Math.min(W - me.pw / 2, px));
+  redrawAll(); syncURL();
+  flashes = []; debris = []; floats = []; beams = []; rings = [];
+  runTime = 0; timerOn = false; styleRun = null;
+  introT = 1.8; conf = []; crushed = false; danger = 0;
+  hidePanel(); sync(); showMsg(AIM_MSG);
 }
-function resetBall(){ aimAng = (Math.random() - .5) * 0.6; state = 'aim'; balls = [{x: px, y: PY - BR - 1, vx: 0, vy: 0}]; showMsg('slide below to move\ndrag board to fine-aim\ntap to launch'); }
 function launch(){
   if (state !== 'aim') return;
-  setVel(balls[0], aimAng);
+  E.launch(S, 'me');
   if (!timerOn) styleRun = style;
-  state = 'play'; showMsg(''); timerOn = true;
+  showMsg(''); timerOn = true; sync();
 }
 function showMsg(s){ msgText = s; }
-
-const curSpeed = () => SPEED * (fx.slow > 0 ? 0.5 : 1) * (fx.hyper > 0 ? 2 : 1);
-const paddles = () => fx.twin > 0 ? [px, W - px] : [px];
-function setVel(b, ang){ const S = curSpeed(); b.vx = S * Math.sin(ang); b.vy = -S * Math.cos(ang); }
-function fixVel(b){normalizeBallVelocity(b,curSpeed(),"y");}
-
-function cellAt(x, y){
-  const c = Math.floor((x - GX) / CS), r = Math.floor((y - GY - drop) / CS);
-  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return -1;
-  const i = r * COLS + c; return hp[i] ? i : -1;
+function update(dt){
+  for (const e of E.step(S, dt)) react(e);
+  sync();
 }
-function solid(x, y){ const i = cellAt(x, y); return i >= 0 && fx.ghost > 0 && col[i] === 0 ? -1 : i; }
-function destroyCell(i){ if (hp[i] > 0) { hp[i] = 1; hitCell(i); } }
-function blast(c, r, rad){ for (let y = r - rad; y <= r + rad; y++) for (let x = c - rad; x <= c + rad; x++) if (x >= 0 && x < COLS && y >= 0 && y < ROWS) destroyCell(y * COLS + x); }
-function wipeCols(x0, x1){ const c0 = Math.max(0, Math.floor((x0 - GX) / CS)), c1 = Math.min(COLS - 1, Math.floor((x1 - GX) / CS)); for (let r = 0; r < ROWS; r++) for (let c = c0; c <= c1; c++) destroyCell(r * COLS + c); }
-function wipeRow(r){ for (let c = 0; c < COLS; c++) destroyCell(r * COLS + c); beams.push({y: GY + drop + r * CS, h: CS, t: 1, c: '#50c8ff'}); }
-// returns true if the ball should bounce
-function impact(i){
-  if (fx.bomb > 0) { blast(i % COLS, (i / COLS) | 0, 1); return true; }
-  if (fx.fire > 0) { destroyCell(i); return false; }
-  hitCell(i); return true;
-}
-function hitCell(i){
-  hp[i]--;
-  const c = i % COLS, r = (i / COLS) | 0;
-  if (hp[i] === 0) {
-    remaining--;
-    brickNote(r);
-    const fc = col[i] ? (style === 'vapor' ? vPal : palette)[col[i]] : (style === 'vapor' ? vWall : wallCols)[1];
-    const by = GY + drop + r * CS;
-    rowCount[r]--; combo++; comboT = 0; if (combo > maxCombo) maxCombo = combo; comboPop = 1;
-    if (nextMilestone < MILESTONES.length && combo >= MILESTONES[nextMilestone]) { const m = MILESTONES[nextMilestone++]; floats.push({x: W / 2, y: 300, s: '×' + m + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); }
-    if (flashes.length < 500) flashes.push({x: GX + c * CS, y: by, c: fc, t: 1});
-    if (style !== 'clean' && debris.length < 900) for (let d = 0; d < 2; d++) debris.push({x: GX + c * CS + Math.random() * CS, y: by + Math.random() * CS, vx: (Math.random() - .5) * 60, vy: (Math.random() - .8) * 50, c: fc, t: 1});
-    if (pu[i]) { pups.push({x: GX + c * CS + CS / 2, y: by + CS / 2, k: pu[i], c, r}); pu[i] = 0; }
-    if (luckyLeft > 0 && balls.length < maxBalls) { luckyLeft--; const nb = {x: GX + c * CS + CS / 2, y: by + CS / 2, vx: 0, vy: 0}; setVel(nb, (Math.random() - .5) * 2.4); balls.push(nb); }
-    if (fx.chain > 0 && !inChain && col[i]) {
-      inChain = true; const cc = col[i], q = [i], seen = new Set(q); let n = 0;
-      while (q.length && n < 40) { const j = q.shift(), jc = j % COLS;
-        for (const k of [jc > 0 ? j - 1 : -1, jc < COLS - 1 ? j + 1 : -1, j - COLS, j + COLS]) if (k >= 0 && k < N && !seen.has(k) && hp[k] > 0 && col[k] === cc) { seen.add(k); q.push(k); destroyCell(k); n++; } }
-      inChain = false;
+function react(e){
+  switch (e.t) {
+    case 'break': {
+      const i = e.i, c = e.c, r = e.r;
+      brickNote(r);
+      const fc = col[i] ? (style === 'vapor' ? vPal : palette)[col[i]] : (style === 'vapor' ? vWall : wallCols)[1];
+      const by = GY + S.crush.by + r * CS;
+      comboPop = 1;
+      if (flashes.length < 500) flashes.push({x: GX + c * CS, y: by, c: fc, t: 1});
+      if (style !== 'clean' && debris.length < 900) for (let d = 0; d < 2; d++) debris.push({x: GX + c * CS + Math.random() * CS, y: by + Math.random() * CS, vx: (Math.random() - .5) * 60, vy: (Math.random() - .8) * 50, c: fc, t: 1});
+      drawCell(i); break;
     }
-  } else blip(140 + r, 0.12, 0.05, 'sine');
-  drawCell(i);
-}
-
-function predict(x, y, vx, vy, maxSteps){
-  const S = curSpeed(), st = 2 / S, pts = [], marks = [], fire = fx.fire > 0; let after = -1;
-  for (let k = 0; k < maxSteps; k++) {
-    let nx = x + vx * st;
-    if (!fire && solid(nx + Math.sign(vx) * BR, y) >= 0) { vx = -vx; nx = x; marks.push(x, y); }
-    if (nx < BR) { nx = BR; vx = Math.abs(vx); marks.push(nx, y); } else if (nx > W - BR) { nx = W - BR; vx = -Math.abs(vx); marks.push(nx, y); }
-    let ny = y + vy * st;
-    if (!fire && solid(nx, ny + Math.sign(vy) * BR) >= 0) { vy = -vy; ny = y; marks.push(nx, y); }
-    if (ny < GY - 4 + BR) { ny = GY - 4 + BR; vy = Math.abs(vy); marks.push(nx, ny); }
-    if (vy > 0 && y + BR <= PY + 2 && ny + BR >= PY) {
-      for (const q of paddles()) if (nx > q - pw / 2 - BR && nx < q + pw / 2 + BR) {
-        const off = Math.max(-1, Math.min(1, (nx - q) / (pw / 2)));
-        vx = S * Math.sin(off * 1.05); vy = -S * Math.cos(off * 1.05); ny = PY - BR; marks.push(nx, ny); after = 0; break;
-      }
+    case 'hit': blip(140 + e.r, 0.12, 0.05, 'sine'); drawCell(e.i); break;
+    case 'cell': drawCell(e.i); break;
+    case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
+    case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
+    case 'crush': blip(70, .25, .18, 'sine'); if (style !== 'clean') shake = Math.max(shake, 2.5); break;
+    case 'beam': beams.push({...e, t: 1}); break;
+    case 'ring': rings.push({x: e.x, y: e.y, t: 1, R: e.R, c: e.c}); break;
+    case 'time': runTime = Math.max(0, runTime + e.ms); break;
+    case 'power': {
+      const d = puDef(e.k);
+      if (style !== 'clean') shake = d.bad ? 2 : 4;
+      floats.push({x: Math.max(50, Math.min(W - 50, e.x)), y: PY - 10, s: d.nm + '!', c: d.c, t: 1});
+      const base = 262 * Math.pow(2, (e.k - 1) / 12), seq = d.bad ? [12, 8, 5, 0] : [0, 4, 7, 12];
+      seq.forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(base * Math.pow(2, s / 12), 0.18, 0.15, d.bad ? 'square' : 'triangle'); }, j * 45));
+      break;
     }
-    x = nx; y = ny;
-    if (k % 4 === 0) pts.push(x, y);
-    if (after >= 0 && ++after > 110) break;
-    if (y > PY + PH + 4) break;
-    if (marks.length > 16) break;
+    case 'life': vib(60); if (S.pool > 0) showMsg(AIM_MSG); break;
+    case 'end':
+      timerOn = false;
+      if (e.reason === 'cleared') {
+        showMsg(''); onClear(Math.round(runTime));
+        flashW = .7; vib([30, 30, 60]);
+        const pal = style === 'vapor' ? ['#ff71ce', '#01cdfe', '#05ffa1', '#b967ff', '#fffb96'] : ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#ffffff'];
+        for (let j = 0; j < 180; j++) conf.push({x: Math.random() * W, y: -10 - Math.random() * 200, vx: (Math.random() - .5) * 60, vy: 40 + Math.random() * 120, r: Math.random() * 6, vr: (Math.random() - .5) * 10, c: pal[j % pal.length]}); [0,4,7,12,16].forEach((s,j)=>setTimeout(()=>{notesThisFrame=0;blip(262*Math.pow(2,s/12),.2,.4)},j*90));
+      } else if (e.reason === 'crushed') {
+        crushed = true; showMsg('CRUSHED!\ntap to restart level');
+        flashW = .8; shake = 12; vib([80, 40, 160]); [0, -3, -7, -12].forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(110 * Math.pow(2, s / 12), .3, .3, 'square'); }, j * 110));
+      } else { showMsg('out of lives\ntap to restart level'); flashW = .5; }
+      break;
   }
-  return {pts, marks, hit: after >= 0};
 }
+
 function drawPath(pr, color){
   const n = pr.pts.length / 2;
   ctx.fillStyle = color;
@@ -550,123 +501,6 @@ function drawPath(pr, color){
 }
 function mkGlow(a, b){ const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), rg = g.createRadialGradient(16,16,0,16,16,16); rg.addColorStop(0, a); rg.addColorStop(.35, b); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(0,0,32,32); return c; }
 const glowV = mkGlow('rgba(255,255,255,.55)', 'rgba(180,220,255,.18)'), glowP = mkGlow('rgba(160,250,255,.6)', 'rgba(255,113,206,.22)');
-
-function multiply(){
-  const n = balls.length;
-  for (let j = 0; j < n && balls.length < maxBalls; j++) {
-    const b = balls[j], a = Math.atan2(b.vx, -b.vy);
-    for (const d of [-0.42, 0.42]) { if (balls.length >= maxBalls) break; const nb = {x: b.x, y: b.y, vx: 0, vy: 0}; setVel(nb, a + d); fixVel(nb); balls.push(nb); }
-  }
-}
-function applyPU(d, p){
-  if (d.t) fx[d.id] = d.t;
-  const snap = balls.length;
-  switch (d.id) {
-    case 'plus3': plusThree(); break;
-    case 'x3': multiply(); break;
-    case 'life': lives++; break;
-    case 'nuke': blast(p.c, p.r, 5); rings.push({x: p.x, y: GY + drop + p.r * CS, t: 1, R: 40, c: '#ffb000'}); break;
-    case 'column': wipeCols(px - CS * 1.5, px + CS * 1.5); beams.push({x: px - CS * 1.5, w: CS * 3, t: 1, c: '#ff7a50'}); break;
-    case 'rows': { const rs = []; for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (hp[r * COLS + c]) { rs.push(r); break; }
-      for (let j = 0; j < 3 && rs.length; j++) wipeRow(rs.splice(Math.floor(Math.random() * rs.length), 1)[0]); break; }
-    case 'rain': for (let j = 0; j < 20 && balls.length < maxBalls; j++) { const nb = {x: 10 + Math.random() * (W - 20), y: GY + 3, vx: 0, vy: 0}; setVel(nb, Math.PI + (Math.random() - .5) * 1.2); balls.push(nb); } break;
-    case 'soften': for (let i = 0; i < N; i++) if (hp[i] > 1) { hp[i] = 1; drawCell(i); } break;
-    case 'time': runTime = Math.max(0, runTime - 3000); break;
-    case 'prism': for (let j = 0; j < snap && balls.length < maxBalls; j++) { const b = balls[j], a = Math.atan2(b.vx, -b.vy);
-      for (const dd of [-0.6, -0.3, 0.3, 0.6]) { if (balls.length >= maxBalls) break; const nb = {x: b.x, y: b.y, vx: 0, vy: 0}; setVel(nb, a + dd); fixVel(nb); balls.push(nb); } } break;
-    case 'shock': for (let j = 0; j < Math.min(snap, 150); j++) { const b = balls[j]; blast(Math.floor((b.x - GX) / CS), Math.floor((b.y - GY - drop) / CS), 2); if (rings.length < 40) rings.push({x: b.x, y: b.y, t: 1, R: 16, c: '#01cdfe'}); } break;
-    case 'mirror': for (let j = 0; j < snap && balls.length < maxBalls; j++) { const b = balls[j]; balls.push({x: W - b.x, y: b.y, vx: -b.vx, vy: b.vy}); } break;
-    case 'scan': { let n = 0; for (let r = ROWS - 1; r >= 0 && n < 3; r--) { let any = false; for (let c = 0; c < COLS; c++) if (hp[r * COLS + c]) { any = true; break; } if (any) { wipeRow(r); n++; } } break; }
-    case 'lucky': luckyLeft += 10; break;
-  }
-}
-function plusThree(){
-  for (const d of [-0.35, 0, 0.35]) { if (balls.length >= maxBalls) break; const nb = {x: px, y: PY - BR - 1, vx: 0, vy: 0}; setVel(nb, d); balls.push(nb); }
-}
-
-function update(dt){
-  pw = basePaddle() * (fx.wide > 0 ? 1.6 : 1) * (fx.shrink > 0 ? 0.6 : 1);
-  px += (targetX - px) * Math.min(1, dt * 25);
-  px = Math.max(pw / 2, Math.min(W - pw / 2, px));
-  if (state === 'aim') { balls[0].x = px; balls[0].y = PY - BR - 1; return; }
-  if (state !== 'play') return;
-
-  fxClock += dt;
-  for (const k in fx) if (fx[k] > 0) fx[k] -= dt;
-  // the crusher: the wall steps down a row every few seconds
-  dropClock += dt;
-  if (dropClock >= dropEvery()) { dropClock = 0; dropTarget += CS; blip(70, .25, .18, 'sine'); if (style !== 'clean') shake = Math.max(shake, 2.5); }
-  drop += (dropTarget - drop) * Math.min(1, dt * 14);
-  comboT += dt; if (comboT > 0.7) { combo = 0; nextMilestone = 0; }
-  if (brickBottom() >= CRUSH_Y) {
-    state = 'over'; crushed = true; timerOn = false; pups = []; showMsg('CRUSHED!\ntap to restart level');
-    flashW = .8; shake = 12; vib([80, 40, 160]); [0, -3, -7, -12].forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(110 * Math.pow(2, s / 12), .3, .3, 'square'); }, j * 110));
-    return;
-  }
-  if (fx.sunbeam > 0) wipeCols(px - 15, px + 15);
-  if (fx.laser > 0) { laserCd -= dt; if (laserCd <= 0) { laserCd = 0.12; for (const q of paddles()) lasers.push({x: q - pw / 2 + 3, y: PY - 2}, {x: q + pw / 2 - 3, y: PY - 2}); } }
-  for (let k = lasers.length - 1; k >= 0; k--) {
-    const L = lasers[k]; let gone = false;
-    for (let s = 0; s < 4 && !gone; s++) { L.y -= 130 * dt; const i = cellAt(L.x, L.y - 3); if (i >= 0) { hitCell(i); gone = true; } }
-    if (gone || L.y < GY - 10) { lasers[k] = lasers[lasers.length - 1]; lasers.pop(); }
-  }
-
-  const S = curSpeed(), steps = Math.ceil(S * dt / 2), sdt = dt / steps;
-  for (let k = balls.length - 1; k >= 0; k--) {
-    const b = balls[k];
-    let dead = false;
-    for (let s = 0; s < steps; s++) {
-      let nx = b.x + b.vx * sdt;
-      let i = solid(nx + Math.sign(b.vx) * BR, b.y);
-      if (i >= 0 && impact(i)) { b.vx = -b.vx; nx = b.x; }
-      if (nx < BR) { nx = BR; b.vx = Math.abs(b.vx); } else if (nx > W - BR) { nx = W - BR; b.vx = -Math.abs(b.vx); }
-      let ny = b.y + b.vy * sdt;
-      i = solid(nx, ny + Math.sign(b.vy) * BR);
-      if (i >= 0 && impact(i)) { b.vy = -b.vy; ny = b.y; }
-      if (ny < GY - 4 + BR) { ny = GY - 4 + BR; b.vy = Math.abs(b.vy); }
-      if (b.vy > 0 && b.y + BR <= PY + 2 && ny + BR >= PY) for (const q of paddles()) if (nx > q - pw / 2 - BR && nx < q + pw / 2 + BR) {
-        const off = Math.max(-1, Math.min(1, (nx - q) / (pw / 2)));
-        bounceBall(b,0,off,curSpeed()); ny = PY - BR;
-        if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine');
-        squash = 1;
-        if (fx.mitosis > 0 && balls.length < maxBalls) { const nb = {x: nx, y: ny, vx: 0, vy: 0}; setVel(nb, -off * 1.05 + (Math.random() - .5) * 0.3); balls.push(nb); }
-        break;
-      }
-      if (fx.floor > 0 && b.vy > 0 && ny + BR >= FLOOR_Y) { ny = FLOOR_Y - BR; b.vy = -Math.abs(b.vy); }
-      b.x = nx; b.y = ny;
-      if (b.y > H + 10) { dead = true; break; }
-    }
-    if (!dead) {
-      if (fx.wobble > 0) { const a = 0.06 * Math.sin(fxClock * 7 + k * 0.7), ca = Math.cos(a), sa = Math.sin(a), vx = b.vx; b.vx = vx * ca - b.vy * sa; b.vy = vx * sa + b.vy * ca; }
-      fixVel(b);
-    }
-    else { balls[k] = balls[balls.length - 1]; balls.pop(); }
-  }
-
-  for (let k = pups.length - 1; k >= 0; k--) {
-    const p = pups[k]; p.y += 95 * dt;
-    if (p.y + PU_R >= PY && p.y - PU_R <= PY + PH && paddles().some(q => Math.abs(p.x - q) < pw / 2 + PU_R)) {
-      const d = puDef(p.k);
-      applyPU(d, p);
-      if (style !== 'clean') shake = d.bad ? 2 : 4;
-      floats.push({x: Math.max(50, Math.min(W - 50, p.x)), y: PY - 10, s: d.nm + '!', c: d.c, t: 1});
-      const base = 262 * Math.pow(2, (p.k - 1) / 12), seq = d.bad ? [12, 8, 5, 0] : [0, 4, 7, 12];
-      seq.forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(base * Math.pow(2, s / 12), 0.18, 0.15, d.bad ? 'square' : 'triangle'); }, j * 45));
-      pups.splice(k, 1);
-    } else if (p.y > H + 20) pups.splice(k, 1);
-  }
-
-  if (remaining === 0) { state = 'clear'; timerOn = false; showMsg(''); onClear(Math.round(runTime));
-    flashW = .7; vib([30, 30, 60]);
-    const pal = style === 'vapor' ? ['#ff71ce', '#01cdfe', '#05ffa1', '#b967ff', '#fffb96'] : ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#ffffff'];
-    for (let j = 0; j < 180; j++) conf.push({x: Math.random() * W, y: -10 - Math.random() * 200, vx: (Math.random() - .5) * 60, vy: 40 + Math.random() * 120, r: Math.random() * 6, vr: (Math.random() - .5) * 10, c: pal[j % pal.length]}); [0,4,7,12,16].forEach((s,j)=>setTimeout(()=>{notesThisFrame=0;blip(262*Math.pow(2,s/12),.2,.4)},j*90)); }
-  else if (balls.length === 0) {
-    lives--;
-    vib(60);
-    if (lives > 0) resetBall();
-    else { state = 'over'; timerOn = false; pups = []; showMsg('out of lives\ntap to restart level'); flashW = .5; }
-  }
-}
 
 // ---------- render ----------
 const hudLives = document.getElementById('lives'), hudTmr = document.getElementById('tmr');
@@ -684,7 +518,7 @@ function render(fs = 1){
     ctx.fillStyle = '#232323'; ctx.fillRect(GX - 2, GY - 2 + drop, COLS * CS + 4, ROWS * CS + 4);
   }
   // danger line
-  const gapRows = (CRUSH_Y - brickBottom()) / CS;
+  const gapRows = E.crushGap(S, 0) / CS;
   danger = state === 'play' ? Math.max(0, Math.min(1, (6 - gapRows) / 5), balls.length === 1 ? .55 : 0) : 0;
   ctx.globalAlpha = .25 + danger * .6 * (.6 + .4 * Math.sin(performance.now() / 90));
   ctx.strokeStyle = '#ff3355'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(0, CRUSH_Y + .5); ctx.lineTo(W, CRUSH_Y + .5); ctx.stroke(); ctx.setLineDash([]);
@@ -719,7 +553,7 @@ function render(fs = 1){
   ctx.globalAlpha = 1;
 
   // trajectory previews
-  if (state === 'aim') drawPath(predict(px, PY - BR - 1, SPEED * Math.sin(aimAng), -SPEED * Math.cos(aimAng), 900), V ? '#01cdfe' : '#ffffff');
+  if (state === 'aim') drawPath(E.predict(S, 'me', 900), V ? '#01cdfe' : '#ffffff');
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
@@ -733,11 +567,11 @@ function render(fs = 1){
   else ctx.fillStyle = style === 'clean' ? '#c96a5a' : '#e07a66';
   squash *= Math.pow(0.82, fs);
   const sw = pw * (1 + .1 * squash), sh = PH * (1 - .35 * squash);
-  for (const q of paddles()) { ctx.beginPath(); ctx.roundRect(q - sw / 2, PY + (PH - sh), sw, sh, 3.5); ctx.fill(); }
+  for (const q of E.paddles(S, me)) { ctx.beginPath(); ctx.roundRect(q - sw / 2, PY + (PH - sh), sw, sh, 3.5); ctx.fill(); }
   ctx.fillStyle = V ? '#01cdfe' : '#c96a5a'; ctx.fillRect(GX, GY - 7, COLS * CS, 2);
   ctx.restore();
   if (style !== 'clean') {
-    ctx.fillStyle = V ? '#fff' : '#ffb3a3'; for (const q of paddles()) ctx.fillRect(q - pw / 2 + 3, PY + 1, pw - 6, 1);
+    ctx.fillStyle = V ? '#fff' : '#ffb3a3'; for (const q of E.paddles(S, me)) ctx.fillRect(q - pw / 2 + 3, PY + 1, pw - 6, 1);
     ctx.globalCompositeOperation = 'lighter';
     const gs = V ? glowP : glowV;
     for (let k = 0, n = Math.min(balls.length, 350); k < n; k++) ctx.drawImage(gs, balls[k].x - 8, balls[k].y - 8, 16, 16);
@@ -860,7 +694,7 @@ function frame(now){
   update(dt); render(dt * 60); postFX(now);
   if (danger > .2) { hbT -= dt; if (hbT <= 0) { hbT = danger > .7 ? .45 : .75; blip(55, .4, .13, 'sine'); setTimeout(() => { notesThisFrame = 0; blip(48, .3, .12, 'sine'); }, 110); } }
   perfEma += ((now - (frame.prev || now)) - perfEma) * .05; frame.prev = now;
-  if (perfEma > 30 && balls.length > 600 && maxBalls > balls.length * .9) { maxBalls = Math.max(600, Math.floor(balls.length * .85)); if (!perfWarned) { perfWarned = true; showToast('smooth mode · ball cap ' + maxBalls); } }
+  if (perfEma > 30 && balls.length > 600 && maxBalls > balls.length * .9) { maxBalls = S.maxBalls = Math.max(600, Math.floor(balls.length * .85)); if (!perfWarned) { perfWarned = true; showToast('smooth mode · ball cap ' + maxBalls); } }
   requestAnimationFrame(frame);
 }
 
@@ -871,7 +705,7 @@ function toLogical(e){
   if (useGL()) { const k = FX[style].k, cx = u * 2 - 1, cy = v * 2 - 1; u = (cx * (1 + k * cy * cy)) * .5 + .5; v = (cy * (1 + k * cx * cx)) * .5 + .5; }
   return [u * W, v * H];
 }
-function sliderTo(lx){ let t = Math.max(0, Math.min(1, (lx - SX0) / (SX1 - SX0))); if (fx.invert > 0) t = 1 - t; targetX = pw / 2 + t * (W - pw); }
+function sliderTo(lx){ let t = Math.max(0, Math.min(1, (lx - SX0) / (SX1 - SX0))); if (fx.invert > 0) t = 1 - t; E.setPaddle(S, 'me', pw / 2 + t * (W - pw)); }
 // board: tap = launch only; drag = relative fine-aim (never jumps, never moves the paddle)
 let downX = 0, downLx = 0, downAim = 0, moved = false, sliding = false, onBoard = false;
 wrap.addEventListener('pointerdown', e => {
@@ -887,7 +721,7 @@ wrap.addEventListener('pointermove', e => {
   const [lx] = toLogical(e);
   if (sliding) { sliderTo(lx); return; }
   if (Math.abs(e.clientX - downX) > 8) moved = true;
-  if (moved && state === 'aim') aimAng = Math.max(-1.15, Math.min(1.15, downAim + (lx - downLx) * 0.006));
+  if (moved && state === 'aim') { E.setAim(S, 'me', downAim + (lx - downLx) * 0.006); aimAng = me.aim; }
 });
 function endPtr(e){
   if (!sliding && !onBoard) return;
@@ -907,7 +741,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) targetX = px - d; if (keys.arrowright || keys.d) targetX = px + d; }, 16);
+setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) E.setPaddle(S, 'me', px - d); if (keys.arrowright || keys.d) E.setPaddle(S, 'me', px + d); }, 16);
 
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }

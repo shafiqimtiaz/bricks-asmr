@@ -1,5 +1,6 @@
 import multiplayer from "./multi.mjs";
 import { soloCoreSource } from "./game-core.mjs";
+import { engineSource } from "./engine.mjs";
 export { BrickRoom } from "./multi.mjs";
 import GAME from "./solo.html";
 import LEADERBOARD from "./leaderboard.html";
@@ -34,7 +35,7 @@ export default {async fetch(req,env){
  if(path.startsWith('/api/multiplayer/rooms')){const u=new URL(req.url);u.pathname=path.replace('/api/multiplayer','/api');return multiplayer.fetch(new Request(u,req),env);}
  if(path==='/api/leaderboard')return api(req,env,url);
  if(req.method!=='GET'&&req.method!=='HEAD')return new Response('Method not allowed',{status:405});
- if(path==='/'||path==='/index.html')return new Response(req.method==='HEAD'?null:GAME.replace('<script>','<script>\n'+soloCoreSource+'\n'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
+ if(path==='/'||path==='/index.html')return new Response(req.method==='HEAD'?null:GAME.replace('<script>','<script>\n'+soloCoreSource+'\n'+engineSource+'\n'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
  if(path==='/leaderboard'||path==='/leaderboard/')return new Response(req.method==='HEAD'?null:LEADERBOARD,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
  return new Response('Not found',{status:404});
 }};
