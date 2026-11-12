@@ -72,7 +72,7 @@ test("paddle-input, aim and launch reach the engine, validated and rate limited"
   await message(inst, "p0", { type: "paddle-input", seq: 1, pos: 0, aim: 9 });
   assert.equal(room.players[0].pos, 0);
   assert.equal(player(room, "p0").target, E.paddleAt(S, "p0", 0));
-  assert.equal(player(room, "p0").aim, 1.05, "aim is clamped to the serve limit, not rejected");
+  assert.equal(player(room, "p0").aim, 1.15, "aim is clamped to the serve limit, not rejected");
   // A player's slider runs from their own left: the top paddle's left is the world's right.
   room.players[1].lastInputAt = 0;
   await message(inst, "p1", { type: "paddle-input", seq: 1, pos: 0 });
@@ -94,7 +94,7 @@ test("paddle-input, aim and launch reach the engine, validated and rate limited"
   room.startedAt = Date.now() - 1;
   await message(inst, "p0", { type: "launch", aim: -9 });
   const mine = S.balls.find(b => b.source === "p0"), theirs = S.balls.find(b => b.source === "p1");
-  assert.ok(!mine.held && mine.vy < 0 && mine.vx < 0, "aim -1.05 goes up and to the left");
+  assert.ok(!mine.held && mine.vy < 0 && mine.vx < 0, "aim -1.15 goes up and to the left");
   assert.ok(theirs.held);
   // Whoever is not in the room cannot steer it.
   await BrickRoom.prototype.webSocketMessage.call(inst, socketFor("stranger"), JSON.stringify({ version: 1, type: "launch" }));

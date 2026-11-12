@@ -25,7 +25,7 @@ function assignSides(players){
 
 // The room runs the same engine as Solo: one authoritative state (room.sim) for the whole round.
 const E=brickEngine(Math.random);
-const MODES=["coop","versus"],SETS=["clean","vintage","vapor"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.05;
+const MODES=["coop","versus"],SETS=["clean","vintage","vapor"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.15;
 const num=(v,k=10)=>Math.round(v*k)/k;
 const simPlayer=(r,id)=>r.sim?.players.find(p=>p.id===id)||null;
 // Whether a player can no longer take part: explicitly out, or (Versus) without lives, or (Coop) the pool is empty.

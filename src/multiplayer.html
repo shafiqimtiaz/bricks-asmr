@@ -963,7 +963,7 @@ function draw(now){
  if(live&&me&&me.out){
   const left=s.players.filter(p=>!p.out).length,half=Math.min(150,viewW/2-12);
   ctx.fillStyle=V?"rgba(26,5,51,.82)":"rgba(7,9,12,.8)";ctx.fillRect(view.cx-half,view.cy-34,half*2,68);
-  ctx.fillStyle=V?"#ff71ce":"#f6d29e";ctx.font=C?"bold 16px monospace":"12px 'Press Start 2P',monospace";
+  ctx.textAlign="center";ctx.fillStyle=V?"#ff71ce":"#f6d29e";ctx.font=C?"bold 16px monospace":"12px 'Press Start 2P',monospace";
   ctx.fillText("YOU'RE OUT",view.cx,view.cy-10);
   ctx.font=small;ctx.fillStyle=V?"#9ff3ff":"#ccc";
   ctx.fillText("SPECTATING · "+left+" PLAYER"+(left===1?"":"S")+" LEFT",view.cx,view.cy+14);
@@ -1000,7 +1000,7 @@ function send(pos){
 }
 function setAim(angle){
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
- aimAng=Math.max(-1.05,Math.min(1.05,angle));
+ aimAng=Math.max(-1.15,Math.min(1.15,angle));
  queueInput();
 }
 function queueInput(){
