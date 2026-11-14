@@ -252,6 +252,86 @@ function drawBrickTile(context,x,y,size,life,color,palette,walls){
  context.fillStyle="rgba(0,0,0,.18)";
  context.fillRect(x+1.5,y+1.5,size-3,size-3);
 }
+function aimDragAngle(start, pixelDelta, width){return start+pixelDelta/Math.max(1,width)*2.3;}
+function aimPointerAngle(x,y,tx,ty){return Math.max(-1.15,Math.min(1.15,Math.atan2(tx-x,y-ty)));}
+function drawAimGuide(context, preview, color="#e5f4eb", time=0, dragging=false, ball=null){
+ const points=preview?.pts;
+ if(!points||points.length<4)return;
+ const path=[{x:ball?.x??points[0],y:ball?.y??points[1],d:0}];
+ const limit=390;
+ for(let i=ball?0:2;i<points.length;i+=2){
+  const prev=path[path.length-1],x=points[i],y=points[i+1],segment=Math.hypot(x-prev.x,y-prev.y);
+  if(segment<.01)continue;
+  if(prev.d+segment>=limit){
+   const t=(limit-prev.d)/segment;
+   path.push({x:prev.x+(x-prev.x)*t,y:prev.y+(y-prev.y)*t,d:limit});
+   break;
+  }
+  path.push({x,y,d:prev.d+segment});
+ }
+ if(path.length<2)return;
+ const total=path[path.length-1].d;
+ if(total<4)return;
+ const origin=path[0],next=path[1],vx=(next.x-origin.x)/(next.d||1),vy=(next.y-origin.y)/(next.d||1);
+ const sample=distance=>{
+  let i=1;
+  while(i<path.length-1&&path[i].d<distance)i++;
+  const a=path[i-1],b=path[i],t=Math.max(0,Math.min(1,(distance-a.d)/(b.d-a.d||1)));
+  return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+ };
+ context.save();
+ context.lineCap="round";
+ context.lineJoin="round";
+ context.strokeStyle=color;
+ context.fillStyle=color;
+ context.globalAlpha=.88;
+ const ray=Math.min(34,total);
+ const near=sample(ray);
+ context.lineWidth=2.2;
+ context.beginPath();
+ context.moveTo(origin.x,origin.y);
+ context.lineTo(near.x,near.y);
+ context.stroke();
+ // An arrow close to the ball communicates the initial direction even when the trajectory ricochets.
+ const tip=sample(Math.min(44,total)),back=sample(Math.min(34,total));
+ const dx=tip.x-back.x,dy=tip.y-back.y,length=Math.hypot(dx,dy)||1,ux=dx/length,uy=dy/length;
+ context.beginPath();
+ context.moveTo(tip.x,tip.y);
+ context.lineTo(tip.x-ux*9-uy*4.5,tip.y-uy*9+ux*4.5);
+ context.lineTo(tip.x-ux*9+uy*4.5,tip.y-uy*9-ux*4.5);
+ context.closePath();
+ context.fill();
+ context.globalAlpha=dragging ? .82 : .45;
+ context.lineWidth=dragging?1.6:1.1;
+ context.beginPath();
+ context.arc(origin.x,origin.y,dragging?10+Math.sin(time/130)*1.5:8,0,Math.PI*2);
+ context.stroke();
+ // The flowing dots become quieter toward the end and never obscure the entire playing field.
+ const phase=(time*.025)%14;
+ for(let d=56+phase;d<total;d+=14){
+  const spot=sample(d);
+  context.globalAlpha=.78*Math.pow(1-d/(limit+25),1.35);
+  context.beginPath();
+  context.arc(spot.x,spot.y,1.7,0,Math.PI*2);
+  context.fill();
+ }
+ // A soft ring marks actual predicted ricochets instead of an unbounded dotted spaghetti path.
+ const marks=preview.marks||[];
+ let marked=0;
+ for(let i=0;i+1<marks.length&&marked<2;i+=2){
+  const x=marks[i],y=marks[i+1];
+  if(!path.some(p=>(p.x-x)**2+(p.y-y)**2<144))continue;
+  context.globalAlpha=.8;
+  context.strokeStyle="#f0a28d";
+  context.lineWidth=1.4;
+  context.beginPath();
+  context.arc(x,y,5,0,Math.PI*2);
+  context.stroke();
+  marked++;
+ }
+ context.restore();
+}
+
 function soloBrickNote(row,scale,root,wave,decay,combo=0){
  const step=((64-1-row)/(scale.length>5?4:5))|0;
  const semi=root+scale[step%scale.length]+12*((step/scale.length)|0)+Math.min(19,combo/12);
@@ -307,7 +387,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,aimPointerAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,aimPointerAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,aimPointerAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");

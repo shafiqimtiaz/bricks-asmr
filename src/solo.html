@@ -155,6 +155,7 @@ body{--hud-life:#ff7a6b}
 .nameActions button{flex:1;min-height:40px;border:1px solid #759f9d;background:#11191c;color:#f1f4f5;font:9px 'Press Start 2P',monospace;cursor:pointer}
 .nameActions button[type="submit"]{border-color:#ff8f80;color:#ff8f80}
 
+#wrap.aiming canvas{cursor:crosshair}
 </style>
 </head>
 <body class="vintage">
@@ -437,14 +438,6 @@ function react(e){
   }
 }
 
-function drawPath(pr, color){
-  const n = pr.pts.length / 2;
-  ctx.fillStyle = color;
-  for (let k = 0; k < n; k++) { ctx.globalAlpha = 0.85 * (1 - k / n) + 0.1; ctx.fillRect(pr.pts[2*k] - 1, pr.pts[2*k+1] - 1, 2, 2); }
-  ctx.globalAlpha = 0.9; ctx.strokeStyle = color; ctx.lineWidth = 0.8;
-  for (let k = 0; k < pr.marks.length; k += 2) { ctx.beginPath(); roundArc(ctx,pr.marks[k], pr.marks[k+1], 3, 0, Math.PI * 2); ctx.stroke(); }
-  ctx.globalAlpha = 1;
-}
 function mkGlow(a, b){ const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), rg = g.createRadialGradient(16,16,0,16,16,16); rg.addColorStop(0, a); rg.addColorStop(.35, b); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(0,0,32,32); return c; }
 const glowV = mkGlow('rgba(255,255,255,.55)', 'rgba(180,220,255,.18)'), glowP = mkGlow('rgba(160,250,255,.6)', 'rgba(255,113,206,.22)');
 
@@ -499,7 +492,8 @@ function render(fs = 1){
   ctx.globalAlpha = 1;
 
   // trajectory previews
-  if (state === 'aim') drawPath(E.predict(S, 'me', 900), V ? '#01cdfe' : '#ffffff');
+  wrap.classList.toggle('aiming', state === 'aim');
+  if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 260), '#e4f4ec', performance.now(), onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
@@ -652,32 +646,34 @@ function toLogical(e){
 }
 function sliderTo(lx){ let t = Math.max(0, Math.min(1, (lx - SX0) / (SX1 - SX0))); if (fx.invert > 0) t = 1 - t; E.setPaddle(S, 'me', pw / 2 + t * (W - pw)); }
 // board: tap = launch only; drag = relative fine-aim (never jumps, never moves the paddle)
-let downX = 0, downLx = 0, downAim = 0, moved = false, sliding = false, onBoard = false;
+let downX = 0, downAim = 0, aimOrigin = null, moved = false, sliding = false, onBoard = false;
 wrap.addEventListener('pointerdown', e => {
   if (e.target.tagName !== 'CANVAS') return;
   audioInit(); downX = e.clientX; moved = false;
   const [lx, ly] = toLogical(e);
-  sliding = ly >= SZONE; onBoard = !sliding; downLx = lx; downAim = aimAng;
+  sliding = ly >= SZONE; onBoard = !sliding; downAim = aimAng;
+  const held = onBoard && state === 'aim' ? S.balls.find(b => b.held && b.source === 'me') : null;
+  aimOrigin = held && Math.hypot(lx - held.x, ly - held.y) <= 52 ? {x:held.x,y:held.y} : null;
   try { wrap.setPointerCapture(e.pointerId); } catch(_) {}
   if (sliding) sliderTo(lx);
 });
 wrap.addEventListener('pointermove', e => {
   if (!sliding && !onBoard) return;
-  const [lx] = toLogical(e);
+  const [lx,ly] = toLogical(e);
   if (sliding) { sliderTo(lx); return; }
   if (Math.abs(e.clientX - downX) > 8) moved = true;
-  if (moved && state === 'aim') { E.setAim(S, 'me', downAim + (lx - downLx) * 0.006); aimAng = me.aim; }
+  if (moved && state === 'aim') { E.setAim(S, 'me', aimOrigin ? aimPointerAngle(aimOrigin.x,aimOrigin.y,lx,ly) : aimDragAngle(downAim, e.clientX - downX, wrap.getBoundingClientRect().width)); aimAng = me.aim; }
 });
 function endPtr(e){
   if (!sliding && !onBoard) return;
-  const wasBoard = onBoard; sliding = false; onBoard = false;
+  const wasBoard = onBoard; sliding = false; onBoard = false; aimOrigin = null;
   if (!wasBoard || moved) return;
   if (state === 'aim') launch();
   else if (state === 'clear') newBoard();
   else if (state === 'over') startBoard();
 }
 wrap.addEventListener('pointerup', endPtr);
-wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
+wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; aimOrigin = null; });
 const keys = {};
 window.addEventListener('keydown', e => {
   if(!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
@@ -686,7 +682,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) E.setPaddle(S, 'me', px - d); if (keys.arrowright || keys.d) E.setPaddle(S, 'me', px + d); }, 16);
+setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) E.setPaddle(S, 'me', px - d); if (keys.arrowright || keys.d) E.setPaddle(S, 'me', px + d); if (state === 'aim') { const turn = (keys.arrowup || keys.w ? 1 : 0) - (keys.arrowdown || keys.s ? 1 : 0); if (turn) E.setAim(S, 'me', me.aim + turn * .02); } }, 16);
 
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
