@@ -246,7 +246,7 @@ function normalizeBallVelocity(ball,speed=330,axis="y"){
  }
  return ball;
 }
-function drawBrickTile(context,x,y,size,life,color,palette,walls){
+function drawBrickTile(context,x,y,size,life,color,palette,walls,powerup=0){
  context.clearRect(x,y,size,size);
  if(life<=0)return;
  context.fillStyle=(color?palette?.[color]:walls?.[life])||"#92989e";
@@ -257,7 +257,11 @@ function drawBrickTile(context,x,y,size,life,color,palette,walls){
   context.fillStyle="rgba(220,245,248,.26)";
   context.fillRect(x+1,y+1,size-2,Math.max(.8,size*.14));
  }
-}
+ if(powerup===12){
+  context.fillStyle="#ffe0aa";
+  const d=Math.max(1.3,size*.32);
+  context.fillRect(x+(size-d)/2,y+(size-d)/2,d,d);
+ }
 function aimDragAngle(start, pixelDelta, width){return start+pixelDelta/Math.max(1,width)*2.3;}
 function drawAimGuide(context,preview,color="#e5f4eb",dragging=false,ball=null){
  const pts=preview?.pts;
