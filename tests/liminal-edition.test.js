@@ -102,3 +102,20 @@ test("score ranking counts only brick breaks and combos, not paddle returns",()=
  me.score+=2;
  assert.equal(me.brickScore,before,"non-brick points must not affect ranking score");
 });
+
+test("persisted rounds without new score counters recover on the next brick break",()=>{
+ const arena=arenaLayout(),board=bricks("legacy-room",1,arena,4),E=brickEngine(()=>.5);
+ const S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",lives:5});
+ const player=S.players[0];
+ delete player.brickScore;delete player.bricksBroken;
+ const i=S.hp.findIndex(v=>v===1);
+ assert.ok(i>=0);
+ S.balls=[{
+  x:arena.gridX+(i%arena.cols+.5)*arena.cell,
+  y:arena.gridY+(Math.floor(i/arena.cols)+.5)*arena.cell,
+  vx:0,vy:-300,source:"me",owner:"me",held:false
+ }];
+ E.step(S,.003);
+ assert.ok(Number.isInteger(player.brickScore)&&player.brickScore>=10);
+ assert.ok(Number.isInteger(player.bricksBroken)&&player.bricksBroken>=1);
+});
