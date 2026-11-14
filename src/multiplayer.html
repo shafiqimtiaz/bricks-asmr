@@ -258,6 +258,11 @@ body{--hud-life:#ff7a6b}
 #hudFill{display:block;width:100%;height:100%;transform-origin:left;transform:scaleX(0);transition:transform .3s ease-out;
  background:linear-gradient(90deg,var(--lb-secondary),var(--l-accent))}
 @media(prefers-reduced-motion:reduce){#hudFill,#hud button{transition:none}}
+
+#hudMenu .midiPick{display:flex;flex-direction:column;gap:calc(var(--u)*1.6);padding:calc(var(--u)*2.3);margin-top:calc(var(--u)*1.6);border-top:1px solid var(--l-border);max-width:calc(var(--u)*75)}
+#hudMenu .midiPick label,#hudMenu .midiPick small{font-size:calc(var(--u)*1.9);line-height:1.4;white-space:normal;letter-spacing:.03em;color:var(--lb-soft)}
+#hudMenu .midiPick select{width:100%;min-width:0;background:var(--l-surface);color:var(--l-ink);border:1px solid var(--l-border);border-radius:4px;font:inherit;padding:calc(var(--u)*1.5)}
+#hudMenu .midiPick #loadMidi{min-height:calc(var(--u)*7);border:1px solid var(--l-border)!important;background:var(--l-surface)!important;color:var(--l-ink)!important;text-align:center}
 </style>
 </head>
 <body class="vintage">
@@ -271,7 +276,26 @@ body{--hud-life:#ff7a6b}
   <button id="sound" type="button" title="Toggle sound" aria-label="Toggle sound" aria-pressed="true">♪</button>
   <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
-  <div id="hudMenu" hidden><a href="/">SINGLE PLAYER</a><a href="/multiplayer" aria-current="page">MULTIPLAYER LOBBY</a><a href="/leaderboard">WORLD RANKINGS</a></div>
+  <div id="hudMenu" hidden><a href="/">SINGLE PLAYER</a><a href="/multiplayer" aria-current="page">MULTIPLAYER LOBBY</a><a href="/leaderboard">WORLD RANKINGS</a>
+    <div class="midiPick">
+     <label for="musicTrack">BRICK MUSIC · INSTRUMENTAL MIDI</label>
+     <select id="musicTrack" aria-label="Song for brick-breaking notes">
+      <option value="toxic">Toxic · Britney Spears</option>
+      <option value="billie-jean">Billie Jean · Michael Jackson</option>
+      <option value="save-your-tears">Save Your Tears · The Weeknd</option>
+      <option value="bad-romance">Bad Romance · Lady Gaga</option>
+      <option value="gangnam-style">Gangnam Style · PSY</option>
+      <option value="baby">Baby · Justin Bieber</option>
+      <option value="i-want-it-that-way">I Want It That Way · Backstreet Boys</option>
+      <option value="what-makes-you-beautiful">What Makes You Beautiful · One Direction</option>
+      <option value="as-it-was">As It Was · Harry Styles</option>
+      <option value="cant-stop-the-feeling">CAN'T STOP THE FEELING! · Justin Timberlake</option>
+     </select>
+     <button id="loadMidi" type="button">LOAD LICENSED MIDI</button>
+     <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
+     <small id="midiStatus" role="status">LOAD AN INSTRUMENTAL MIDI FILE</small>
+    </div>
+  </div>
  </div>
  <div id="panel">
   <section id="intro">
@@ -427,6 +451,7 @@ let W=arena.width,H=arena.height,viewW=W,viewH=H;
 const colors=["#d57d70","#8dbbca","#d0a768","#a5ae91"];
 let board=null,sparks=[],rings=[],beams=[],hpArr=null,colArr=null,dirty=[],tilesFull=true,drawnStyle=null,sim=null;
 let soundOn=true,soundKit=null,notesThisFrame=0;
+const brickMusic=createBrickMusic(window);
 function clearFx(){sparks=[];rings=[];beams=[];floats=[];}
 function sparkle(b){
  const c=(style==="vapor"?state?.board?.vaporPalette:state?.board?.palette)?.[b.c]||colors[b.c%4];const x=b.x,y=b.y;
@@ -504,7 +529,7 @@ function openNicknamePrompt(){
 function beep(row=32){
  const board=state?.board;
  if(!board?.scale)return;
- const note=soloBrickNote(row,board.scale,board.rootSemi,board.wave,board.decay);
+ const note=brickMusic.next()||soloBrickNote(row,board.scale,board.rootSemi,board.wave,board.decay);
  blip(note.frequency,note.volume,note.duration+Math.random()*.04,note.wave);
 }
 async function enter(code,id){
@@ -565,7 +590,7 @@ function react(s,e,mine){
    if(sparks.length<120)sparkle({x:w.x,y:w.y,c:parseInt(s.board.colors[e.i],16)||0});
    if(own)popAt=w;
    break;}
-  case"hit":blip(140+Math.floor(e.i/GRID_COLS),.12,.05,"sine");break;
+  case"hit":beep(Math.floor(e.i/GRID_COLS));break;
   case"paddle":if(own&&notesThisFrame<2)blip(98,.15,.06,"sine");break;
   case"crush":blip(70,.25,.18,"sine");break;
   case"beam":beams.push({...e,t:1});break;
@@ -591,7 +616,7 @@ function accept(s){
  if(s.arena && (s.arena.width!==W||!!s.arena.square!==!!arena.square))adoptArena(s.arena);
  if(typeof s.now==="number")clock=s.now-Date.now();
  const previous=state,sameRound=!!previous&&previous.code===s.code&&previous.round===s.round;
- if(!sameRound){clearFx();tilesFull=true;localPos=.5;}
+ if(!sameRound){clearFx();tilesFull=true;localPos=.5;brickMusic.reset();}
  // The board arrives whole once, then as the list of cells that changed.
  if(s.board?.hp){board=s.board;hpArr=Uint8Array.from(s.board.hp,c=>c.charCodeAt(0)-48);colArr=Uint8Array.from(s.board.colors,c=>parseInt(c,16));tilesFull=true;}
  else if(s.board?.cells&&hpArr)for(let k=0;k<s.board.cells.length;k+=2){hpArr[s.board.cells[k]]=s.board.cells[k+1];dirty.push(s.board.cells[k]);}
