@@ -45,3 +45,23 @@ test("game-feel feedback stays visual-only and reduces motion on request",()=>{
  assert.match(multiHtml,/prefers-reduced-motion: reduce/);
  assert.match(soloHtml,/#crt,#crt::after\{animation:none\}/);
 });
+
+test("liminal rankings and menus keep essential actions with no arcade decorations",()=>{
+ for(const id of ["bestTime","bestScore","fastest","players","mine","refresh","more","rows"]){
+  assert.match(leaderboard,new RegExp('id="'+id+'"'));
+ }
+ assert.doesNotMatch(leaderboard,/class="(?:cabinet|podium|pixel-stripe|art|subcopy|metric-hint)"/);
+ assert.match(leaderboard,/touchstart/);
+ assert.match(leaderboard,/touchend/);
+ assert.match(leaderboard,/aria-pressed="true">TIME/);
+ assert.match(leaderboard,/role="status" aria-live="polite"/);
+ for(const html of [soloHtml,multiHtml]){
+  assert.match(html,/id="hudMenu" hidden/);
+  assert.match(html,/aria-label="Open menu"/);
+  assert.match(html,/aria-pressed="true">SOUND ON/);
+  assert.match(html,/setAttribute\(['"]aria-label['"],(?:opened|expanded)\?['"]Close menu['"]:['"]Open menu['"]\)/);
+  assert.match(html,/#hud(?: #hudMenu)?\[hidden\]\{display:none!important\}|#hudMenu\[hidden\]\{display:none!important\}/);
+ }
+ assert.match(soloHtml,/e.target.id!=='soundToggle'&&e.target.id!=='soloMode'/);
+ assert.match(soloHtml,/P\('soloMode'\)\.textContent = soloMode === 'infinite' \? 'INFINITE' : 'CLASSIC'/);
+});
