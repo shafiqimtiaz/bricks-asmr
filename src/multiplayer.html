@@ -1005,12 +1005,10 @@ function flushInput(){
  socket.send(JSON.stringify({type:"paddle-input",version:1,pos:amInverted()?1-localPos:localPos,aim:aimAng,seq:++inputSeq}));
  lastInputSent=performance.now();
 }
-let moved=false;
-// Your slider position runs from your own left to your own right; INVERTED flips what it does to the paddle.
+// Paddle input is normalized to the player's own left-to-right view.
 const amInverted=()=>state?.players.find(p=>p.id===you)?.fx?.invert>0;
 function send(pos){
  if(socket?.readyState!==WebSocket.OPEN||state?.status!=="playing")return;
- moved=true;
  localPos=Math.max(0,Math.min(1,pos));
  queueInput();
 }
