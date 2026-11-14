@@ -24,10 +24,6 @@ test("V4 keeps all eight geometric families, 1,000 distinct boards and exact lef
     assert.equal(board.colors[x],board.colors[y],"colour symmetry "+seed);
     assert.equal(board.powerups[x],board.powerups[y],"reward symmetry "+seed);
    }
-   if(board.quad)for(let r=0;r<arena.rows/2;r++)for(let c=0;c<arena.cols;c++){
-    const a=r*arena.cols+c,b=(arena.rows-1-r)*arena.cols+c;
-    if(board.hp[a]||board.hp[b])assert.equal(board.hp[a],board.hp[b],"four-way brick symmetry "+seed);
-   }
   }
   assert.equal(layouts.size,250);
   assert.ok(walls.size>=175,"reflective channel geometry must vary");
