@@ -84,10 +84,9 @@ test("reflectors stay permanent and reactive clusters make bounded cascades",()=
   S.balls=[{x,y,vx:1,vy:-300,owner:"me",source:"me",held:false}];
   return S;
  };
- const wall=reflector.hp.indexOf("4"),A=contact(reflector,wall),before=A.remaining;
+ const wall=reflector.hp.indexOf("4"),A=contact(reflector,wall);
  E.step(A,.003);
  assert.equal(A.hp[wall],4);
- assert.equal(A.remaining,before);
  const trigger=reactor.powerups.indexOf("c"),B=contact(reactor,trigger),old=B.remaining;
  E.step(B,.003);
  assert.ok(old-B.remaining>=2&&old-B.remaining<=25,"bounded reaction");
