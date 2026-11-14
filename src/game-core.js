@@ -320,16 +320,40 @@ function createASMR(host){
  const audio=new Context();
  const compressor=audio.createDynamicsCompressor();compressor.threshold.value=-20;compressor.ratio.value=6;
  const master=audio.createGain();master.gain.value=.35;
- master.connect(compressor);compressor.connect(audio.destination);
+ const dry=audio.createGain();dry.gain.value=.85;
+ master.connect(dry);dry.connect(compressor);compressor.connect(audio.destination);
+ // A quiet stereo convolution tail suggests a large, empty corridor without blurring impacts.
+ const length=Math.floor(audio.sampleRate*2.4),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ let noise=0x47a5b21;
+ for(let channel=0;channel<2;channel++){
+  const data=impulse.getChannelData(channel);let smoothed=0;
+  for(let i=0;i<length;i++){
+   noise=(Math.imul(noise,1664525)+1013904223)|0;
+   const sample=(noise>>>0)/2147483648-1;
+   smoothed=smoothed*.72+sample*.28;
+   data[i]=smoothed*Math.pow(1-i/length,2.8);
+  }
+ }
+ const preDelay=audio.createDelay(.1);preDelay.delayTime.value=.028;
+ const reverb=audio.createConvolver();reverb.buffer=impulse;
+ const lowpass=audio.createBiquadFilter();lowpass.type="lowpass";lowpass.frequency.value=2400;
+ const wet=audio.createGain();wet.gain.value=.22;
+ master.connect(preDelay);preDelay.connect(reverb);reverb.connect(lowpass);lowpass.connect(wet);wet.connect(compressor);
  return {
   context:audio,
   resume(){if(audio.state==="suspended")audio.resume();},
-  blip(freq,vol,dur,type="triangle",delay=0){
+  blip(freq,vol,dur,type="triangle",delay=0,pan=0){
    const t=audio.currentTime+delay,o=audio.createOscillator(),g=audio.createGain();
    o.type=type;o.frequency.value=freq;
    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.003);
    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-   o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
+   o.connect(g);
+   if(audio.createStereoPanner){
+    const stereo=audio.createStereoPanner();
+    stereo.pan.value=Math.max(-.5,Math.min(.5,pan));
+    g.connect(stereo);stereo.connect(master);
+   }else g.connect(master);
+   o.start(t);o.stop(t+dur+.02);
   }
  };
 }
