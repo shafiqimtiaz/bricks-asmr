@@ -869,7 +869,7 @@ function syncPause(){ paused = !P('hudMenu').hidden || !P('panel').hidden; }
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));P('hudMenuToggle').textContent=opened?'×':'☰';P('hudMenuToggle').setAttribute('aria-label',opened?'Close menu':'Open menu');if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}syncPause();};
 function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');P('hudMenuToggle').textContent='☰';P('hudMenuToggle').setAttribute('aria-label','Open menu');if(open&&restoreFocus===true)P('hudMenuToggle').focus();syncPause();}
 P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
-P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle')closeMenu();});
+P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle'&&e.target.id!=='soloMode')closeMenu();});
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
