@@ -87,7 +87,7 @@ function brickEngine(rng=Math.random){
   for(const p of S.players){p.pw=basePaddle(S);const [lo,hi]=edgeSpan(S,p.seat);p.c=p.target=(lo+hi)/2;}
   // Infinite is a flag, not a mode: lives/pool/serve rules stay exactly as the mode defines.
   S.infinite=!!o.infinite;
-  if(S.infinite){S.descent={t:0,rows:0,interval:8};S.spawnC0=minC;S.spawnC1=maxC;}
+  if(S.infinite){S.descent={rows:0};S.spawnC0=minC;S.spawnC1=maxC;}
   const ev=[];
   if(S.mode==='solo'||S.mode==='coop'){const first=S.players.find(p=>p.id===o.server)||S.players[0];serve(S,first,ev);}
   else for(const p of S.players)serve(S,p,ev);
@@ -327,14 +327,15 @@ function brickEngine(rng=Math.random){
   const target=()=>S.mode==='versus'?S.players.filter(p=>active(S,p)).length:1;
   while(S.misses.length&&S.balls.length<target()){
    const p=player(S,S.misses.shift());
-   // Infinite: the timer owns descent, so a miss costs a life but never lowers the court.
-   if(!S.infinite){
-    // Versus: the court closes in only on the edge that missed, so one player's
-    // miss does not squeeze everyone else. Coop and Solo keep the shared descent.
-    if(S.mode==="versus")S.crush.target[p.seat]+=S.CS;
-    else for(const seat of S.seats)S.crush.target[seat]+=S.CS;
-    ev.push({t:'crush'});
-   }
+   // A lost life moves the formation exactly one row; no mode has timed descent.
+   // Versus affects only the player who missed; cooperative modes affect all occupied sides.
+   if(S.mode==="versus")S.crush.target[p.seat]+=S.CS;
+   else for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+   if(S.infinite){
+    S.descent.rows++;
+    refillEdges();
+    ev.push({t:"descent",rows:S.descent.rows});
+   }else ev.push({t:"crush"});
    if(S.mode==='versus'){
     p.lives=Math.max(0,p.lives-1);ev.push({t:'life',owner:p.id,lives:p.lives});
     if(p.lives>0)serve(S,p,ev);
@@ -362,20 +363,6 @@ function brickEngine(rng=Math.random){
   return false;
  }
 
- // Infinite mode: the board descends one row on a timer and never stops until
- // the lowest row reaches a paddle. The crusher transform carries the
- // formation down, exactly as a miss does, and the existing gap() check in
- // step() ends the round. New bricks refill the top row as it descends.
- function descentTick(dt){
-  if(!S.infinite||S.status!=="play")return;
-  const d=S.descent;d.t+=dt;
-  if(d.t<d.interval)return;
-  d.t=0;d.rows++;
-  d.interval=Math.max(2.5,8*Math.pow(0.97,d.rows));
-  for(const seat of S.seats)S.crush.target[seat]+=S.CS;
-  refillEdges();
-  ev.push({t:"descent",rows:d.rows});
- }
  // New bricks enter just beyond the formation, on the far side from each
  // occupied edge, so the wall keeps coming without ever spawning inside
  // the crush zone. Refilling grid row 0 crushed a 2-player room on the
@@ -430,7 +417,6 @@ function brickEngine(rng=Math.random){
   const c=S.crush;
   for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
   updateTransform(S);
-  if(S.infinite)descentTick(dt);
   if(!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
   S.clock+=dt;
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
