@@ -553,7 +553,7 @@ async function doJoin(){
 }
 function showInvitePrompt(code){
  $("joinCode").value=code;$("inviteCode").textContent=code;
- $("playerName").value="";
+ $("playerName").value=localStorage.getItem("bricksPlayerName")||randomPlayerName();
  $("roomActions").hidden=true;$("inviteDetails").hidden=false;
  $("panel").hidden=false;$("intro").hidden=false;$("room").hidden=true;
  $("playerName").focus({preventScroll:true});
@@ -1098,7 +1098,7 @@ window.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("hudMenu")
 // A mouse click should not leave focus on a HUD button, or the next key press would trigger it again.
 $("hud").addEventListener("click",event=>{if(event.detail>0)event.target.closest("button")?.blur();});
 resize();
-$("playerName").value=localStorage.getItem("bricksPlayerName")||"";
+$("playerName").value=localStorage.getItem("bricksPlayerName")||randomPlayerName();
 const invitedPath=location.pathname.match(/^\/multiplayer\/([A-Z2-9]{6})\/?$/i);
 if(invitedPath){
  loadInvite(invitedPath[1].toUpperCase());
