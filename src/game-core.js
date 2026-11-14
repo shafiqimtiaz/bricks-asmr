@@ -262,6 +262,7 @@ function drawBrickTile(context,x,y,size,life,color,palette,walls,powerup=0){
   const d=Math.max(1.3,size*.32);
   context.fillRect(x+(size-d)/2,y+(size-d)/2,d,d);
  }
+}
 function aimDragAngle(start, pixelDelta, width){return start+pixelDelta/Math.max(1,width)*2.3;}
 function drawAimGuide(context,preview,color="#e5f4eb",dragging=false,ball=null){
  const pts=preview?.pts;
