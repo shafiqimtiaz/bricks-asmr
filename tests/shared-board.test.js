@@ -55,6 +55,15 @@ test("paddle rotations use Solo's exact angular response and ball speed",()=>{
  assert.ok(Math.abs(ball.vy)>=330*.22);
 });
 
+test("entering a room blurs the name field so Space can launch", () => {
+  // The name input keeps keyboard focus after joining, and the Space
+  // handler ignores Space while an input is focused — so without this
+  // blur, Space never launches in multiplayer (live QA: two presses
+  // with a held ball did nothing, while arrows and tap still worked).
+  assert.match(html, /async function enter\(code,id\)\{[\s\S]*?document\.activeElement\?\.blur\?\.\(\);/);
+  assert.match(html, /if\(key===" "&&!document\.activeElement\?\.matches\("input"\)/);
+});
+
 test("a key tap nudges the paddle at once, not only while the key is held", () => {
   assert.match(html, /const KEY_NUDGE=0\.035;/);
   assert.match(html, /if\(!event\.repeat&&state\?\.status==="playing"&&\$\("hudMenu"\)\.hidden\)\{\s*const nudge=/);

@@ -517,6 +517,7 @@ async function enter(code,id){
  closed=false;roomCode=code;you=result.you||id||"";state=null;tilesFull=true;hpArr=null;clearFx();
  localStorage.setItem("bricksLastRoom",code);
  $("nicknameForm").hidden=true;$("intro").hidden=true;$("room").hidden=false;$("roomCode").textContent=code;
+ document.activeElement?.blur?.();
  accept(result.state);connect();
  history.replaceState(null,"","/multiplayer/"+code);
  if(!frame)frame=requestAnimationFrame(draw);
