@@ -12,11 +12,15 @@ async function api(req,env,url){
  if(req.method==='GET'){
   if(url.searchParams.get('scope')==='world'){
    try{
+    const metric=url.searchParams.get('metric')==='score'?'score':'time';
     const offsetRaw=Number(url.searchParams.get('offset')||0);
     if(!Number.isSafeInteger(offsetRaw)||offsetRaw<0||offsetRaw>1000000)return json({error:'Invalid offset'},400);
     const db=env.DB.withSession('first-unconstrained');
-    const list=await db.prepare('SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?').bind(offsetRaw).all();
-    const count=await db.prepare('SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times').first();
+    const sql=metric==='score'
+     ?'SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_score AS score, bricks_broken AS bricksBroken, best_combo AS bestCombo FROM leaderboard_scores ORDER BY best_score DESC, best_combo DESC, bricks_broken DESC, updated_at ASC, player_id ASC LIMIT 51 OFFSET ?'
+     :'SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?';
+    const list=await db.prepare(sql).bind(offsetRaw).all();
+    const count=await db.prepare(metric==='score'?'SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_scores':'SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times').first();
     const entries=list.results||[];
     return json({entries:entries.slice(0,50),totalPlayers:count?.n||0,hasMore:entries.length>50,nextOffset:offsetRaw+50});
    }catch(e){console.error('world leaderboard GET',e);return json({error:'Leaderboard unavailable'},503);}
@@ -33,10 +37,21 @@ async function api(req,env,url){
   if(!(req.headers.get('content-type')||'').startsWith('application/json'))return json({error:'Expected JSON'},415);
   let input;try{const raw=await req.text();if(raw.length>2048)return json({error:'Payload too large'},413);input=JSON.parse(raw);}catch{return json({error:'Invalid JSON'},400);}
   const name=typeof input?.name==='string'?input.name.trim().normalize('NFKC'):'';
-  if(!KEY.test(input?.key||'')||!ID.test(input?.playerId||'')||!NAME.test(name)||!Number.isSafeInteger(input?.timeMs)||input.timeMs<1||input.timeMs>86400000)return json({error:'Invalid result'},400);
+  const scoreRun=input?.metric==='score';
+  if(!KEY.test(input?.key||'')||!ID.test(input?.playerId||'')||!NAME.test(name))return json({error:'Invalid result'},400);
+  if(scoreRun){
+   if(!Number.isSafeInteger(input.score)||input.score<1||input.score>1000000000||
+    !Number.isSafeInteger(input.bricksBroken)||input.bricksBroken<0||input.bricksBroken>100000000||
+    !Number.isSafeInteger(input.bestCombo)||input.bestCombo<0||input.bestCombo>1000000)return json({error:'Invalid score'},400);
+  }else if(!Number.isSafeInteger(input?.timeMs)||input.timeMs<1||input.timeMs>86400000)return json({error:'Invalid result'},400);
   try{
-   await env.DB.prepare('INSERT INTO leaderboard_times(board_key,player_id,player_name,best_ms) VALUES(?,?,?,?) ON CONFLICT(board_key,player_id) DO UPDATE SET player_name=excluded.player_name,best_ms=MIN(leaderboard_times.best_ms,excluded.best_ms),updated_at=CASE WHEN excluded.best_ms < leaderboard_times.best_ms THEN unixepoch() ELSE leaderboard_times.updated_at END').bind(input.key,input.playerId,name,input.timeMs).run();
-   await env.DB.prepare('UPDATE leaderboard_times SET player_name=? WHERE player_id=? AND player_name<>?').bind(name,input.playerId,name).run();
+   if(scoreRun){
+    await env.DB.prepare('INSERT INTO leaderboard_scores(board_key,player_id,player_name,best_score,bricks_broken,best_combo) VALUES(?,?,?,?,?,?) ON CONFLICT(board_key,player_id) DO UPDATE SET best_score=excluded.best_score,bricks_broken=excluded.bricks_broken,best_combo=excluded.best_combo,updated_at=unixepoch() WHERE excluded.best_score>leaderboard_scores.best_score').bind(input.key,input.playerId,name,input.score,input.bricksBroken,input.bestCombo).run();
+    await env.DB.prepare('UPDATE leaderboard_scores SET player_name=? WHERE player_id=? AND player_name<>?').bind(name,input.playerId,name).run();
+   }else{
+    await env.DB.prepare('INSERT INTO leaderboard_times(board_key,player_id,player_name,best_ms) VALUES(?,?,?,?) ON CONFLICT(board_key,player_id) DO UPDATE SET player_name=excluded.player_name,best_ms=MIN(leaderboard_times.best_ms,excluded.best_ms),updated_at=CASE WHEN excluded.best_ms < leaderboard_times.best_ms THEN unixepoch() ELSE leaderboard_times.updated_at END').bind(input.key,input.playerId,name,input.timeMs).run();
+    await env.DB.prepare('UPDATE leaderboard_times SET player_name=? WHERE player_id=? AND player_name<>?').bind(name,input.playerId,name).run();
+   }
    return json({saved:true},201);
   }catch(e){console.error('leaderboard POST',e);return json({error:'Save failed'},503);}
  }
