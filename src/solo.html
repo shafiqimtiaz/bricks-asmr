@@ -326,7 +326,7 @@ let N = COLS * ROWS;
 
 let board;
 function genBoard(){
- board=bricks(seed,1,arena,generatorVersion);
+ board=soloMode==='infinite'?infiniteOpeningBoard(seed,arena,generatorVersion):bricks(seed,1,arena,generatorVersion);
  hp=Uint8Array.from(board.hp,c=>c.charCodeAt(0)-48);
  col=Uint8Array.from(board.colors,c=>parseInt(c,16));
  pu=Uint8Array.from(board.powerups,c=>parseInt(c,16));
