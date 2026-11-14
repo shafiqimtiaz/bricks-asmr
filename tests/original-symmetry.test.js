@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { arenaLayout, squareArena, bricks } from "../src/game-core.js";
+import { brickEngine } from "../src/engine.js";
 import { soloHtml, serverSource, soloWorker } from "./helpers.js";
 
 test("V4 keeps all eight geometric families, 1,000 distinct boards and exact left-right symmetry",()=>{
@@ -66,4 +67,29 @@ test("V4 stays symmetric across phone, desktop and ultrawide arenas",()=>{
     assert.equal(board.hp[r*arena.cols+x],board.hp[r*arena.cols+arena.cols-1-x]);
   }
  }
+});
+test("reflectors stay permanent and reactive clusters make bounded cascades",()=>{
+ const arena=arenaLayout(),E=brickEngine(()=>.5);
+ let reflector=null,reactor=null;
+ for(let i=0;i<70;i++){
+  const b=bricks("hybrid-"+i,1,arena,4);
+  if(!reflector&&b.hp.includes("4"))reflector=b;
+  if(!reactor&&b.powerups.includes("c"))reactor=b;
+ }
+ assert.ok(reflector&&reactor,"both enhanced mechanics must occur");
+ const contact=(board,i)=>{
+  const S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",set:"vintage",lives:5});
+  const x=arena.gridX+(i%arena.cols+.5)*arena.cell;
+  const y=arena.gridY+(Math.floor(i/arena.cols)+.5)*arena.cell;
+  S.balls=[{x,y,vx:1,vy:-300,owner:"me",source:"me",held:false}];
+  return S;
+ };
+ const wall=reflector.hp.indexOf("4"),A=contact(reflector,wall),before=A.remaining;
+ E.step(A,.003);
+ assert.equal(A.hp[wall],4);
+ assert.equal(A.remaining,before);
+ const trigger=reactor.powerups.indexOf("c"),B=contact(reactor,trigger),old=B.remaining;
+ E.step(B,.003);
+ assert.ok(old-B.remaining>=2&&old-B.remaining<=25,"bounded reaction");
+ assert.ok([...B.hp].includes(4),"permanent reflectors must survive");
 });
