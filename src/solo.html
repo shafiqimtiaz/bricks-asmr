@@ -163,6 +163,22 @@ body{--hud-life:#ff7a6b}
 #hud>#lvl,#hud>#lives,#hud>#tmr,#hud>.sp,#hudBar{display:none!important}
 #hud #hudStatus{display:block;white-space:normal;line-height:1.9;padding:calc(var(--u)*2);font-size:.85em;color:var(--lb-soft);border-bottom:1px solid var(--l-border)}
 #toast{top:16%;border-radius:2px;background:#05080add;color:#ced5ce;font-size:calc(var(--u)*2.1);letter-spacing:.1em;word-break:normal;padding:calc(var(--u)*2)}
+
+/* Sparse CRT controls: the menu stays inside the stage without covering the court. */
+#hud #hudMenu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:min(86vw,calc(var(--u)*82));min-width:0;gap:calc(var(--u)*1);padding:calc(var(--u)*2);background:#060a09f7;border:1px solid #5d766755;border-radius:2px;box-shadow:0 24px 60px #000c}
+#hud #hudStatus{grid-column:1/-1;border-bottom:1px solid #ffffff15;padding:calc(var(--u)*2) calc(var(--u)*1.2) calc(var(--u)*3);font-size:.75em;color:#7c9289;line-height:1.7;letter-spacing:.03em}
+#hud #hudMenu a,#hud #hudMenu button{display:flex!important;align-items:center;justify-content:center;text-align:center;min-width:0;min-height:calc(var(--u)*11);padding:calc(var(--u)*1.5)!important;background:#ffffff05!important;border:1px solid #ffffff15!important;border-radius:1px;color:#a5b7ad!important;font-size:.8em!important;line-height:1.4;letter-spacing:.03em}
+#hud #hudMenu a:hover,#hud #hudMenu button:hover{background:#b8d9c90c!important;border-color:#91b2a050!important;color:#dce7df!important}
+#hud #hudMenu #soloMode,#hud #hudMenu button[aria-pressed="true"]{color:#c8e2d4!important;border-color:#91b2a04d!important}
+#hud #hudMenuToggle{border-radius:2px;background:#080e0cdd!important;border-color:#ffffff26!important;color:#c0d0c6!important;box-shadow:0 10px 30px #0008}
+#panel{background:#070b0aec;border-color:#52665977;border-radius:2px;box-shadow:0 22px 70px #000e;color:#d8e0db}
+#panel::before{display:none}
+#ptitle{color:#c2d9cc;text-shadow:none}
+#ptime{color:#c9dfd1;text-shadow:0 0 24px #c9dfd122}
+#pnote{color:#849a90}
+#panel .tabs button.on{background:transparent;border-color:#809e8f;color:#c2d9cc}
+#panel .pb #pnext{border-color:#809e8f;color:#c2d9cc}
+#lbidentity a{color:#a5beaf}
 </style>
 </head>
 <body class="vintage">
@@ -171,15 +187,15 @@ body{--hud-life:#ff7a6b}
   <canvas id="g"></canvas>
   <div id="hud">
    <span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span><span class="sp"></span>
-   <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
+   <button id="hudMenuToggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
    <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
    <div id="hudMenu" hidden>
     <div id="hudStatus" role="status"></div>
-    <button id="soundToggle" type="button" aria-pressed="true">SOUND · ON</button>
-    <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
-    <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
-    <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
-    <button id="soloMode" type="button">MODE · CLASSIC</button>
+    <button id="soundToggle" type="button" aria-pressed="true">SOUND ON</button>
+    <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTI</a>
+    <button id="top" type="button">SCORES</button><button id="daily" type="button">DAILY</button>
+    <button id="share" type="button">SHARE</button><button id="newb" type="button">NEW RUN</button>
+    <button id="soloMode" type="button" aria-label="Classic mode. Switch to Infinite">CLASSIC</button>
    </div>
   </div>
   <div id="toast"></div>
@@ -626,7 +642,7 @@ function render(fs = 1){
   setText(hudLvl, isDaily() ? 'DAILY' : 'SEED ' + seed);
   if (hudLives.shown !== lives) { hudLives.shown = lives; const top = Math.max(MAX_LIVES, lives); let pips = ''; for (let k = 0; k < top; k++) pips += k < lives ? '<i></i>' : '<i class="off"></i>'; hudLives.innerHTML = pips; hudLives.setAttribute('aria-label', lives + ' lives'); }
   setText(hudTmr, fmtTime(runTime));
-  setText(document.getElementById('hudStatus'), 'LIVES '+lives+' · '+fmtTime(runTime)+' · '+seed.toUpperCase()+' · '+(soloMode==='infinite'?'INFINITE':'CLASSIC'));
+  setText(document.getElementById('hudStatus'), seed.toUpperCase()+' · '+lives+' LIVES · '+fmtTime(runTime));
   const cleared = total ? Math.round(1000 * (1 - remaining / total)) / 1000 : 0;
   if (hudFill.shown !== cleared) { hudFill.shown = cleared; hudFill.style.transform = 'scaleX(' + cleared + ')'; }
 }
@@ -704,7 +720,7 @@ document.getElementById('daily').onclick = () => {
   seed = 'd' + ymd; generatorVersion=4;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
-document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'infinite mode · bricks keep coming' : 'classic mode'); };
+document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC'); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
@@ -837,7 +853,8 @@ P('pclose').onclick=()=>hidePanel();
 function setSoloMode(mode){
  soloMode = mode === 'infinite' ? 'infinite' : 'solo';
  try { localStorage.setItem(SOLO_MODE_KEY, soloMode); } catch (e) {}
- P('soloMode').textContent = soloMode === 'infinite' ? 'MODE · INFINITE' : 'MODE · CLASSIC';
+ P('soloMode').textContent = soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC';
+ P('soloMode').setAttribute('aria-label',soloMode === 'infinite' ? 'Infinite mode. Switch to Classic' : 'Classic mode. Switch to Infinite');
 }
 P('pmodeInf').onclick=()=>{setSoloMode('infinite');startBoard();};
 P('pmodeCls').onclick=()=>{setSoloMode('solo');startBoard();};
@@ -849,10 +866,10 @@ P('pbrag').onclick=()=>{
 };
 P('top').onclick=()=>{location.href='/leaderboard?metric='+(soloMode==='infinite'?'score':'time');};
 function syncPause(){ paused = !P('hudMenu').hidden || !P('panel').hidden; }
-P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}syncPause();};
-function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();syncPause();}
-P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND · '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
-P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle')closeMenu();});
+P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));P('hudMenuToggle').textContent=opened?'×':'☰';P('hudMenuToggle').setAttribute('aria-label',opened?'Close menu':'Open menu');if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}syncPause();};
+function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');P('hudMenuToggle').textContent='☰';P('hudMenuToggle').setAttribute('aria-label','Open menu');if(open&&restoreFocus===true)P('hudMenuToggle').focus();syncPause();}
+P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
+P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle'&&e.target.id!=='soloMode')closeMenu();});
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.

@@ -9,177 +9,111 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
+
 :root{color-scheme:dark;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 *{box-sizing:border-box}
 html{min-width:320px}
-body{--bg:#030403;--panel:#111316;--cell:#13171b;--line:#46515a;--txt:#f7f6f4;--muted:#a5adb5;--accent:#ff8f80;--second:#6cd8ff;--third:#ffd166;--brick1:#49c9fc;--brick2:#be72eb;--brick3:#ff8b80;--glow:rgba(255,127,106,.19);margin:0;background:var(--bg);color:var(--txt);min-height:100vh;transition:background .18s,color .18s}
+body{--bg:#030504;--ink:#d7e0dc;--quiet:#84958e;--dim:#62736d;--line:#33423c;--accent:#b8d9c9;margin:0;min-height:100vh;color:var(--ink);background:radial-gradient(ellipse 74% 50% at 50% 16%,#111b18 0%,#070b09 65%,var(--bg) 100%);font-size:12px}
 a{color:inherit;text-decoration:none}
 button{font:inherit;cursor:pointer}
-button:focus-visible,a:focus-visible{outline:2px solid var(--second);outline-offset:3px}
-button:disabled{opacity:.45;cursor:default}
+button:disabled{opacity:.35;cursor:default}
+button:focus-visible,a:focus-visible{outline:1px solid var(--accent);outline-offset:4px}
 .pixel{font-family:"Press Start 2P",ui-monospace,monospace}
-.noise{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:.23;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.55) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 47%,#0008 100%);mix-blend-mode:multiply}
-main{position:relative;z-index:1;max-width:770px;margin:0 auto;padding:20px 20px 34px}
-.cabinet{background:var(--panel);border:1px solid var(--line);box-shadow:0 0 0 6px #0006,0 0 52px var(--glow);padding:0 23px 20px;position:relative}
-.cabinet:before,.cabinet:after{position:absolute;content:"";width:9px;height:9px;border:2px solid var(--second);opacity:.65}
-.cabinet:before{top:-2px;left:-2px;border-right:0;border-bottom:0}
-.cabinet:after{right:-2px;bottom:-2px;border-top:0;border-left:0}
-.top{min-height:60px;display:flex;justify-content:space-between;align-items:center;gap:15px;border-bottom:1px solid var(--line)}
-.back{font-size:11px;color:var(--muted);min-height:44px;display:inline-flex;align-items:center;gap:7px}
-.back:hover{color:var(--second)}
-.logo{font-size:10px;line-height:1.8;color:var(--txt);letter-spacing:.2px;text-shadow:0 0 12px var(--glow)}
-.logo span{color:var(--accent)}
-.system{font-size:9px;color:var(--muted);white-space:nowrap;letter-spacing:.05em}
-.system b{font-weight:400;color:var(--second)}
-.pixel-stripe{height:10px;background:repeating-linear-gradient(90deg,var(--brick1) 0 16px,transparent 16px 20px,var(--brick2) 20px 36px,transparent 36px 40px,var(--brick3) 40px 56px,transparent 56px 62px);opacity:.82;margin:0 -23px;box-shadow:0 0 14px var(--glow)}
-.marquee{position:relative;display:flex;align-items:center;justify-content:space-between;gap:15px;padding:26px 0 19px;border-bottom:1px dashed var(--line)}
-.kicker{font-size:9px;letter-spacing:.14em;color:var(--second);margin:0 0 16px}
-h1{margin:0;font-size:clamp(22px,4.4vw,36px);line-height:1.64;letter-spacing:-1.3px;color:var(--accent);text-shadow:0 0 14px var(--glow)}
-h1 span{color:var(--txt)}
-.subcopy{margin:13px 0 0;font-size:11px;line-height:1.75;color:var(--muted);max-width:415px}
-.art{align-self:center;flex:none;width:185px;display:grid;grid-template-columns:repeat(8,1fr);gap:3px;transform:perspective(240px) rotateY(-9deg) rotateX(7deg);filter:drop-shadow(0 0 12px var(--glow))}
-.art span{height:15px;box-shadow:inset -2px -2px #0007,inset 1px 1px #fff5;background:var(--brick1);border-radius:1px}
-.art span:nth-child(3n){background:var(--brick2)}
-.art span:nth-child(5n){background:var(--brick3)}
-.art span:nth-child(7n){opacity:.14}
-.art span:nth-child(23),.art span:nth-child(24),.art span:nth-child(30),.art span:nth-child(31){background:transparent;box-shadow:none}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--line);padding:18px 0}
-.stat{min-width:0;padding:2px 14px;border-right:1px solid var(--line)}
-.stat:first-child{padding-left:2px}
-.stat:last-child{border-right:0}
-.stat dt{margin:0 0 10px;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em}
-.stat dd{margin:0;white-space:nowrap;font-size:19px;font-weight:bold;letter-spacing:-1px;font-variant-numeric:tabular-nums}
-.stat:first-child dd{color:var(--second)}
-.stat:last-child dd{color:var(--accent)}
-.config{padding:20px 0 17px;display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
-.control-title{font-size:9px;color:var(--muted);letter-spacing:.12em;margin:0 0 9px}
-.smallbtn,.action{min-height:42px;border:1px solid var(--line);background:var(--cell);color:var(--muted);padding:0 12px;font-size:10px;border-radius:4px;transition:border-color .15s,background .15s,color .15s}
-.smallbtn:hover{color:var(--txt);border-color:var(--second)}
-.steps{display:flex;align-items:center;gap:6px}
-.smallbtn{padding:0 13px}
-.smallbtn[aria-pressed="true"]{border-color:var(--second);color:var(--second)}
-.board-top{padding:21px 0 13px;display:flex;align-items:start;justify-content:space-between;gap:14px}
-.board-kicker{color:var(--second);font-size:9px;margin:0 0 11px;letter-spacing:.14em}
-.board-title{font-size:13px;line-height:1.8;margin:0;color:var(--txt)}
-.board-description{color:var(--muted);font-size:10px;line-height:1.6;margin:6px 0 0;max-width:470px;overflow-wrap:break-word}
-.board-actions{display:flex;gap:6px;flex:none}
-.action{border-color:var(--accent);background:var(--accent);color:var(--bg);font-weight:bold;display:inline-flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap}
-.action:hover{filter:brightness(1.13)}
-.action.secondary{border-color:var(--line);color:var(--txt);background:var(--cell)}
-.action.secondary:hover{border-color:var(--second)}
-.board{border:1px solid var(--line);background:#0003;overflow:hidden}
-.board-head,.entry{display:grid;grid-template-columns:45px minmax(0,1fr) 120px;align-items:center;column-gap:12px}
-.board-head{padding:13px 17px;color:var(--muted);font-size:9px;letter-spacing:.1em;border-bottom:1px solid var(--line);background:var(--cell)}
-.entry{min-height:60px;padding:11px 17px;border-bottom:1px solid var(--line);font-size:12px}
-.entry:last-child{border-bottom:0}
-.entry:hover{background:var(--cell)}
-.entry.first{background:color-mix(in srgb,var(--accent) 8%,transparent)}
-.entry.mine{box-shadow:inset 3px 0 var(--second)}
-.rank{font-size:11px;color:var(--muted)}
-.entry.first .rank{color:var(--third)}
-.name{font-weight:700;min-width:0;overflow-wrap:break-word;line-height:1.55}
-.me-tag{display:inline-block;color:var(--second);font-size:9px;margin-left:7px}
-.value{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;letter-spacing:-.3px}
-.entry.first .value{color:var(--third)}
-.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding-bottom:14px}
-.podium[hidden]{display:none}
-.podium-card{border:1px solid var(--line);background:var(--cell);padding:12px 10px;min-height:111px;display:flex;flex-direction:column;justify-content:space-between;min-width:0;gap:9px}
-.podium-card:first-child{border-color:var(--third);background:color-mix(in srgb,var(--third) 8%,transparent)}
-.podium-place{font-family:"Press Start 2P",monospace;color:var(--third);font-size:10px;white-space:nowrap}
-.podium-name{font-size:11px;font-weight:bold;overflow-wrap:break-word;line-height:1.5}
-.podium-time{font-size:14px;color:var(--txt);font-weight:bold;font-variant-numeric:tabular-nums;white-space:nowrap}
-.empty{padding:33px 10px 30px;text-align:center}
-.empty-art{display:grid;grid-template-columns:repeat(6,23px);justify-content:center;gap:4px;margin:0 0 22px}
-.empty-art span{height:12px;background:var(--brick1);opacity:.9;box-shadow:inset 0 -3px #0006}
-.empty-art span:nth-child(3n){background:var(--brick2)}
-.empty-art span:nth-child(5n){background:var(--brick3)}
-.empty-art span:nth-child(9),.empty-art span:nth-child(14),.empty-art span:nth-child(21){visibility:hidden}
-.empty h3{font-size:11px;line-height:1.7;color:var(--accent);margin:0 0 12px}
-.empty p{font-size:11px;line-height:1.9;color:var(--muted);max-width:360px;margin:0 auto 16px}
-.empty a{margin-top:6px}
-.foot{padding:19px 0 1px;display:flex;align-items:start;justify-content:space-between;gap:12px;color:var(--muted);font-size:9px;line-height:1.7}
-.foot span{max-width:410px}
-.state{white-space:nowrap;color:var(--second)}
-.outside{font-size:10px;color:var(--muted);text-align:center;line-height:1.6;padding:20px 4px}
-@media(max-width:670px){
- main{padding:9px 8px 22px}
- .cabinet{padding:0 12px 12px}
- .top{min-height:56px}
- .system{display:none}
- .pixel-stripe{margin:0 -12px}
- .marquee{padding:23px 0 18px}
- h1{font-size:clamp(18px,5.5vw,28px);line-height:1.72}
- .kicker{font-size:8px;margin-bottom:13px}
- .art{width:112px;gap:2px}
- .art span{height:12px}
- .subcopy{font-size:10px;line-height:1.65}
- .stats{padding:15px 0}
- .stat{padding:2px 9px}
- .stat dt{font-size:8px;line-height:1.4;min-height:23px}
- .stat dd{font-size:clamp(13px,4vw,18px)}
- .config{padding:17px 0 14px;gap:15px}
- .config>div{min-width:0}
- 
- .steps{gap:5px}
- .board-top{padding:18px 0 13px;flex-wrap:wrap}
- .board-title{font-size:11px}
- .board-description{font-size:9px}
- .board-actions{width:100%;justify-content:space-between}
- .action{padding:0 12px}
- .board-head,.entry{grid-template-columns:29px minmax(0,1fr) 92px;gap:7px}
- .board-head{padding:11px 9px}
- .entry{padding:13px 9px;min-height:58px}
- .rank{font-size:10px}
- .name{font-size:11px;overflow-wrap:break-word}
- .value{font-size:11px}
- .podium{gap:5px}
- .podium-card{padding:10px 7px;min-height:110px}
- .podium-place{font-size:8px}
- .podium-name{font-size:10px}
- .podium-time{font-size:11px}
- .foot{font-size:8px}
- .outside{font-size:9px}
-}
-@media(max-width:380px){.art{width:84px}.art span{height:10px}.stat{padding:2px 6px}.stat dd{font-size:13px}}
-@media(prefers-reduced-motion:reduce){body,.smallbtn,.action{transition:none}}
-.board-seed{display:block;font-size:9px;line-height:1.7;color:var(--second);font-weight:400;margin-top:6px}
-.loadFooter{display:flex;justify-content:center;padding:15px 0}
+.noise{position:fixed;inset:0;z-index:8;pointer-events:none;background:repeating-linear-gradient(to bottom,#0005 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 49%,#0009 100%);opacity:.58;mix-blend-mode:multiply}
+.noise::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,transparent 45%,#d8eee508 50%,transparent 55%);background-size:100% 22%;background-repeat:no-repeat;animation:scan 12s linear infinite}
+@keyframes scan{from{background-position:0 -25%}to{background-position:0 125%}}
+main{position:relative;z-index:1;width:min(100%,760px);margin:0 auto;padding:clamp(20px,4vw,38px) clamp(20px,5vw,54px) 100px}
+.top{height:42px;display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid #ffffff0c}
+.back,.play{min-width:46px;min-height:42px;display:inline-flex;align-items:center;color:var(--quiet);font-size:11px;letter-spacing:.08em}
+.back{font-size:21px}
+.play{justify-content:flex-end}
+.back:hover,.play:hover{color:var(--accent)}
+.brand{font-size:9px;letter-spacing:.08em;color:var(--quiet);white-space:nowrap}
+.hero{padding:clamp(80px,16vh,170px) 0 clamp(55px,10vh,100px);text-align:center}
+h1{margin:0;color:var(--ink);font-size:clamp(15px,3.3vw,24px);line-height:2;letter-spacing:.17em;font-weight:400;text-shadow:0 0 22px #d8eee51b}
+.metric-tabs{display:grid;grid-template-columns:1fr 1fr;width:min(100%,280px);margin:34px auto 0;border-bottom:1px solid var(--line)}
+.metric-tabs button{min-height:49px;padding:10px 12px;color:var(--dim);border:0;border-bottom:1px solid transparent;background:transparent;font-size:10px;letter-spacing:.14em}
+.metric-tabs button:hover{color:var(--ink)}
+.metric-tabs button[aria-pressed="true"]{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 18px #b8d9c91c}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0 0 33px;border-bottom:1px solid var(--line)}
+.stat{margin:0;min-width:0}
+.stat dt{color:var(--dim);font-size:9px;letter-spacing:.12em;margin:0 0 14px}
+.stat dd{margin:0;color:var(--ink);font-size:clamp(13px,2.5vw,19px);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.02em}
+.board-top{min-height:68px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+.board-title{font-size:10px;letter-spacing:.14em;color:var(--quiet);font-weight:400}
+.icon-btn{display:grid;place-items:center;width:44px;height:44px;color:var(--quiet);border:0;background:transparent;font-size:19px}
+.icon-btn:hover{color:var(--accent)}
+.board-head,.entry{display:grid;grid-template-columns:45px minmax(0,1fr) minmax(72px,125px);align-items:center;gap:12px}
+.board-head{padding:12px 8px;color:var(--dim);font-size:9px;letter-spacing:.12em;border-bottom:1px solid var(--line)}
+.entry{min-height:70px;padding:15px 8px;border-bottom:1px solid #ffffff11;font-size:12px;transition:background .2s}
+.entry:hover{background:#c2e3d106}
+.entry.mine{border-left:1px solid var(--accent);padding-left:7px}
+.rank{color:var(--dim);font-variant-numeric:tabular-nums;font-size:10px}
+.name{min-width:0;color:var(--ink);line-height:1.5;overflow-wrap:break-word}
+.board-seed{display:block;font-size:9px;line-height:1.6;margin-top:6px;color:var(--dim);font-weight:400}
+.me-tag{margin-left:8px;font-size:9px;color:var(--accent)}
+.value{text-align:right;white-space:nowrap;font-size:13px;letter-spacing:.03em;font-variant-numeric:tabular-nums}
+.entry.first .value{color:var(--accent)}
+.empty{padding:85px 12px;text-align:center;color:var(--quiet)}
+.empty h3{font-size:10px;letter-spacing:.1em;font-weight:400;line-height:2;margin:0 0 22px}
+.empty .play-empty{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 15px;border:1px solid var(--line);font-size:10px;letter-spacing:.1em;color:var(--accent)}
+.empty .play-empty:hover{border-color:var(--accent)}
+.loadFooter{display:flex;justify-content:center;padding:23px 0}
+.loadFooter button{min-width:100px;min-height:44px;border:1px solid var(--line);background:transparent;color:var(--quiet);font-size:10px;letter-spacing:.13em}
+.loadFooter button:hover{color:var(--accent);border-color:var(--accent)}
 .loadFooter [hidden]{display:none}
-.metric-tabs{display:flex;align-items:center;gap:8px;padding:18px 0 1px}
-.metric-tabs button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--cell);color:var(--muted);border-radius:3px;font-size:11px}
-.metric-tabs button[aria-pressed="true"]{border-color:var(--second);color:var(--second)}
-.metric-hint{text-align:center;font-size:9px;color:var(--muted);margin:6px 0 0}
-@media(max-width:480px){.metric-tabs button{font-size:9px}}
+.foot{display:flex;justify-content:flex-end;min-height:20px}
+.state{font-size:9px;letter-spacing:.1em;color:var(--dim)}
+@media(max-width:520px){
+ main{padding:14px 18px 64px}
+ .hero{padding:clamp(65px,13vh,125px) 0 clamp(50px,8vh,85px)}
+ h1{font-size:clamp(14px,4vw,19px)}
+ .brand{font-size:8px}
+ .stats{gap:8px}
+ .stat dt{font-size:8px}
+ .stat dd{font-size:clamp(12px,3.6vw,16px)}
+ .board-head,.entry{grid-template-columns:29px minmax(0,1fr) 85px;gap:8px}
+ .board-head{padding:12px 2px}
+ .entry{padding:13px 2px}
+ .entry.mine{padding-left:1px}
+ .name,.value{font-size:11px}
+ .board-seed{font-size:8px}
+}
+@media(prefers-reduced-motion:reduce){.noise::after{animation:none}.entry{transition:none}}
+
 </style></head>
-<body data-theme="vintage">
+
+<body>
 <div class="noise" aria-hidden="true"></div>
 <main>
-<div class="cabinet">
-<header class="top"><a class="back" href="/" aria-label="Back to the game">← GAME</a><div class="logo pixel">BRICK <span>ASMR</span></div><div class="system">● <b>GLOBAL</b> // 01</div></header>
-<div class="pixel-stripe" aria-hidden="true"></div>
-<section class="marquee">
-<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">Two records. Swipe between the fastest clear and the highest score.</p></div>
-<div class="art" id="bricks" aria-hidden="true"></div>
+<header class="top">
+ <a class="back" href="/" aria-label="Back to game" title="Back to game">←</a>
+ <span class="brand pixel">BRICKS ASMR</span>
+ <a class="play" id="play" href="/">PLAY</a>
+</header>
+<section class="hero"><h1 class="pixel">HIGH SCORES</h1>
+ <div class="metric-tabs" role="group" aria-label="Leaderboard category">
+  <button id="bestTime" type="button" aria-label="Best time" aria-pressed="true">TIME</button>
+  <button id="bestScore" type="button" aria-label="Best score" aria-pressed="false">SCORE</button>
+ </div>
 </section>
-<dl class="stats">
-<div class="stat"><dt id="bestLabel">FASTEST</dt><dd id="fastest">--:--</dd></div>
-<div class="stat"><dt>PLAYERS</dt><dd id="players">--</dd></div>
-<div class="stat"><dt>YOUR BEST</dt><dd id="mine">--:--</dd></div>
-</dl>
-<section aria-label="Leaderboard" id="rankingArea">
-<div class="metric-tabs" role="group" aria-label="Leaderboard category"><button id="bestTime" type="button" aria-pressed="true">BEST TIME</button><button id="bestScore" type="button" aria-pressed="false">BEST SCORE</button></div>
-<p class="metric-hint">SWIPE LEFT / RIGHT TO CHANGE</p>
-<div class="board-top">
-<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">WORLD RANKINGS</h2><p class="board-description" id="description">ALL PLAYERS · ALL SAVED SCORES</p></div>
-<div class="board-actions"><button class="action secondary" type="button" id="refresh">↻ REFRESH</button><a class="action" id="play" href="/">▶ PLAY</a></div>
-</div>
-<div class="podium" id="podium" hidden></div>
-<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER / BOARD</span><span id="valueLabel" style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
-<div class="loadFooter"><button id="more" class="smallbtn" type="button" hidden>LOAD MORE</button></div>
+<section aria-label="World rankings" id="rankingArea">
+ <dl class="stats">
+  <div class="stat"><dt id="bestLabel">BEST TIME</dt><dd id="fastest">--:--</dd></div>
+  <div class="stat"><dt>PLAYERS</dt><dd id="players">--</dd></div>
+  <div class="stat"><dt>YOUR BEST</dt><dd id="mine">--:--</dd></div>
+ </dl>
+ <div class="board-top">
+  <span class="board-title">WORLD</span>
+  <button class="icon-btn" type="button" id="refresh" aria-label="Refresh rankings" title="Refresh rankings">↻</button>
+ </div>
+ <div class="board">
+  <div class="board-head"><span>#</span><span>PLAYER</span><span id="valueLabel" style="text-align:right">TIME</span></div>
+  <div id="rows" aria-live="polite"></div>
+ </div>
+ <div class="loadFooter"><button id="more" type="button" hidden>MORE</button></div>
+ <div class="foot"><span class="state" id="updated" role="status" aria-live="polite">○ READY</span></div>
 </section>
-<div class="foot"><span>01 · Every saved score appears globally. Best Time ranks Classic clears; Best Score ranks Infinite runs by brick and combo points. Scores are community-submitted.</span><span class="state" id="updated">● READY</span></div>
-</div>
-<div class="outside">BRICK ASMR / INSERT SKILL, NOT COINS</div>
 </main>
 <script>
 (()=>{
@@ -202,15 +136,12 @@ const metricValue=r=>metric==='score'?Number(r.score||0).toLocaleString():fmt(r.
 function updateMetricLabels(){
  P('bestTime').setAttribute('aria-pressed',String(metric==='time'));
  P('bestScore').setAttribute('aria-pressed',String(metric==='score'));
- P('bestLabel').textContent=metric==='score'?'HIGHEST':'FASTEST';
+ P('bestLabel').textContent=metric==='score'?'TOP SCORE':'BEST TIME';
  P('valueLabel').textContent=metric==='score'?'SCORE':'TIME';
  P('mine').textContent=metric==='score'?(scoreBest?scoreBest.toLocaleString():'--'):(Number.isFinite(best)?fmt(best):'--:--');
  P('fastest').textContent=metric==='score'?'--':'--:--';
- P('description').textContent=metric==='score'?'INFINITE · BRICKS + COMBO POINTS':'CLASSIC · FASTEST BOARD CLEARS';
 }
 updateMetricLabels();
-const brickBox=P('bricks');
-for(let i=0;i<40;i++)brickBox.append(document.createElement('span'));
 const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
 function boardLabel(key){
  const m=/^([a-z0-9]+?)(?:-\d+)?(-v[234])?-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
@@ -218,34 +149,25 @@ function boardLabel(key){
  const label=m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
  return label+(m[2]?' · '+m[2].slice(1).toUpperCase():'');
 }
-function empty(title,message){
- const shell=cell('empty',''),art=cell('empty-art','');
- for(let i=0;i<24;i++)art.append(document.createElement('span'));
+function empty(title){
+ const shell=cell('empty','');
  const heading=document.createElement('h3');heading.className='pixel';heading.textContent=title;
- const description=document.createElement('p');description.textContent=message;
- shell.append(art,heading,description);
- if(title==='NO TIMES YET'||title==='NO SCORES YET'){const a=document.createElement('a');a.className='action';a.href=P('play').href;a.textContent='▶ SET THE RECORD';shell.append(a);}
+ shell.append(heading);
+ if(title==='NO TIMES'||title==='NO SCORES'){const a=document.createElement('a');a.className='play-empty';a.href=P('play').href;a.textContent='PLAY';shell.append(a);}
  P('rows').append(shell);
 }
 let offset=0,hasMore=false,loading=false,run=0;
 function renderRows(entries,first){
  if(first){
-  P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=!entries.length;
+  P('rows').replaceChildren();
   P('fastest').textContent=entries.length?metricValue(entries[0]):(metric==='score'?'--':'--:--');
-  if(!entries.length){empty(metric==='score'?'NO SCORES YET':'NO TIMES YET',metric==='score'?'Survive an Infinite run to set the first score.':'Clear a Classic board to set the first time.');return;}
-  for(const [i,r] of entries.slice(0,3).entries()){
-   const item=cell('podium-card',''),name=cell('podium-name',r.playerId===playerId?'YOU':r.name);
-   name.append(cell('board-seed',boardLabel(r.boardKey)));
-   item.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',metricValue(r)));
-   P('podium').append(item);
-  }
+  if(!entries.length){empty(metric==='score'?'NO SCORES':'NO TIMES');return;}
  }
  for(const [i,r] of entries.entries()){
   const rank=offset+i+1;
   const item=cell('entry'+(rank===1?' first':'')+(r.playerId===playerId?' mine':''),'');
   const user=cell('name',r.name);
-  user.append(cell('board-seed',boardLabel(r.boardKey)));
-  if(metric==='score')user.append(cell('board-seed',r.bricksBroken+' BRICKS · '+r.bestCombo+' MAX COMBO'));
+  user.append(cell('board-seed',boardLabel(r.boardKey)+(metric==='score'?' · '+r.bricksBroken+' BRICKS · '+r.bestCombo+'×':'')));
   if(r.playerId===playerId)user.append(cell('me-tag','YOU'));
   item.append(cell('rank','#'+String(rank).padStart(2,'0')),user,cell('value',metricValue(r)));
   P('rows').append(item);
@@ -257,10 +179,10 @@ async function load(reset=false){
  loading=true;
  if(reset){
   offset=0;
-  P('rows').replaceChildren();P('podium').hidden=true;
-  empty('LOADING','Retrieving all world scores…');
+  P('rows').replaceChildren();
+  empty('…');
  }
- P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNCING';
+ P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNC';
  try{
   const res=await fetch('/api/leaderboard?scope=world&offset='+offset+'&metric='+metric,{cache:'no-store'});
   if(!res.ok)throw Error('Network error');
@@ -272,10 +194,10 @@ async function load(reset=false){
   offset+=entries.length;
   hasMore=Boolean(data.hasMore);
   P('more').hidden=!hasMore;
-  P('updated').textContent='● UPDATED '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  P('updated').textContent='● SYNCED';
  }catch(e){
   if(call===run){
-   if(offset===0){P('rows').replaceChildren();empty('OFFLINE','World rankings could not load. Retry to refresh.');}
+   if(offset===0){P('rows').replaceChildren();empty('OFFLINE');}
    P('updated').textContent='○ OFFLINE';
   }
  }finally{
