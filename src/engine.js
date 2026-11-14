@@ -179,10 +179,10 @@ function brickEngine(rng=Math.random){
    S.remaining--;S.rowCount[r]--;S.colCount[c]--;
    ev.push({t:'break',i,r,c,owner});
    if(p){
-    p.bricksBroken++;
+    p.bricksBroken=(p.bricksBroken||0)+1;
     p.combo++;p.comboT=0;if(p.combo>p.maxCombo)p.maxCombo=p.combo;
     const brickPoints=10*(1+Math.min(4,Math.floor(p.combo/5)));
-    p.score+=brickPoints;p.brickScore+=brickPoints;
+    p.score+=brickPoints;p.brickScore=(p.brickScore||0)+brickPoints;
     if(p.milestone<MILESTONES.length&&p.combo>=MILESTONES[p.milestone])ev.push({t:'milestone',owner,n:MILESTONES[p.milestone++]});
    }
    if(S.pu[i]){
