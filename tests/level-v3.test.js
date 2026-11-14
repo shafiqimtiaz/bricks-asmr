@@ -58,18 +58,18 @@ test("V3 geometry covers phone, desktop and ultrawide courts without changing ce
  }
 });
 
-test("V1 is the new default while historical V2/V3 links remain available",()=>{
+test("V4 is the new default while V1/V2/V3 remain accessible",()=>{
  for(const seed of ["ALPHA","TEST123","BRICKS"]){
   assert.deepEqual(bricks(seed,1),bricks(seed,1,arenaLayout(),1));
   assert.deepEqual(bricks(seed,1,arenaLayout(),2),bricks(seed,1,arenaLayout(),2));
  }
- assert.match(soloHtml,/let generatorVersion = .* : 1;/);
- assert.match(soloHtml,/generatorVersion=1;seed = randomSeed\(\)/);
- assert.match(soloHtml,/generatorVersion=1;startBoard\(\)/);
+ assert.match(soloHtml,/let generatorVersion = .* : hm \? 1 : 4;/);
+ assert.match(soloHtml,/generatorVersion=4;seed = randomSeed\(\)/);
+ assert.match(soloHtml,/generatorVersion=4;startBoard\(\)/);
  assert.match(soloHtml,/generatorVersion>1\?'&v='\+generatorVersion:''/);
- assert.match(serverSource,/bricks\(r\.seed,r\.players\.length,r\.arena,1\)/);
+ assert.match(serverSource,/bricks\(r\.seed,r\.players\.length,r\.arena,4\)/);
  assert.match(multiHtml,/needle','prison','domino','serpent','jackpot','twins/);
  const key=new Function("return "+/const KEY=(\/.*?\/),ID=/.exec(soloWorker)[1])();
- for(const k of ["alpha-vintage","alpha-v2-vintage","alpha-v3-vintage","alpha-v3-vintage-a360"])
+ for(const k of ["alpha-vintage","alpha-v2-vintage","alpha-v3-vintage","alpha-v4-vintage","alpha-v3-vintage-a360"])
   assert.ok(key.test(k),k);
 });
