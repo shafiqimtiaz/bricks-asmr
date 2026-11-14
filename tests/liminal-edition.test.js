@@ -22,7 +22,7 @@ test("Infinite opens high and centred without changing brick dimensions",()=>{
    let maxRow=-1;
    for(let k=0;k<b.hp.length;k++)if(b.hp[k]!=="0")maxRow=Math.max(maxRow,Math.floor(k/arena.cols));
    const bottom=arena.gridY+(maxRow+1)*arena.cell;
-   assert.ok(bottom<=players===1?220:410,"Infinite opening leaves a meaningful gap");
+   assert.ok(bottom<=(players===1?220:410),"Infinite opening leaves a meaningful gap");
    if(players===1)assert.ok(bottom<=225,"Solo starts well above the paddle");
    assert.ok(b.hp.includes("4"),"keep V4 reflectors");
   }
