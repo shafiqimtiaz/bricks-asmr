@@ -11,6 +11,8 @@ Agent notes for bricks-asmr (Bricks ASMR: a brick-breaker game served from Cloud
 
 Updated automatically on every push to main by `.github/workflows/changelog.yml`. Newest first. Full history: `git log`.
 
+- 2026-11-14 `efe18eb` Fix changelog loop guard to match the bot commit subject
+- 2026-11-14 `113f97d` Add automated changelog to AGENTS.md
 - 2026-11-14 `88e454e` Restore serve prompt and fix stale multiplayer lives/results text
 - 2026-11-14 `9fc4954` Generate adjective–noun names for new players (#45)
 - 2026-11-14 `dd34fdc` Continue Infinite bricks with the seeded V4 pattern
@@ -39,6 +41,4 @@ Updated automatically on every push to main by `.github/workflows/changelog.yml`
 - 2026-11-14 `5506395` Prune merged feature branches safely via one-time GitHub Actions job
 - 2026-11-14 `6828582` Add versioned procedural ricochet chambers and permanent reflector walls
 - 2026-11-14 `f97c8f9` Polish multiplayer connection feedback, remote paddles and hit response
-- 2026-11-14 `8cc76c2` Simplify aiming dots and polish input feedback and UI accessibility
-- 2026-11-14 `c13d7eb` Make multiplayer keys responsive and rounds last longer
 <!-- changelog:end -->
