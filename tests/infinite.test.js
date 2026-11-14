@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { brickEngine } from "../src/engine.js";
-import { arenaLayout, bricks } from "../src/game-core.js";
+import { arenaLayout, bricks, infiniteOpeningBoard } from "../src/game-core.js";
 
 // Infinite mode: the board descends one row at a time on a timer and never
 // stops until the lowest row reaches a paddle. The engine treats infinite
 // as a flag, not a mode, so lives/pool/serve behaviour is unchanged.
 const arena = arenaLayout(9 / 16);
+const soloArena = { ...arena, rows: Math.max(arena.rows, Math.ceil((536 - 10 - arena.gridY) / arena.cell)) };
 const boardSpan = board => {
-  const cols = arena.cols;
+  const cols = soloArena.cols;
   let minC = cols, maxC = -1;
   for (let i = 0; i < board.hp.length; i++) if (board.hp[i] !== "0") {
     const c = i % cols; minC = Math.min(minC, c); maxC = Math.max(maxC, c);
@@ -16,8 +17,8 @@ const boardSpan = board => {
   return [minC, maxC];
 };
 const infiniteSolo = (seed = "inf1") => {
-  const E = brickEngine(() => .5), board = bricks(seed, 1, arena);
-  const S = E.create({ arena, board, players: [{ id: "me", seat: 0 }], mode: "solo", set: "clean", lives: 5, infinite: true });
+  const E = brickEngine(() => .5), board = infiniteOpeningBoard(seed, soloArena);
+  const S = E.create({ arena: soloArena, board, players: [{ id: "me", seat: 0 }], mode: "solo", set: "vintage", lives: 5, infinite: true });
   return { E, S, board };
 };
 // Keeps the ball alive the way the Solo replay pilot does.
@@ -35,25 +36,75 @@ test("infinite create carries descent state and the spawn span; classic has none
   assert.equal(S.infinite, true);
   assert.deepEqual(S.descent, { t: 0, rows: 0, interval: 8 });
   assert.deepEqual([S.spawnC0, S.spawnC1], boardSpan(board));
-  const classic = E.create({ arena, board, players: [{ id: "me", seat: 0 }], mode: "solo", set: "clean", lives: 5 });
+  const classic = E.create({ arena: soloArena, board, players: [{ id: "me", seat: 0 }], mode: "solo", set: "vintage", lives: 5 });
   assert.equal(classic.infinite, false);
   assert.equal(classic.descent, undefined);
 });
 
-test("stepping ~8s descends exactly one row and refills just above the formation", () => {
+test("Infinite Solo starts at the ceiling with a safe paddle lane and more power-ups", () => {
+  const { S, board } = infiniteSolo();
+  assert.ok(S.rowCount[0] > 0, "brick formation starts at the ceiling");
+  assert.equal(S.rowCount[S.ROWS - 1], 0, "the paddle lane remains open");
+  assert.equal(board.hp.length, soloArena.cols * soloArena.rows);
+  const openingRows = Math.max(24, Math.floor(soloArena.rows * .48));
+  const classic = bricks("inf1", 1, { ...soloArena, rows: openingRows });
+  const count = s => [...s].filter(x => x !== "0").length;
+  assert.ok(count(board.powerups) > count(classic.powerups), "Infinite gets more useful capsules than the V4 opening");
+  assert.ok(![...board.powerups].some(x => x === "7" || x === "a"), "Infinite excludes hyper and timer capsules");
+});
+
+test("after eight seconds the board moves down one row and a new row fills the ceiling", () => {
   const { E, S } = infiniteSolo();
-  let rMin = -1;
-  for (let r = 0; r < S.rowCount.length; r++) if (S.rowCount[r] > 0) { rMin = r; break; }
-  assert.ok(rMin > 0, "the formation starts below grid row 0");
-  assert.equal(S.rowCount[0], 0, "the top grid row starts empty");
-  playFrames(E, S, 479);
-  assert.equal(S.descent.rows, 0, "no descent before the 8s interval");
+  for (let i = 0; i < 479; i++) E.step(S, 1 / 60);
+  assert.equal(S.descent.rows, 0);
+  const firstRow = S.hp.slice(0, S.COLS);
   const before = S.remaining;
-  playFrames(E, S, 3);
+  const events = [];
+  for (let i = 0; i < 3; i++) events.push(...E.step(S, 1 / 60));
   assert.equal(S.descent.rows, 1);
-  assert.equal(S.crush.target[0], S.CS, "one row down, exactly as a miss does");
-  assert.ok(S.rowCount[rMin - 1] > 0, "a fresh row appeared just above the formation");
-  assert.ok(S.remaining > before, "the refill adds more bricks than the ball broke");
+  assert.equal(S.crush.target[0], 0, "the stream scrolls without translating the entire grid");
+  assert.deepEqual(S.hp.slice(S.COLS, S.COLS * 2), firstRow, "the former ceiling row moved down");
+  assert.ok(S.rowCount[0] > 0, "there is no empty row at the ceiling");
+  assert.ok(S.remaining > before);
+  assert.ok(events.some(e => e.t === "board"), "the renderer receives a full board refresh");
+});
+
+test("Infinite Solo slides smoothly between incoming rows", () => {
+  const { E, S } = infiniteSolo();
+  E.step(S, 2);
+  assert.ok(S.crush.by > 0 && S.crush.by < S.CS, "the grid moves between row arrivals");
+  S.descent.t = S.descent.interval - 1 / 30;
+  E.step(S, 1 / 60);
+  const lastY = S.GY + S.crush.by;
+  E.step(S, 1 / 60);
+  const nextY = S.GY + S.CS + S.crush.by;
+  assert.ok(Math.abs(nextY - lastY) < S.CS / 8, "the transition to the next row is seamless");
+});
+
+test("the continuous feed stays symmetric and never runs out of spawn rows", () => {
+  const { E, S } = infiniteSolo();
+  for (let tick = 0; tick < 28; tick++) {
+    S.descent.t = S.descent.interval;
+    E.step(S, 1 / 60);
+    assert.equal(S.status, "play", "the run is still active at descent " + (tick + 1));
+    assert.ok(S.rowCount[0] > 0, "fresh bricks still enter at descent " + (tick + 1));
+    for (let c = 0; c < S.COLS; c++) {
+      assert.equal(S.hp[c], S.hp[S.COLS - 1 - c], "incoming row is symmetric");
+      assert.equal(S.pu[c], S.pu[S.COLS - 1 - c], "incoming power-ups are symmetric");
+    }
+  }
+});
+
+test("the descending grid ends the run when bricks reach the paddle, even while aiming", () => {
+  const { E, S } = infiniteSolo();
+  S.hp.fill(0); S.rowCount.fill(0); S.colCount.fill(0); S.remaining = 0;
+  const cell = (S.ROWS - 2) * S.COLS;
+  S.hp[cell] = 1; S.rowCount[S.ROWS - 2] = 1; S.colCount[0] = 1; S.remaining = 1;
+  S.descent.t = S.descent.interval;
+  const events = E.step(S, 1 / 60);
+  assert.equal(S.status, "over");
+  assert.equal(S.result.reason, "crushed");
+  assert.ok(events.some(e => e.t === "end" && e.reason === "crushed"));
 });
 
 test("the descent keeps ticking while the ball is still held (aiming/serving)", () => {
