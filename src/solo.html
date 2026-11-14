@@ -155,10 +155,6 @@ body{--hud-life:#ff7a6b}
 .nameActions button{flex:1;min-height:40px;border:1px solid #759f9d;background:#11191c;color:#f1f4f5;font:9px 'Press Start 2P',monospace;cursor:pointer}
 .nameActions button[type="submit"]{border-color:#ff8f80;color:#ff8f80}
 
-#hudMenu .midiPick{display:flex;flex-direction:column;gap:calc(var(--u)*1.6);padding:calc(var(--u)*2.3);margin-top:calc(var(--u)*1.6);border-top:1px solid var(--l-border);max-width:calc(var(--u)*75)}
-#hudMenu .midiPick label,#hudMenu .midiPick small{font-size:calc(var(--u)*1.9);line-height:1.4;white-space:normal;letter-spacing:.03em;color:var(--lb-soft)}
-#hudMenu .midiPick select{width:100%;min-width:0;background:var(--l-surface);color:var(--l-ink);border:1px solid var(--l-border);border-radius:4px;font:inherit;padding:calc(var(--u)*1.5)}
-#hudMenu .midiPick #loadMidi{min-height:calc(var(--u)*7);border:1px solid var(--l-border)!important;background:var(--l-surface)!important;color:var(--l-ink)!important;text-align:center}
 </style>
 </head>
 <body class="vintage">
@@ -173,24 +169,6 @@ body{--hud-life:#ff7a6b}
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
     <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
     <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
-    <div class="midiPick">
-     <label for="musicTrack">BRICK MUSIC · INSTRUMENTAL MIDI</label>
-     <select id="musicTrack" aria-label="Song for brick-breaking notes">
-      <option value="toxic">Toxic · Britney Spears</option>
-      <option value="billie-jean">Billie Jean · Michael Jackson</option>
-      <option value="save-your-tears">Save Your Tears · The Weeknd</option>
-      <option value="bad-romance">Bad Romance · Lady Gaga</option>
-      <option value="gangnam-style">Gangnam Style · PSY</option>
-      <option value="baby">Baby · Justin Bieber</option>
-      <option value="i-want-it-that-way">I Want It That Way · Backstreet Boys</option>
-      <option value="what-makes-you-beautiful">What Makes You Beautiful · One Direction</option>
-      <option value="as-it-was">As It Was · Harry Styles</option>
-      <option value="cant-stop-the-feeling">CAN'T STOP THE FEELING! · Justin Timberlake</option>
-     </select>
-     <button id="loadMidi" type="button">LOAD LICENSED MIDI</button>
-     <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
-     <small id="midiStatus" role="status">LOAD AN INSTRUMENTAL MIDI FILE</small>
-    </div>
    </div>
   </div>
   <div id="toast"></div>
@@ -348,7 +326,7 @@ function redrawAll(){
 
 // ---------- audio ----------
 let soundKit=null,notesThisFrame=0;
-const brickMusic=createBrickMusic(window);
+const brickMusic=createBrickMusic();
 function audioInit(){
  if(soundKit){soundKit.resume();return;}
  try{soundKit=createASMR(window);}catch{soundKit=null;}
@@ -358,10 +336,7 @@ function blip(freq,vol,dur,type){
  notesThisFrame++;
  soundKit.blip(freq,vol,dur,type);
 }
-function brickNote(r){
- const note=brickMusic.next()||soloBrickNote(r,scale_,rootSemi,wave,decay,combo);
- blip(note.frequency,note.volume,note.duration+Math.random()*.04,note.wave);
-}
+function brickNote(){brickMusic.hit(soundKit);}
 
 // ---------- game state: the shared engine (engine.js) ----------
 // The engine owns the rules; these mirrors of its state are refreshed after every step for drawing and input.
@@ -396,7 +371,7 @@ function sync(){
 }
 const newBoard = () => { seed = randomSeed(); startBoard(); };
 function startBoard(){
-  brickMusic.reset();
+  brickMusic.reset(seed);
   syncArena();
   genBoard();
   S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, daily: isDaily(), maxBalls});
@@ -423,7 +398,7 @@ function react(e){
   switch (e.t) {
     case 'break': {
       const i = e.i, c = e.c, r = e.r;
-      brickNote(r);
+      brickNote();
       const fc = col[i] ? (style === 'vapor' ? vPal : palette)[col[i]] : (style === 'vapor' ? vWall : wallCols)[1];
       const by = GY + S.crush.by + r * CS;
       comboPop = 1;
@@ -431,7 +406,7 @@ function react(e){
       if (style !== 'clean' && debris.length < 900) for (let d = 0; d < 2; d++) debris.push({x: GX + c * CS + Math.random() * CS, y: by + Math.random() * CS, vx: (Math.random() - .5) * 60, vy: (Math.random() - .8) * 50, c: fc, t: 1});
       drawCell(i); break;
     }
-    case 'hit': brickNote(e.r); drawCell(e.i); break;
+    case 'hit': brickNote(); drawCell(e.i); break;
     case 'cell': drawCell(e.i); break;
     case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
     case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
@@ -816,7 +791,7 @@ P('pbrag').onclick=()=>{
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));};
 function closeMenu(){P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');}
-P('hudMenu').addEventListener('click',e=>{if(!e.target.closest('.midiPick'))closeMenu();});
+P('hudMenu').addEventListener('click',closeMenu);
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();if(!P('nameModal').hidden)closeNameModal();}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
