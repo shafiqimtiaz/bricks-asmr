@@ -85,8 +85,12 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
         else freeHorizontal(midY + shift, midX, right, gate);
       }
     }
-    if(height<=10)freeHorizontal(midY,midX-5,midX+5,2);
-    else freeHorizontal(midY, x0+1, x1-1, 3);
+    if(height<=10){
+     freeHorizontal(midY,midX-5,midX+5,2);
+     // On very wide screens, a thin chamber still needs a substantial breakable reward bank.
+     for(let c=x0+3;c<=x1-3;c++)if(Math.abs(c-midX)>7 && hp[index(c,y0+1)]!==4)
+      set(c,y0+1,1,2+(Math.floor(c/4)%12));
+    }else freeHorizontal(midY, x0+1, x1-1, 3);
     freeVertical(midX, y0+1, y1-1, 3);
 
     // Extra winding runs and openings around the chamber without closing the exits.
