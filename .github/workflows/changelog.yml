@@ -8,8 +8,10 @@ permissions:
   contents: write
 jobs:
   changelog:
-    # The bot's own [changelog] commit must not trigger another run.
-    if: github.event_name == 'release' || !contains(github.event.head_commit.message, '[changelog]')
+    # The bot's own [changelog] commit must not trigger another run. Match
+    # the subject prefix, not a substring: a human commit may mention the
+    # word [changelog] in its body without being the bot's commit.
+    if: github.event_name == 'release' || !startsWith(github.event.head_commit.message, '[changelog]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
