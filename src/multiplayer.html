@@ -340,7 +340,7 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
   <span id="netStatus" role="status" aria-live="polite" hidden></span>
   <button id="hudMenuToggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
-  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND ON</button><a href="/">SOLO</a><a href="/multiplayer" aria-current="page">LOBBY</a><a href="/leaderboard">SCORES</a>
+  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="sensitivityToggle" type="button" aria-label="Change paddle sensitivity">SENS LOW</button><a href="/">SOLO</a><a href="/multiplayer" aria-current="page">LOBBY</a><a href="/leaderboard">SCORES</a>
   </div>
  </div>
  <div id="panel">
@@ -395,6 +395,10 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
 (function(){
 "use strict";
 const $=id=>document.getElementById(id);
+const SENS_KEY='bricksPaddleSensitivity',SENS_VALUES=[.65,1,1.35],SENS_NAMES=['LOW','MID','HIGH'];
+let sensitivityLevel=0;
+try{const saved=localStorage.getItem(SENS_KEY);if(['0','1','2'].includes(saved))sensitivityLevel=Number(saved);}catch(e){}
+const sensitivity=()=>SENS_VALUES[sensitivityLevel];
 const API=location.pathname.startsWith("/multiplayer")?"/api/multiplayer/rooms":"/api/rooms";
 let aimAng=0,heldBefore=false,drag=null;
 let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,localPos=.5,inputSeq=0;
@@ -830,7 +834,7 @@ function draw(now){
  const s=state,me=s?.players.find(p=>p.id===you),V=style==="vapor",C=style==="clean";
  const playing=s?.status==="playing",live=playing&&s.startedAt<=serverNow(),inverted=me?.fx?.invert>0;
  const dir=(held.arrowright||held.d?1:0)-(held.arrowleft||held.a?1:0);
- if(dir&&playing&&$("hudMenu").hidden)send(localPos+dir*dt*1.5);
+ if(dir&&playing&&$("hudMenu").hidden)send(localPos+dir*dt*1.5*sensitivity());
  const turn=(held.arrowup||held.w?1:0)-(held.arrowdown||held.s?1:0);
  if(turn&&$("hudMenu").hidden&&holdingServe())setAim(aimAng+turn*dt*1.2);
  ctx.setTransform(scaleX,0,0,scaleY,0,0);
@@ -957,15 +961,20 @@ function draw(now){
   ctx.globalAlpha=1;
  }
  ctx.restore();
- const trackStart=Math.max(40,viewW*.11),trackEnd=viewW-trackStart,controlY=viewH-26;
- const handle=trackStart+(playing?localPos:.5)*(trackEnd-trackStart);
- ctx.fillStyle="#262626";ctx.beginPath();ctx.roundRect(trackStart-14,controlY-14,trackEnd-trackStart+28,28,14);ctx.fill();
- ctx.fillStyle="#3a3a3a";ctx.fillRect(trackStart,controlY-1.5,trackEnd-trackStart,3);
- ctx.fillStyle=V?"#ff71ce":"#c96a5a";ctx.beginPath();ctx.roundRect(handle-24,controlY-11,48,22,11);ctx.fill();
- ctx.fillStyle="#0003";for(const o of [-6,0,6])ctx.fillRect(handle+o-.75,controlY-5,1.5,10);
+ const controlTop=viewH-90;
+ ctx.fillStyle='#121a18';ctx.fillRect(0,controlTop,viewW,viewH-controlTop);
+ ctx.save();ctx.beginPath();ctx.rect(0,controlTop,viewW,viewH-controlTop);ctx.clip();
+ ctx.strokeStyle='rgba(139,171,154,.10)';ctx.lineWidth=1;ctx.beginPath();
+ for(let x=-(viewH-controlTop);x<viewW;x+=14){ctx.moveTo(x,controlTop);ctx.lineTo(x+viewH-controlTop,viewH);}
+ ctx.stroke();ctx.restore();
+ const dotsX=playing&&me&&mine!==null
+  ?viewPoint(view,me.seat===0||me.seat===2?mine:W/2,me.seat===0||me.seat===2?292:mine).x
+  :viewW/2;
+ const dotsW=me?.pw||64;
+ ctx.fillStyle='#7d9a8b';
+ for(let x=dotsX-dotsW/2+1;x<dotsX+dotsW/2-1;x+=6)ctx.fillRect(x,controlTop+7,2,2);
  ctx.font=small;
  if(live&&serve){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-72);}
- else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-72);}
 
  if(live&&me&&me.out){
   const left=s.players.filter(p=>!p.out).length,half=Math.min(150,viewW/2-12);
@@ -1026,22 +1035,39 @@ function boardPointer(event){
  if(useGL()){const k=FX[style].k,cx=u*2-1,cy=v*2-1;u=cx*(1+k*cy*cy)*.5+.5;v=cy*(1+k*cx*cx)*.5+.5;}
  return {x:u*viewW,y:v*viewH};
 }
-function pointer(event){send(sliderPos(view,boardPointer(event).x));}
-// As in Solo: the strip below the board moves the paddle; while serving, dragging the board aims and a tap launches.
+let controlDrag=null;
+function pointer(event,previousX){
+ const width=event.currentTarget.getBoundingClientRect().width;
+ const dx=(event.clientX-previousX)/width*sensitivity();
+ if(dx)send(localPos+dx);
+}
+// The lower strip is a relative trackpad; the court remains reserved for serving.
 for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
-  audioInit();canvas.setPointerCapture(event.pointerId);
-  const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())
-    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false};
-  else{drag=null;pointer(event);}
+  if(state?.status!=="playing")return;
+  audioInit();
+  const y=boardPointer(event).y;
+  if(y>=viewH-90){controlDrag={id:event.pointerId,x:event.clientX};drag=null;}
+  else if(holdingServe()){drag={id:event.pointerId,x:event.clientX,width:canvas.getBoundingClientRect().width,aim:aimAng,moved:false};controlDrag=null;}
+  else return;
+  try{canvas.setPointerCapture(event.pointerId);}catch(_){}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));}
-  else if(event.buttons||event.pointerType==="touch")pointer(event);
+  if(controlDrag?.id===event.pointerId){pointer(event,controlDrag.x);controlDrag.x=event.clientX;}
+  else if(drag?.id===event.pointerId){
+   const dx=event.clientX-drag.x;
+   if(Math.abs(dx)>8)drag.moved=true;
+   if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));
+  }
  });
- canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
- canvas.addEventListener("pointercancel",()=>{drag=null;});
+ canvas.addEventListener("pointerup",event=>{
+  if(drag?.id===event.pointerId){if(!drag.moved)launch();drag=null;}
+  if(controlDrag?.id===event.pointerId)controlDrag=null;
+ });
+ canvas.addEventListener("pointercancel",event=>{
+  if(drag?.id===event.pointerId)drag=null;
+  if(controlDrag?.id===event.pointerId)controlDrag=null;
+ });
 }
 const MOVE_KEYS=["arrowleft","arrowright","a","d","arrowup","arrowdown","w","s"];
 const KEY_NUDGE=0.035;
@@ -1055,7 +1081,7 @@ window.addEventListener("keydown",event=>{
  // Only the first press nudges, so auto-repeat does not stack on top of the glide.
  if(!event.repeat&&state?.status==="playing"&&$("hudMenu").hidden){
   const nudge=(key==="arrowright"||key==="d"?1:key==="arrowleft"||key==="a"?-1:0);
-  if(nudge)send(localPos+nudge*KEY_NUDGE);
+  if(nudge)send(localPos+nudge*KEY_NUDGE*sensitivity());
  }
  if(state?.status==="playing")event.preventDefault();
 });
@@ -1085,6 +1111,8 @@ $("copy").addEventListener("click",async()=>{
  catch{window.prompt("Copy this invite:",url);}
 });
 $("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent="SOUND "+(soundOn?"ON":"OFF");$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
+$("sensitivityToggle").textContent="SENS "+SENS_NAMES[sensitivityLevel];
+$("sensitivityToggle").addEventListener("click",()=>{sensitivityLevel=(sensitivityLevel+1)%SENS_VALUES.length;try{localStorage.setItem(SENS_KEY,String(sensitivityLevel));}catch(e){}$("sensitivityToggle").textContent="SENS "+SENS_NAMES[sensitivityLevel];});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
  socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("menuStatus").textContent="";$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
