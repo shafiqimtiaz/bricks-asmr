@@ -55,7 +55,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
         2 + ((Math.floor((c-x0)/4)+Math.floor((r-y0)/4))%12));
     }
     // Internal baffles terminate short of the outer walls, so nothing gets sealed away.
-    if (kind === 1 || kind === 3 || kind === 5) {
+    if (height>=12 && (kind === 1 || kind === 3 || kind === 5)) {
       const count = kind === 3 ? 3 : 2;
       for (let n = 0; n < count; n++) {
         const ry = y0 + 4 + Math.floor((n + .5) * Math.max(1,y1-y0-8) / count);
@@ -73,7 +73,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     // Every chamber has at least a second opening, so trapped balls can escape.
     const gate = kind === 0 || kind === 3 ? 2 : kind === 4 ? 4 : 3;
     const sideGates = new Set(sides);
-    if (rng() < .4) sideGates.add(rand(0,3));
+    if (height>=12 && rng() < .4) sideGates.add(rand(0,3));
     sideGates.add(0); sideGates.add(2);
     for (const side of sideGates) {
       const offset = rand(-Math.min(3,Math.floor((x1-x0)/6)), Math.min(3,Math.floor((x1-x0)/6)));
@@ -85,11 +85,12 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
         else freeHorizontal(midY + shift, midX, right, gate);
       }
     }
-    freeHorizontal(midY, x0+1, x1-1, 3);
+    if(height<=10)freeHorizontal(midY,midX-5,midX+5,2);
+    else freeHorizontal(midY, x0+1, x1-1, 3);
     freeVertical(midX, y0+1, y1-1, 3);
 
     // Extra winding runs and openings around the chamber without closing the exits.
-    if (kind === 3 || kind === 0) {
+    if (height>=12 && (kind === 3 || kind === 0)) {
       for (let n = 0; n < 3; n++) {
         const y = y0 + 4 + n * Math.floor(Math.max(4,y1-y0-9)/3);
         const center = n % 2 ? x0 + 5 : x1 - 5;
