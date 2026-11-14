@@ -493,7 +493,7 @@ test("rapid repeated join or create clicks cannot reserve duplicate players", as
 
 test("a board is identified by its seed: leaderboard keys carry no level and old keys are rejected", () => {
  const KEY = new Function("return " + /const KEY=(\/.*?\/),ID=/.exec(soloWorker)[1])();
- for (const ok of ["abc123-clean", "d20261112-vapor-a480", "zz9q-vintage", "abc123-v2-vintage", "d20261112-v2-vintage-a480", "abc123-v3-vintage", "d20261112-v3-vintage-a480"]) assert.ok(KEY.test(ok), ok);
+ for (const ok of ["abc123-clean", "d20261112-vapor-a480", "zz9q-vintage", "abc123-v2-vintage", "d20261112-v2-vintage-a480", "abc123-v3-vintage", "d20261112-v3-vintage-a480", "abc123-v4-vintage", "d20261112-v4-vintage-a480"]) assert.ok(KEY.test(ok), ok);
  for (const bad of ["abc123-1-clean", "abc123-12-vintage-a480", "abc123", "abc123-crt"]) assert.ok(!KEY.test(bad), bad);
  assert.doesNotMatch(soloHtml, /level\+\+|&level=|\blevel\b\s*=/);
  assert.match(soloHtml, /const boardId=\(\)=>seed\+\(generatorVersion>1\?'-v'\+generatorVersion:''\)\+'-'\+style/);
