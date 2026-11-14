@@ -262,7 +262,7 @@ async function load(reset=false){
  }
  P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNCING';
  try{
-  const res=await fetch('/api/leaderboard?scope=world&metric='+metric+'&offset='+offset,{cache:'no-store'});
+  const res=await fetch('/api/leaderboard?scope=world&offset='+offset+'&metric='+metric,{cache:'no-store'});
   if(!res.ok)throw Error('Network error');
   const data=await res.json();
   if(call!==run)return;
