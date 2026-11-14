@@ -276,9 +276,6 @@ function createASMR(host){
  };
 }
 
-function crusherInterval(daily=false){
- return daily?5:8;
-}
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
 function boardView(arena,seat){
  const side=seat===1||seat===3,w=side?504:arena.width-12,h=side?arena.width-12:504;
@@ -309,7 +306,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,crusherInterval,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,soloBrickNote,createASMR,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
