@@ -21,12 +21,9 @@ test("Infinite preserves every cell of the complete V4 pattern at its original b
    assert.equal(opening.generatorVersion,4);
    assert.ok(opening.hp.includes("1")||opening.hp.includes("3"));
    if(players===1){
-    let top=arena.rows,bottom=-1;
-    for(let k=0;k<opening.hp.length;k++)if(opening.hp[k]!=="0"){
-     const row=Math.floor(k/arena.cols);top=Math.min(top,row);bottom=Math.max(bottom,row);
-    }
-    assert.ok(top<arena.rows*.2,"keep the upper portion of the original formation");
-    assert.ok(bottom>arena.rows*.8,"keep the lower portion of the original formation");
+    const originalCells=[...full.hp].filter(cell=>cell!=="0").length;
+    const infiniteCells=[...opening.hp].filter(cell=>cell!=="0").length;
+    assert.equal(infiniteCells,originalCells,"retain every occupied row, including V4 reflectors");
    }
   }
  }
