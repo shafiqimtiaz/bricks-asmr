@@ -9,7 +9,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     top = Math.min(top, r); bottom = Math.max(bottom, r);
   }
   const width = right - left + 1, height = bottom - top + 1;
-  if (width < 18 || height < 18) return {...base, generatorVersion: 2, pattern: "fallback"};
+  if (width < 16 || height < 11) return {...base, generatorVersion: 2, pattern: "fallback"};
 
   const kinds = ["needle", "prison", "domino", "serpent", "jackpot", "twins"];
   const kind = hashSeed(seed + ":v2:pattern") % kinds.length;
@@ -17,7 +17,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     playerCount === 3 ? [0, 2, 1] : [0, 2, 1, 3];
   const midX = Math.floor((left + right) / 2), midY = Math.floor((top + bottom) / 2);
   const ix = Math.max(4, Math.floor(width * (kind === 5 ? .15 : .19)));
-  const iy = Math.max(4, Math.floor(height * (kind === 3 ? .16 : .19)));
+  const iy = Math.max(2, Math.floor(height * (height < 28 ? .13 : kind === 3 ? .16 : .19)));
   const x0 = left + ix, x1 = right - ix, y0 = top + iy, y1 = bottom - iy;
   const index = (c, r) => r * cols + c;
   const inField = (c, r) => c >= left && c <= right && r >= top && r <= bottom;
@@ -152,7 +152,8 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     for (let r=top;r<=bottom;r++)for(let c=left;c<=right;c++){
       const i=index(c,r);if(hp[i]!==4&&!seen[i])inaccessible++;
     }
-    const valid = inaccessible===0 && internalBricks>=24 && wallCount>=24 && remaining>Math.floor(width*height*.22);
+    const minPocket=Math.max(8,Math.floor((x1-x0-1)*(y1-y0-1)*.1));
+    const valid = inaccessible===0 && internalBricks>=minPocket && wallCount>=24 && remaining>Math.floor(width*height*.22);
     // Selection is deterministic and bounded; favor packed pockets over oversized blocking walls.
     const score = internalBricks * 2 + remaining*.12 - wallCount*.3;
     return {valid,score,hp,color,powers,remaining,wallCount};
