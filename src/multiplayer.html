@@ -340,7 +340,7 @@ let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
 const serverNow=()=>Date.now()+clock,shownC={},held={};
 // The room's rules are Solo's: the same engine runs here for the aim path, paddle geometry and power-up tables.
 const E=brickEngine();
-const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
+const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral','needle','prison','domino','serpent','jackpot','twins'];
 // ---------- canvas ----------
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scaleX = 1, scaleY = 1;
