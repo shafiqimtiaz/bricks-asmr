@@ -646,32 +646,34 @@ function toLogical(e){
 }
 function sliderTo(lx){ let t = Math.max(0, Math.min(1, (lx - SX0) / (SX1 - SX0))); if (fx.invert > 0) t = 1 - t; E.setPaddle(S, 'me', pw / 2 + t * (W - pw)); }
 // board: tap = launch only; drag = relative fine-aim (never jumps, never moves the paddle)
-let downX = 0, downAim = 0, moved = false, sliding = false, onBoard = false;
+let downX = 0, downAim = 0, aimOrigin = null, moved = false, sliding = false, onBoard = false;
 wrap.addEventListener('pointerdown', e => {
   if (e.target.tagName !== 'CANVAS') return;
   audioInit(); downX = e.clientX; moved = false;
   const [lx, ly] = toLogical(e);
   sliding = ly >= SZONE; onBoard = !sliding; downAim = aimAng;
+  const held = onBoard && state === 'aim' ? S.balls.find(b => b.held && b.source === 'me') : null;
+  aimOrigin = held && Math.hypot(lx - held.x, ly - held.y) <= 52 ? {x:held.x,y:held.y} : null;
   try { wrap.setPointerCapture(e.pointerId); } catch(_) {}
   if (sliding) sliderTo(lx);
 });
 wrap.addEventListener('pointermove', e => {
   if (!sliding && !onBoard) return;
-  const [lx] = toLogical(e);
+  const [lx,ly] = toLogical(e);
   if (sliding) { sliderTo(lx); return; }
   if (Math.abs(e.clientX - downX) > 8) moved = true;
-  if (moved && state === 'aim') { E.setAim(S, 'me', aimDragAngle(downAim, e.clientX - downX, wrap.getBoundingClientRect().width)); aimAng = me.aim; }
+  if (moved && state === 'aim') { E.setAim(S, 'me', aimOrigin ? aimPointerAngle(aimOrigin.x,aimOrigin.y,lx,ly) : aimDragAngle(downAim, e.clientX - downX, wrap.getBoundingClientRect().width)); aimAng = me.aim; }
 });
 function endPtr(e){
   if (!sliding && !onBoard) return;
-  const wasBoard = onBoard; sliding = false; onBoard = false;
+  const wasBoard = onBoard; sliding = false; onBoard = false; aimOrigin = null;
   if (!wasBoard || moved) return;
   if (state === 'aim') launch();
   else if (state === 'clear') newBoard();
   else if (state === 'over') startBoard();
 }
 wrap.addEventListener('pointerup', endPtr);
-wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
+wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; aimOrigin = null; });
 const keys = {};
 window.addEventListener('keydown', e => {
   if(!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
