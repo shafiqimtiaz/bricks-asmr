@@ -715,16 +715,17 @@ document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === '
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
 const boardId=()=>seed+(generatorVersion>1?'-v'+generatorVersion:'')+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
-let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='',lastRows=0,lastScore=0,lastEndReason='';
+let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},localHighScores={},myId='',myName='',lastRows=0,lastScore=0,lastBricks=0,lastCombo=0,lastScoreNote='',lastEndReason='';
 try{
  myId=localStorage.getItem('brick-asmr-player-id')||'';
  if(!/^[0-9a-f-]{36}$/i.test(myId)){myId=crypto.randomUUID();localStorage.setItem('brick-asmr-player-id',myId);}
  myName=localStorage.getItem('brick-asmr-player-name')||'';
  localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};
+ localHighScores=JSON.parse(localStorage.getItem('brick-asmr-high-scores')||'{}')||{};
 }catch(e){myId=crypto.randomUUID();}
 if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName))myName='Brick-'+myId.slice(0,6).toUpperCase();
 function myBest(key){return Number.isFinite(localBest[key])?localBest[key]:undefined;}
-function setLinks(){P('pfull').href='/leaderboard';P('pname').textContent='Player: '+myName+' ✎';}
+function setLinks(){P('pfull').href='/leaderboard?metric='+(panelMode==='over'?'score':'time');P('pname').textContent='Player: '+myName+' ✎';}
 async function loadBoard(){
  const seq=++boardSeq;boardKey=boardId();boardStatus='loading';boardRows=[];renderPanel();
  try{
@@ -736,11 +737,27 @@ async function loadBoard(){
  }catch(e){if(seq===boardSeq)boardStatus='error';}
  if(seq===boardSeq)renderPanel();
 }
-function onInfiniteOver(reason){
-  lastRows = S.descent ? S.descent.rows : 0;
-  lastScore = me.score;
-  lastEndReason = reason;
+async function onInfiniteOver(reason){
+  lastRows=S.descent?S.descent.rows:0;
+  lastScore=Math.round(me.score);
+  lastBricks=me.bricksBroken;
+  lastCombo=me.maxCombo;
+  lastEndReason=reason;
+  const key=boardId();
+  if(lastScore>Number(localHighScores[key]||0)){
+   localHighScores[key]=lastScore;
+   try{localStorage.setItem('brick-asmr-high-scores',JSON.stringify(localHighScores));}catch(e){}
+  }
+  lastScoreNote='SCORE '+lastScore+' · '+lastBricks+' BRICKS · '+lastCombo+' MAX COMBO';
   showPanel('over');
+  if(lastScore<1)return;
+  try{
+   const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({metric:'score',key,playerId:myId,name:myName,score:lastScore,bricksBroken:lastBricks,bestCombo:lastCombo})});
+   if(!res.ok)throw Error('Score rejected');
+   lastScoreNote+=' · WORLD SAVED';
+  }catch(e){lastScoreNote+=' · LOCAL ONLY';}
+  if(panelMode==='over')renderPanel();
 }
 async function onClear(ms){
  const key=boardId(),old=myBest(key);
@@ -763,12 +780,12 @@ function renderPanel(){
  if(!panelMode)return;
  if(panelMode==='over'){
   P('ptitle').textContent='INFINITE · '+(lastEndReason==='crushed'?'CRUSHED':'OUT OF LIVES');
-  P('ptime').textContent=lastRows+' ROWS · '+lastScore+' PTS';
-  P('pnote').textContent='endless run over · infinite runs are not ranked worldwide';
+  P('ptime').textContent=lastScore.toLocaleString()+' PTS · '+lastRows+' ROWS';
+  P('pnote').textContent=lastScoreNote;
   P('pnext').hidden=true;P('pclose').hidden=false;P('pbrag').hidden=true;
   P('pmodeInf').hidden=false;P('pmodeCls').hidden=false;
   setLinks();
-  const ol=P('plist');ol.replaceChildren();emptyBoard('Survive longer to beat '+lastRows+' rows.');
+  const ol=P('plist');ol.replaceChildren();emptyBoard('BEST SCORE '+Number(localHighScores[boardId()]||lastScore).toLocaleString()+' · WORLD RANKINGS ↗');
   return;
  }
  P('pmodeInf').hidden=true;P('pmodeCls').hidden=true;
@@ -811,6 +828,13 @@ P('nameForm').addEventListener('submit',async e=>{
  closeNameModal();setLinks();showToast('Leaderboard name saved');
  const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}(?:-v[234])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
  if(saved){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:saved[0],playerId:myId,name:myName,timeMs:saved[1]})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world rankings unavailable');}}
+ const savedScore=Object.entries(localHighScores).find(([key,score])=>/^[a-z0-9]{1,16}(?:-v[234])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(score)&&score>0);
+ if(savedScore){try{
+  const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+   metric:'score',key:savedScore[0],playerId:myId,name:myName,score:savedScore[1],
+   bricksBroken:savedScore[0]===boardId()?lastBricks:0,bestCombo:savedScore[0]===boardId()?lastCombo:0})});
+  if(!res.ok)throw Error('Not saved');
+ }catch(e){showToast('Score name will update with your next run');}}
 });
 P('pnext').onclick=()=>newBoard();
 P('pretry').onclick=()=>startBoard();
@@ -828,7 +852,7 @@ P('pbrag').onclick=()=>{
  const t='BRICKS ASMR · '+(isDaily()?'Daily '+seed.slice(1):'Seed '+seed)+'\nTime: '+fmtTime(lastTime)+(i>=0?' · World #'+(i+1):'')+'\nBeat me: '+shareURL();
  copyText(t,'Result copied');
 };
-P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
+P('top').onclick=()=>{location.href='/leaderboard?metric='+(soloMode==='infinite'?'score':'time');};
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}};
 function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();}
 P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND · '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
