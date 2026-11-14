@@ -101,6 +101,55 @@ export function buildLevelV4(base, seed, players, arena, hashSeed, randomSeed) {
    break;
   }
  }
+ // Seeded negative-space cues suggest a face without drawing one. Each family
+ // keeps its underlying geometry; the symmetry turns small absences into a gaze.
+ {
+  const faceRandom=randomSeed(hashSeed(seed+":v4:pareidolia"));
+  const faceInt=(a,b)=>a+Math.floor(faceRandom()*(b-a+1));
+  const half=center-left+1, height=bottom-lowerTop+1;
+  const compact=height<13;
+  if(half>=8&&height>=4){
+   const carve=(x,y)=>{
+    if(!inside(x,y)||y<lowerTop+(compact?0:2)||y>bottom-(compact?0:3))return;
+    const i=index(x,y);
+    if(hp[i]===4)return;
+    hp[i]=0;color[i]=0;power[i]=0;
+   };
+   const kind=faceInt(0,3);
+   const eyeX=left+Math.round(half*(.48+faceRandom()*.16));
+   const eyeY=lowerTop+Math.round(height*(.24+faceRandom()*.10));
+   const eyeRX=Math.max(2,Math.round(half*(.12+faceRandom()*.06)));
+   const eyeRY=Math.max(1,Math.round(height*(.035+faceRandom()*.03)));
+   const tilt=(faceRandom()-.5)*1.2;
+   for(let dx=-eyeRX;dx<=eyeRX;dx++)for(let dy=-eyeRY;dy<=eyeRY;dy++){
+    const u=dx/eyeRX,v=(dy-tilt*u*eyeRY)/eyeRY;
+    if(u*u+v*v>1.05||faceRandom()<.16)continue;
+    if(Math.abs(u)<.45&&Math.abs(v)<.6&&faceRandom()<.28)continue;
+    carve(eyeX+dx,eyeY+dy);
+   }
+   // Existing heavy bricks above the voids suggest a brow, not a drawn outline.
+   for(let dx=-eyeRX;dx<=eyeRX;dx++)if(faceRandom()<.62){
+    const x=eyeX+dx,y=eyeY-eyeRY-1+Math.round(tilt*dx/eyeRX);
+    if(inside(x,y)){const i=index(x,y);if(hp[i]===1||hp[i]===2){hp[i]=3;color[i]=0;power[i]=0;}}
+   }
+   // Broken centre and lower slits emerge as surrounding bricks break.
+   const bridgeX=center-faceInt(0,2);
+   const bridgeEnd=lowerTop+Math.round(height*(.57+faceRandom()*.07));
+   for(let y=eyeY+eyeRY+2;y<bridgeEnd;y++){
+    if(faceRandom()<(.35+kind*.09))carve(bridgeX,y);
+    if(faceRandom()<.12)carve(bridgeX-1,y);
+   }
+   const mouthY=lowerTop+Math.round(height*(.70+faceRandom()*.08));
+   const mouthSpan=Math.max(3,Math.round(half*(.36+faceRandom()*.22)));
+   const bend=[-2,1,2,-1][kind], stagger=faceRandom()*Math.PI;
+   for(let dx=-mouthSpan;dx<=0;dx++){
+    const u=-dx/mouthSpan;
+    const y=mouthY+Math.round(bend*u*u+Math.sin(u*4+stagger)*.65);
+    if(faceRandom()<.72-.22*u)carve(center+dx,y);
+    if(kind===2&&faceRandom()<.24)carve(center+dx,y+1);
+   }
+  }
+ }
  // Exact left-right symmetry is applied after every feature; four-way levels stay four-way.
  for(let y=lowerTop;y<=bottom;y++)for(let x=left;x<=center;x++){
   const a=index(x,y),b=index(cols-1-x,y);
