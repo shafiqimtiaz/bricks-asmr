@@ -259,6 +259,7 @@ body{--hud-life:#ff7a6b}
  background:linear-gradient(90deg,var(--lb-secondary),var(--l-accent))}
 @media(prefers-reduced-motion:reduce){#hudFill,#hud button{transition:none}}
 
+#wrap.aiming canvas{cursor:crosshair}
 </style>
 </head>
 <body class="vintage">
@@ -797,11 +798,12 @@ function draw(now){
  // The serve's aim path starts at the spot in front of your paddle, wherever your finger has taken it.
  const serve=playing&&me&&sim&&holdingServe(),simMe=serve?sim.players.find(p=>p.id===you):null;
  let spot=null;
+ wrap.classList.toggle("aiming",!!simMe);
  if(simMe){
   simMe.c=centres[you];simMe.aim=aimAng;
   spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
   sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
-  drawAimGuide(ctx,E.predict(sim,you,900),"#e4f4ec",now,!!drag?.moved,spot);
+  drawAimGuide(ctx,E.predict(sim,you,260),"#e4f4ec",now,!!drag?.moved,spot);
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
