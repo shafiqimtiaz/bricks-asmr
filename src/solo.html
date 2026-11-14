@@ -212,16 +212,16 @@ let BR = CS * .45, PU_R = CS * 1.5;
 const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 let seed = hm ? hm[1].toLowerCase() : randomSeed();
-let generatorVersion = new URLSearchParams(location.search).get('v')==='2' ? 2 : hm ? 1 : 2;
+let generatorVersion = [2,3].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : hm ? 1 : 3;
 function syncURL(){try{
  const url=new URL(location.href);
- if(generatorVersion===2)url.searchParams.set('v','2');else url.searchParams.delete('v');
+ if(generatorVersion>1)url.searchParams.set('v',String(generatorVersion));else url.searchParams.delete('v');
  url.hash=seed;history.replaceState(null,'',url.pathname+url.search+url.hash);
 }catch(e){}}
 window.addEventListener('hashchange',()=>{
  const m=/^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash||'');
  if(m&&m[1].toLowerCase()!==seed){
-  seed=m[1].toLowerCase();generatorVersion=new URLSearchParams(location.search).get('v')==='2'?2:1;startBoard();
+  seed=m[1].toLowerCase();generatorVersion=[2,3].includes(Number(new URLSearchParams(location.search).get('v')))?Number(new URLSearchParams(location.search).get('v')):1;startBoard();
  }
 });
 
@@ -313,7 +313,7 @@ let quad = false, hp, col, pu, remaining, total, palette, wallCols, vPal, vWall,
 const E = brickEngine();
 const PU_BY_ID = E.PU_BY_ID;
 function puDef(k){ return E.puDef(style, k); }
-const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','organic','spiral','needle','prison','domino','serpent','jackpot','twins'];
+const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','organic','spiral','needle','prison','domino','serpent','jackpot','twins','needle','prison','domino','serpent','jackpot','twins'];
 let N = COLS * ROWS;
 
 let board;
@@ -381,7 +381,7 @@ function sync(){
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
-const newBoard = () => { generatorVersion=2;seed = randomSeed(); startBoard(); };
+const newBoard = () => { generatorVersion=3;seed = randomSeed(); startBoard(); };
 function startBoard(){
   brickMusic.reset(seed);
   syncArena();
@@ -702,7 +702,7 @@ setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arr
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
 const SHARE_BASE = location.origin + location.pathname;
-const shareURL = () => SHARE_BASE + '?arena=' + W + (generatorVersion===2?'&v=2':'') + '#' + seed;
+const shareURL = () => SHARE_BASE + '?arena=' + W + (generatorVersion>1?'&v='+generatorVersion:'') + '#' + seed;
 async function copyText(t, ok){
   try { await navigator.clipboard.writeText(t); showToast(ok); }
   catch(e) { showToast(t, 8000); toast.style.pointerEvents = 'auto'; toast.style.userSelect = 'text'; }
@@ -710,13 +710,13 @@ async function copyText(t, ok){
 document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'board link copied'); };
 document.getElementById('daily').onclick = () => {
   const d = new Date(), ymd = d.toISOString().slice(0,10).replace(/-/g,'');
-  seed = 'd' + ymd; generatorVersion=2;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
+  seed = 'd' + ymd; generatorVersion=3;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
-const boardId=()=>seed+(generatorVersion===2?'-v2':'')+'-'+style+(W===360?'':'-a'+W);
+const boardId=()=>seed+(generatorVersion>1?'-v'+generatorVersion:'')+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
 let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
 try{
