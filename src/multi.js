@@ -39,7 +39,7 @@ function startRound(r){
  r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set="vintage";
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
  r.arena=arenaFor(r.players.length,r.arena);
- r.board=bricks(r.seed,r.players.length,r.arena,3);r.generatorVersion=3;
+ r.board=bricks(r.seed,r.players.length,r.arena,4);r.generatorVersion=4;
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
  // Infinite plays coop-like (shared pool, one ball, host serves) with the descent flag.
@@ -64,7 +64,7 @@ export class BrickRoom extends DurableObject{
  constructor(ctx,env){super(ctx,env);this.ctx=ctx;this.room=null;this.loop=null;this.lastTick=0;this.lastSave=0;this.sent=null;this.pending=[];this.evCount={};ctx.blockConcurrencyWhile(async()=>{this.room=await ctx.storage.get("room")||null;if(this.room){
   if(!this.room.arena)this.room.arena=arenaLayout();
   // A room stored before the engine existed has no simulation to continue: it goes back to its lobby.
-  if(this.room.status!=="waiting"&&!this.room.sim){this.room.status="waiting";this.room.board=bricks(this.room.seed||this.room.code.toLowerCase(),Math.max(2,this.room.players.length),this.room.arena,3);this.room.generatorVersion=3;}
+  if(this.room.status!=="waiting"&&!this.room.sim){this.room.status="waiting";this.room.board=bricks(this.room.seed||this.room.code.toLowerCase(),Math.max(2,this.room.players.length),this.room.arena,4);this.room.generatorVersion=4;}
  }});}
  async save(){if(this.room){this.room.lastActivity=Date.now();await this.ctx.storage.put("room",this.room);}}
  liveIds(){return new Set(this.ctx.getWebSockets().filter(w=>w.readyState===1).map(w=>w.deserializeAttachment()?.id).filter(Boolean));}
@@ -134,7 +134,7 @@ export class BrickRoom extends DurableObject{
    const data=await req.json().catch(()=>({})),name=nameOf(data.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const p={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5};
    const arena=arenaLayout(Number(data.aspect));
-   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,arena,board:bricks(code.toLowerCase(),2,arena,3),generatorVersion:3,seed:code.toLowerCase(),startedAt:0,lastActivity:Date.now()};assignSides(this.room.players);this.sent=null;
+   this.room={code,hostId:p.id,players:[p],status:"waiting",round:0,arena,board:bricks(code.toLowerCase(),2,arena,4),generatorVersion:4,seed:code.toLowerCase(),startedAt:0,lastActivity:Date.now()};assignSides(this.room.players);this.sent=null;
    await this.save();return reply({code,you:p.id},201,{"set-cookie":cookieFor(code,p.token)});
   }
   if(!this.room||this.room.code!==code||Date.now()-this.room.lastActivity>TTL)return reply({error:"Room not found or expired"},404);
@@ -145,7 +145,7 @@ export class BrickRoom extends DurableObject{
    if(r.players.length>=4)return reply({error:"This lobby is full (4/4)"},409);
    const body=await req.json().catch(()=>({})),name=nameOf(body.name);if(!name)return reply({error:"Enter a name of 2–18 characters"},400);
    const player={id:crypto.randomUUID(),token:newToken(),name,seat:0,pos:.5};r.players.push(player);assignSides(r.players);
-   if(r.status==="waiting"){r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena,3);r.generatorVersion=3;this.sent=null;}
+   if(r.status==="waiting"){r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),r.players.length,r.arena,4);r.generatorVersion=4;this.sent=null;}
    await this.save();this.broadcast();return reply({code,you:player.id,resumed:false},201,{"set-cookie":cookieFor(code,player.token)});
   }
   if(!existing)return reply({error:"Join the lobby first"},401);
@@ -188,7 +188,7 @@ export class BrickRoom extends DurableObject{
    }
    r.players=r.players.filter(p=>p.id!==existing.id);
    if(r.status==="waiting"&&r.players.length){
-    assignSides(r.players);r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),Math.max(2,r.players.length),r.arena,3);r.generatorVersion=3;this.sent=null;
+    assignSides(r.players);r.arena=arenaFor(r.players.length,r.arena);r.board=bricks(r.seed||r.code.toLowerCase(),Math.max(2,r.players.length),r.arena,4);r.generatorVersion=4;this.sent=null;
    }
    for(const ws of this.ctx.getWebSockets())if(ws.deserializeAttachment()?.id===existing.id)try{ws.close(1000,"Left lobby");}catch{}
    if(r.hostId===existing.id)r.hostId=r.players[0]?.id||null;

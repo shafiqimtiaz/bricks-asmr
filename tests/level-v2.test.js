@@ -77,16 +77,16 @@ test("reactive bricks are distinguishable and have no extra audio samples", () =
  assert.ok(ops.length>=3,"reactor center must be marked");
 });
 
-test("V2 remains reproducible while new rounds use V3", () => {
+test("V2 remains reproducible when new rounds use V4", () => {
  for(const seed of ["q0","q1","q80"]) {
   const original=bricks(seed,1,arenaLayout(),2);
   assert.equal(original.generatorVersion,2);
   assert.deepEqual(original,bricks(seed,1,arenaLayout(),2));
  }
  assert.match(soloHtml,/bricks\(seed,1,arena,generatorVersion\)/);
- assert.match(soloHtml,/hm \? 1 : 3/);
+ assert.match(soloHtml,/let generatorVersion = .* : hm \? 1 : 4;/);
  assert.match(soloHtml,/generatorVersion>1\?'-v'\+generatorVersion:''/);
- assert.match(serverSource,/bricks\(r\.seed,r\.players\.length,r\.arena,3\)/);
+ assert.match(serverSource,/bricks\(r\.seed,r\.players\.length,r\.arena,4\)/);
  const KEY=new Function("return "+/const KEY=(\/.*?\/),ID=/.exec(soloWorker)[1])();
  for(const key of ["abc123-vintage","abc123-v2-vintage","abc123-v3-vintage"])
   assert.equal(KEY.test(key),true);
