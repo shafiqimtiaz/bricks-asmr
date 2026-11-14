@@ -39,7 +39,7 @@ function startRound(r){
  r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set="vintage";
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
  r.arena=arenaFor(r.players.length,r.arena);
- r.board=bricks(r.seed,r.players.length,r.arena);
+ r.board=bricks(r.seed,r.players.length,r.arena,2);r.generatorVersion=2;
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
  const coop=r.mode==="coop",lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
@@ -77,7 +77,7 @@ export class BrickRoom extends DurableObject{
  snapshot(withBoard=true){
   const r=this.room,S=r.sim,live=this.liveIds(),idx=new Map(r.players.map((p,i)=>[p.id,i])),at=id=>idx.get(id)??-1;
   const [lo,hi]=[40,544],edge=seat=>seat===0||seat===2?r.arena.width/2:(lo+hi)/2,pw=64*r.arena.cell/6;
-  const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,arena:r.arena,seed:r.seed,mode:r.mode||"versus",set:r.set||"vintage",
+  const state={code:r.code,status:r.status,hostId:r.hostId,round:r.round||0,arena:r.arena,seed:r.seed,generatorVersion:r.generatorVersion||1,mode:r.mode||"versus",set:r.set||"vintage",
    startedAt:r.startedAt,now:Date.now(),result:r.result||null,
    elapsed:r.startedAt?Math.max(0,Math.floor((((r.status==="finished"&&r.finishedAt)||Date.now())-r.startedAt)/1000)):0,
    players:r.players.map(p=>{
