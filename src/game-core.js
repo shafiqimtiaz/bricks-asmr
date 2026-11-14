@@ -397,10 +397,6 @@ function viewPoint(view,x,y){
  const m=viewMatrix(view);
  return {x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]};
 }
-function sliderPos(view,x){
- const margin=Math.max(40,view.width*.11);
- return Math.max(0,Math.min(1,(x-margin)/(view.width-2*margin)));
-}
 // Fits a logical stage into the viewport. The top 36 logical pixels are the HUD band; a taller HUD hangs above the stage.
 function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  const dock=vw>=900&&vw>=vh*1.15&&panelOpen;
@@ -414,7 +410,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {randomPlayerName,arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {randomPlayerName,arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[randomPlayerName,arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
 export const soloCoreSource=browserCorePrelude+[randomPlayerName,arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
