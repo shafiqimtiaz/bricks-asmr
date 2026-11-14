@@ -41,7 +41,7 @@ try {
   const guestContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const guest = await pageAt(guestContext, `/multiplayer/${code}`);
   await guest.locator("#inviteDetails").waitFor({ state: "visible" });
-  assert.equal(await guest.locator("#playerName").inputValue(), "", "New invitee must provide a name");
+  assert.match(await guest.locator("#playerName").inputValue(), /^[A-Z][a-z]+ [A-Z][a-z]+$/, "New invitee receives an adjective–noun name");
   await guest.locator("#playerName").fill("QA Guest");
   await guest.locator("#acceptInvite").click();
   await waitFor(guest, () => document.querySelector("#currentName")?.textContent === "QA Guest");

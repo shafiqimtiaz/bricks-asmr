@@ -1,5 +1,10 @@
 import { createBrickMusic } from "./brick-music.js";
 import { buildLevelV4 } from "./level-v4.js";
+function randomPlayerName(){
+ const adjectives=["Hollow","Silent","Pale","Faded","Hidden","Distant","Crooked","Waning","Restless","Velvet","Obscure","Lonely","Forgotten","Quiet","Vacant","Dusty","Ghostly","Strange","Shifting","Nameless"];
+ const nouns=["Lantern","Specter","Shadow","Echo","Hallway","Signal","Watcher","Visitor","Mirror","Static","Drifter","Window","Whisper","Phantom","Wanderer","Moth","Doorway","Nocturne","Reverie","Glitch"];
+ return adjectives[Math.floor(Math.random()*adjectives.length)]+" "+nouns[Math.floor(Math.random()*nouns.length)];
+}
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function arenaLayout(aspect=9/16){
@@ -409,7 +414,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {randomPlayerName,arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[randomPlayerName,arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[randomPlayerName,arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
