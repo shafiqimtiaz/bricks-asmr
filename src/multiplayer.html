@@ -340,7 +340,7 @@ let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
 const serverNow=()=>Date.now()+clock,shownC={},held={};
 // The room's rules are Solo's: the same engine runs here for the aim path, paddle geometry and power-up tables.
 const E=brickEngine();
-const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
+const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral','needle','prison','domino','serpent','jackpot','twins'];
 // ---------- canvas ----------
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scaleX = 1, scaleY = 1;
@@ -718,7 +718,7 @@ function paintCell(b,i){
  const x=GRID_X+i%GRID_COLS*GRID_SIZE,y=GRID_Y+Math.floor(i/GRID_COLS)*GRID_SIZE;
  drawBrickTile(tileCtx,x,y,GRID_SIZE,hpArr[i],colArr[i],
   style==="vapor"?b.vaporPalette||PALETTE.vapor:b.palette||PALETTE[style],
-  style==="vapor"?b.vaporWalls:b.wallColors);
+  style==="vapor"?b.vaporWalls:b.wallColors,parseInt(b.powerups?.[i]||"0",16));
 }
 // Only the cells that changed are redrawn; a new round, theme or canvas size repaints them all.
 function paintTiles(b){
