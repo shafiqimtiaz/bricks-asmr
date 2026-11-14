@@ -358,23 +358,10 @@ function createASMR(host){
  };
 }
 
-// Infinite openings use complete, smaller logical formations so the first timed
-// descent is a distant threat, with equal clearance from occupied multiplayer edges.
+// Infinite uses the same complete procedural level as Classic.
+// Its timed descent is handled by the engine, never by cropping the board.
 function infiniteOpeningBoard(seed,arena,version=4,players=1){
- const compactRows=Math.max(18,2*Math.floor(arena.rows*(players===1?.48:players===2?.72:.81)/2));
- const compactCols=players>=3?Math.max(32,2*Math.floor(arena.cols*.81/2)):arena.cols;
- const temp={...arena,rows:compactRows,cols:compactCols};
- const source=bricks(seed,players,temp,version);
- const offsetY=players===1?0:Math.floor((arena.rows-compactRows)/2);
- const offsetX=Math.floor((arena.cols-compactCols)/2);
- const cells=arena.cols*arena.rows;
- const hp=new Array(cells).fill("0"),colors=hp.slice(),powerups=hp.slice();
- for(let r=0;r<compactRows;r++)for(let c=0;c<compactCols;c++){
-  const target=(r+offsetY)*arena.cols+c+offsetX,sourceIndex=r*compactCols+c;
-  hp[target]=source.hp[sourceIndex];colors[target]=source.colors[sourceIndex];powerups[target]=source.powerups[sourceIndex];
- }
- return {...source,hp:hp.join(""),colors:colors.join(""),powerups:powerups.join(""),
-  centerX:source.centerX+offsetX*arena.cell,centerY:source.centerY+offsetY*arena.cell,arena};
+ return bricks(seed,players,arena,version);
 }
 
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
