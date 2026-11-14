@@ -85,3 +85,20 @@ test("score saving records bricks and combo separately without a time",async()=>
   assert.equal(res.status,400);
  }
 });
+
+test("score ranking counts only brick breaks and combos, not paddle returns",()=>{
+ const arena=arenaLayout(),board=bricks("brick-score",1,arena,4),E=brickEngine(()=>.5);
+ const S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",lives:5});
+ const me=S.players[0];
+ const i=S.hp.findIndex(v=>v===1);
+ assert.ok(i>=0);
+ const x=arena.gridX+(i%arena.cols+.5)*arena.cell,y=arena.gridY+(Math.floor(i/arena.cols)+.5)*arena.cell;
+ S.balls=[{x,y,vx:0,vy:-300,owner:"me",source:"me",held:false}];
+ E.step(S,.003);
+ assert.ok(me.bricksBroken>=1);
+ assert.ok(me.brickScore>=10);
+ assert.ok(me.score>=me.brickScore);
+ const before=me.brickScore;
+ me.score+=2;
+ assert.equal(me.brickScore,before,"non-brick points must not affect ranking score");
+});
