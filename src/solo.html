@@ -465,7 +465,7 @@ function react(e){
       if (style !== 'clean' && debris.length < 900) for (let d = 0; d < 2; d++) debris.push({x: GX + c * CS + Math.random() * CS, y: by + Math.random() * CS, vx: (Math.random() - .5) * 60, vy: (Math.random() - .8) * 50, c: fc, t: 1});
       drawCell(i); break;
     }
-    case 'hit': blip(140 + e.r, 0.12, 0.05, 'sine'); drawCell(e.i); break;
+    case 'hit': brickNote(e.r); drawCell(e.i); break;
     case 'cell': drawCell(e.i); break;
     case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
     case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
