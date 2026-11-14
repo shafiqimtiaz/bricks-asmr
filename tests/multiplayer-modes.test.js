@@ -44,7 +44,7 @@ test("infinite rooms play coop-like with a shared pool and the descent flag", as
   assert.equal(room.mode, "infinite");
   assert.equal(S.mode, "coop", "the engine still runs coop rules");
   assert.equal(S.infinite, true);
-  assert.deepEqual(S.descent, { rows: 0 });
+  assert.deepEqual(S.descent, { t: 0, rows: 0, interval: 8 });
   assert.equal(S.pool, 6, "a pool of 3 lives per player");
   assert.equal(S.balls.length, 1, "one shared ball, host serves");
   assert.equal(roomInstance(server, room).snapshot().mode, "infinite");
