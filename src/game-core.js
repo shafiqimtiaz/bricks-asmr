@@ -358,6 +358,17 @@ function createASMR(host){
  };
 }
 
+// Infinite Solo begins with a compact complete pattern above the playing field, not
+// a full-height Classic formation already close to the paddle.
+function infiniteOpeningBoard(seed,arena,version=4){
+ const compactRows=Math.max(18,2*Math.floor(arena.rows*.48/2));
+ const source=bricks(seed,1,{...arena,rows:compactRows},version);
+ const padding="0".repeat(arena.cols*(arena.rows-compactRows));
+ return {...source,hp:source.hp+padding,colors:source.colors+padding,
+  powerups:source.powerups+padding,arena,
+  centerY:source.centerY};
+}
+
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
 function boardView(arena,seat){
  const side=seat===1||seat===3,w=side?504:arena.width-12,h=side?arena.width-12:504;
@@ -391,4 +402,4 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
 export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,buildLevelV2,buildLevelV3,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV2,buildLevelV3,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
