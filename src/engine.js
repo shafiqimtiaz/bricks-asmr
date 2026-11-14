@@ -364,19 +364,48 @@ function brickEngine(rng=Math.random){
   return false;
  }
 
- // Infinite mode: the board descends one row on a timer and never stops until
- // the lowest row reaches a paddle. The crusher transform carries the
- // formation down, exactly as a miss does, and the existing gap() check in
- // step() ends the round. New bricks refill the top row as it descends.
+ // Infinite Solo scrolls its fixed-height grid down one row, then creates a
+ // fresh row at the ceiling. Recycling the grid avoids exhausting spawn rows.
+ function scrollSoloInfinite(){
+  const {COLS,ROWS}=S,last=(ROWS-1)*COLS;
+  if(S.rowCount[ROWS-1]){finish({reason:'crushed'});return;}
+  for(const field of [S.hp,S.col,S.pu]){
+   field.copyWithin(COLS,0,last);
+   field.fill(0,0,COLS);
+  }
+  S.rowCount.copyWithin(1,0,ROWS-1);
+  S.rowCount[0]=0;
+  const useful=[1,2,3,4,6,8,8,9],phase=S.descent.rows%19,eye=Math.floor(COLS*.28);
+  for(let c=S.spawnC0;c<=(COLS-1)/2;c++){
+   const mirror=COLS-1-c;
+   if(mirror>S.spawnC1)continue;
+   // A recurring symmetric negative-space detail keeps the stream uncanny.
+   if(phase>=4&&phase<=8&&Math.abs(c-eye)<=2)continue;
+   if(rng()>=.78)continue;
+   const color=2+((Math.floor(c/4)+Math.floor(S.descent.rows/3))%13);
+   const power=rng()<.07?useful[Math.floor(rng()*useful.length)]:0;
+   for(const x of c===mirror?[c]:[c,mirror]){
+    S.hp[x]=1;S.col[x]=color;S.pu[x]=power;
+    S.rowCount[0]++;S.colCount[x]++;
+    S.remaining++;S.total++;
+   }
+  }
+  ev.push({t:'board'});
+ }
+ // Classic and multiplayer keep their current mechanics. Infinite Solo alone
+ // uses the streaming grid, rather than moving a finite formation away from the ceiling.
  function descentTick(dt){
   if(!S.infinite||S.status!=="play")return;
   const d=S.descent;d.t+=dt;
   if(d.t<d.interval)return;
   d.t=0;d.rows++;
   d.interval=Math.max(2.5,8*Math.pow(0.97,d.rows));
-  for(const seat of S.seats)S.crush.target[seat]+=S.CS;
-  refillEdges();
-  ev.push({t:"descent",rows:d.rows});
+  if(S.mode==='solo'&&S.seats.length===1&&S.seats[0]===0)scrollSoloInfinite();
+  else{
+   for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+   refillEdges();
+  }
+  if(S.status==='play')ev.push({t:"descent",rows:d.rows});
  }
  // New bricks enter just beyond the formation, on the far side from each
  // occupied edge, so the wall keeps coming without ever spawning inside
@@ -433,6 +462,10 @@ function brickEngine(rng=Math.random){
   for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
   updateTransform(S);
   if(S.infinite)descentTick(dt);
+  if(S.status!=='play')return ev;
+  if(S.infinite&&S.seats.some(seat=>bySeat(S,seat)&&gap(S,seat)<=0)){
+   finish({reason:'crushed'});return ev;
+  }
   if(!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
   S.clock+=dt;
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
