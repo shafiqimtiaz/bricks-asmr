@@ -9,6 +9,18 @@ function json(v,status=200){return new Response(JSON.stringify(v),{status,header
 const KEY=/^[a-z0-9]{1,16}-(clean|vintage|vapor)(?:-a\d{3,4})?$/,ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,NAME=/^[\p{L}\p{N} _.-]{2,24}$/u;
 async function api(req,env,url){
  if(req.method==='GET'){
+  if(url.searchParams.get('scope')==='world'){
+   try{
+    const db=env.DB.withSession('first-unconstrained');
+    const list=await db.prepare(`SELECT t.player_id AS playerId,
+      (SELECT x.player_name FROM leaderboard_times x WHERE x.player_id=t.player_id ORDER BY x.updated_at DESC, x.board_key DESC LIMIT 1) AS name,
+      COUNT(*) AS clears, MIN(t.best_ms) AS timeMs
+      FROM leaderboard_times t GROUP BY t.player_id
+      ORDER BY clears DESC, timeMs ASC LIMIT 50`).all();
+    const count=await db.prepare('SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times').first();
+    return json({entries:list.results||[],totalPlayers:count?.n||0,scope:'world'});
+   }catch(e){console.error('world leaderboard GET',e);return json({error:'Leaderboard unavailable'},503);}
+  }
   const key=url.searchParams.get('key')||'';if(!KEY.test(key))return json({error:'Invalid challenge'},400);
   try{const db=env.DB.withSession('first-unconstrained');
    const list=await db.prepare('SELECT player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times WHERE board_key=? ORDER BY best_ms ASC, updated_at ASC, player_id ASC LIMIT 50').bind(key).all();
