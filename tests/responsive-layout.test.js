@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, boardView, sliderPos, stageFit, viewPoint } from "../src/game-core.js";
+import { arenaLayout, boardView, stageFit, viewPoint } from "../src/game-core.js";
 import { brickEngine } from "../src/engine.js";
 import { multiHtml, soloHtml } from "./helpers.js";
 
@@ -54,7 +54,7 @@ test("both pages use the shared stage fit, pixel-capped canvases and touch-sized
   assert.ok(multiHtml.includes("#panel input,#panel .roomOption input{font:16px"), "inputs must not trigger iOS zoom");
 });
 
-test("every seat's camera puts that player's paddle at the bottom, above the slider", () => {
+test("every seat's camera puts that player's paddle at the bottom, above the touch surface", () => {
   for (const ratio of [0.46, 9 / 16, 1, 16 / 9]) {
     const arena = arenaLayout(ratio);
     for (const seat of [0, 1, 2, 3]) {
@@ -68,16 +68,16 @@ test("every seat's camera puts that player's paddle at the bottom, above the sli
       }
       assert.ok(Math.abs(Math.min(...xs) - 6) < 1e-9 && Math.abs(Math.max(...xs) - (view.width - 6)) < 1e-9);
       assert.ok(Math.abs(Math.min(...ys) - 40) < 1e-9 && Math.abs(Math.max(...ys) - (view.height - 96)) < 1e-9);
-      // Own paddle: just inside the bottom of the court, clear of the slider track that starts 40px from the bottom.
+      // Own paddle: just inside the bottom of the court, seven pixels above the touch surface.
       const own = paddleRect(arena, seat, 0.5);
       const a = viewPoint(view, own.x, own.y), b = viewPoint(view, own.x + own.w, own.y + own.h);
       const bottom = Math.max(a.y, b.y);
       assert.ok(Math.abs(bottom - (view.height - 97)) < 1e-9, "seat " + seat + " paddle bottom " + bottom);
       assert.ok(Math.abs((a.x + b.x) / 2 - view.width / 2) < 1e-9);
-      // Sliding right always moves the on-screen paddle right.
-      const margin = Math.max(40, view.width * 0.11);
-      const left = paddleRect(arena, seat, sliderPos(view, margin));
-      const right = paddleRect(arena, seat, sliderPos(view, view.width - margin));
+      assert.equal(view.height - 90 - bottom, 7, "paddle remains above the touch surface");
+      // Dragging right moves the on-screen paddle right for every rotated seat.
+      const left = paddleRect(arena, seat, 0);
+      const right = paddleRect(arena, seat, 1);
       const lx = viewPoint(view, left.x + left.w / 2, left.y + left.h / 2).x;
       const rx = viewPoint(view, right.x + right.w / 2, right.y + right.h / 2).x;
       assert.ok(lx < rx);
