@@ -120,6 +120,8 @@ function brickEngine(rng=Math.random){
   };
   [c.ky,c.by]=axis(2,0,B.Y0,B.Y1);
   [c.kx,c.bx]=axis(1,3,B.X0,B.X1);
+  if(S.infinite&&S.mode==='solo'&&S.seats.length===1&&S.seats[0]===0)
+   c.by+=S.CS*S.descent.t/S.descent.interval;
  }
  function toWorld(S,x,y){const c=S.crush;return {x:c.kx*x+c.bx,y:c.ky*y+c.by};}
  // Grid column/row under a world coordinate. An unstretched axis uses Solo's exact arithmetic (v - G - offset).
@@ -460,8 +462,8 @@ function brickEngine(rng=Math.random){
   if(S.status!=='play'){settleMisses();checkEnd();return ev;}
   const c=S.crush;
   for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
-  updateTransform(S);
   if(S.infinite)descentTick(dt);
+  updateTransform(S);
   if(S.status!=='play')return ev;
   if(S.infinite&&S.seats.some(seat=>bySeat(S,seat)&&gap(S,seat)<=0)){
    finish({reason:'crushed'});return ev;
