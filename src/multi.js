@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { arenaLayout, squareArena, bricks, browserCoreSource } from "./game-core.js";
 import { brickEngine, engineSource } from "./engine.js";
 import MULTIPLAYER_HTML from "./multiplayer.html";
+import { withPwa } from "./pwa.js";
 const ABC="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",TTL=21600000;
 const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
 function reply(body,status=200,extra={}){return new Response(JSON.stringify(body),{status,headers:{...JSON_HEADERS,...extra}});}
@@ -241,7 +242,7 @@ export class BrickRoom extends DurableObject{
 function fxOf(o){const f={};for(const k in o)if(o[k]>0)f[k]=num(o[k]);return f;}
 function newCode(){const bytes=new Uint8Array(6);crypto.getRandomValues(bytes);return Array.from(bytes,n=>ABC[n%ABC.length]).join("");}
 function sameOrigin(request){const origin=request.headers.get("origin");return !origin||origin===new URL(request.url).origin;}
-function htmlResponse(html){return new Response(html,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-cache","x-content-type-options":"nosniff","referrer-policy":"no-referrer","x-frame-options":"DENY"}});}
+function htmlResponse(html){return new Response(withPwa(html),{headers:{"content-type":"text/html; charset=utf-8","cache-control":"no-cache","x-content-type-options":"nosniff","referrer-policy":"no-referrer","x-frame-options":"DENY"}});}
 
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;

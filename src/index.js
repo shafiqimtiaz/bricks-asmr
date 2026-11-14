@@ -4,6 +4,7 @@ import { engineSource } from "./engine.js";
 export { BrickRoom } from "./multi.js";
 import GAME from "./solo.html";
 import LEADERBOARD from "./leaderboard.html";
+import { icons, manifest, serviceWorker, withPwa } from "./pwa.js";
 
 function json(v,status=200){return new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});}
 const KEY=/^[a-z0-9]{1,16}-(clean|vintage|vapor)(?:-a\d{3,4})?$/,ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,NAME=/^[\p{L}\p{N} _.-]{2,24}$/u;
@@ -47,7 +48,10 @@ export default {async fetch(req,env){
  if(path.startsWith('/api/multiplayer/rooms')){const u=new URL(req.url);u.pathname=path.replace('/api/multiplayer','/api');return multiplayer.fetch(new Request(u,req),env);}
  if(path==='/api/leaderboard')return api(req,env,url);
  if(req.method!=='GET'&&req.method!=='HEAD')return new Response('Method not allowed',{status:405});
- if(path==='/'||path==='/index.html')return new Response(req.method==='HEAD'?null:GAME.replace('<script>','<script>\n'+soloCoreSource+'\n'+engineSource+'\n'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
- if(path==='/leaderboard'||path==='/leaderboard/')return new Response(req.method==='HEAD'?null:LEADERBOARD,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
+ if(path==='/manifest.webmanifest')return new Response(req.method==='HEAD'?null:manifest,{headers:{'content-type':'application/manifest+json; charset=utf-8','cache-control':'public, max-age=3600','x-content-type-options':'nosniff'}});
+ if(path==='/sw.js')return new Response(req.method==='HEAD'?null:serviceWorker,{headers:{'content-type':'text/javascript; charset=utf-8','cache-control':'no-cache','service-worker-allowed':'/','x-content-type-options':'nosniff'}});
+ if(Object.hasOwn(icons,path))return new Response(req.method==='HEAD'?null:Uint8Array.from(atob(icons[path]),c=>c.charCodeAt(0)),{headers:{'content-type':'image/png','cache-control':'public, max-age=86400','x-content-type-options':'nosniff'}});
+ if(path==='/'||path==='/index.html')return new Response(req.method==='HEAD'?null:withPwa(GAME.replace('<script>','<script>\n'+soloCoreSource+'\n'+engineSource+'\n')),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
+ if(path==='/leaderboard'||path==='/leaderboard/')return new Response(req.method==='HEAD'?null:withPwa(LEADERBOARD),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-cache'}});
  return new Response('Not found',{status:404});
 }};

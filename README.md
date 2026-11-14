@@ -9,6 +9,12 @@ The Bricks ASMR home screen opens a unified **Lobby** with **Single Player** and
 
 Solo scores are saved in Cloudflare D1 and visible in one **global leaderboard** across every seed and previous visual mode. All saved runs are shown (with pagination), including historical scores. CRT is the only available visual style for new solo and multiplayer sessions. Player renaming uses an in-game dialog and updates the public display name on saved results.
 
+## Install as an app
+
+Open Bricks ASMR in a browser over HTTPS. On Chrome or Edge, use **Install app** from the address bar or browser menu; on Android Chrome use **Install app** or **Add to Home screen**. On iPhone or iPad, use Safari's Share menu and **Add to Home Screen**.
+
+The installed app launches in a standalone window. Single Player can reopen offline after the initial online visit; live multiplayer rooms and world rankings still require internet access.
+
 ## Development and deployment
 
 Requires Node.js 22.18 or later. Cloudflare Workers serves production requests; no always-running Node server is required.
