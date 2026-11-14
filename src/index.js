@@ -17,10 +17,10 @@ async function api(req,env,url){
     if(!Number.isSafeInteger(offsetRaw)||offsetRaw<0||offsetRaw>1000000)return json({error:'Invalid offset'},400);
     const db=env.DB.withSession('first-unconstrained');
     const sql=metric==='score'
-     ?'SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_score AS score, bricks_broken AS bricksBroken, best_combo AS bestCombo FROM leaderboard_scores WHERE board_key GLOB '*-v4-*' ORDER BY best_score DESC, best_combo DESC, bricks_broken DESC, updated_at ASC, player_id ASC LIMIT 51 OFFSET ?'
-     :'SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times WHERE board_key GLOB '*-v4-*' ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?';
+     ?"SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_score AS score, bricks_broken AS bricksBroken, best_combo AS bestCombo FROM leaderboard_scores WHERE board_key GLOB '*-v4-*' ORDER BY best_score DESC, best_combo DESC, bricks_broken DESC, updated_at ASC, player_id ASC LIMIT 51 OFFSET ?"
+     :"SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times WHERE board_key GLOB '*-v4-*' ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?";
     const list=await db.prepare(sql).bind(offsetRaw).all();
-    const count=await db.prepare(metric==='score'?'SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_scores WHERE board_key GLOB '*-v4-*'':'SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times WHERE board_key GLOB '*-v4-*'').first();
+     const count=await db.prepare(metric==='score'?"SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_scores WHERE board_key GLOB '*-v4-*'":"SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times WHERE board_key GLOB '*-v4-*'").first();
     const entries=list.results||[];
     return json({entries:entries.slice(0,50),totalPlayers:count?.n||0,hasMore:entries.length>50,nextOffset:offsetRaw+50});
    }catch(e){console.error('world leaderboard GET',e);return json({error:'Leaderboard unavailable'},503);}
