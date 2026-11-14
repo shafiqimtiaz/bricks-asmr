@@ -184,9 +184,8 @@ const arenaWidth=/^\d{3,4}$/.test(arenaParam)?Number(arenaParam):360;
 const game=new URL('/?arena='+arenaWidth,location.origin);game.hash=seed;
 document.querySelector('.back').href=game.pathname+game.search+game.hash;
 P('play').href=game.pathname+game.search+game.hash;
-const playerId=localStorage.getItem('brick-asmr-player-id')||'';
-let localBest={};
-try{localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
+let playerId='',localBest={};
+try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
 const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
 const best=Math.min(Infinity,...Object.values(localBest).filter(Number.isFinite));
 P('mine').textContent=Number.isFinite(best)?fmt(best):'--:--';
