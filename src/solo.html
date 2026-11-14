@@ -446,7 +446,12 @@ const hudLives = document.getElementById('lives'), hudTmr = document.getElementB
 const hudLvl = document.getElementById('lvl'), hudFill = document.getElementById('hudFill');
 function setText(el, text){ if (el.textContent !== text) el.textContent = text; }
 function render(fs = 1){
-  shake *= Math.pow(0.86, fs); const sx = (Math.random() - .5) * shake, sy = (Math.random() - .5) * shake;
+  shake *= Math.pow(0.86, fs);
+  if (shake < .03) shake = 0;
+  const motion = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const t = performance.now() / 1000;
+  const strength = motion ? shake * shake / 12 : 0;
+  const sx = Math.sin(t * 29) * strength * .65, sy = Math.sin(t * 37) * strength * .5;
   ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
   const V = style === 'vapor', HZ = GY + ROWS * CS + 6;
   if (V) {
@@ -605,7 +610,7 @@ function render(fs = 1){
     g.addColorStop(0, 'rgba(255,0,40,0)'); g.addColorStop(1, 'rgba(255,0,40,' + (danger * .45 * (.6 + .4 * Math.sin(performance.now() / 120))) + ')');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   }
-  if (flashW > 0) { ctx.fillStyle = crushed ? 'rgba(255,30,60,' + flashW + ')' : 'rgba(255,255,255,' + flashW + ')'; ctx.fillRect(0, 0, W, H); flashW *= Math.pow(.9, fs); if (flashW < .01) flashW = 0; }
+  if (flashW > 0) { if (motion) { ctx.fillStyle = crushed ? 'rgba(255,30,60,' + Math.min(.38,flashW) + ')' : 'rgba(255,255,255,' + Math.min(.2,flashW) + ')'; ctx.fillRect(0, 0, W, H); } flashW *= Math.pow(.9, fs); if (flashW < .01) flashW = 0; }
 
   if (msgText) {
     const nl = msgText.split('\n').length, bh = crushed ? 52 : nl * 15 + 14;
@@ -781,11 +786,11 @@ P('pbrag').onclick=()=>{
  copyText(t,'Result copied');
 };
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
-P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));};
-function closeMenu(){P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');}
+P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}};
+function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus)P('hudMenuToggle').focus();}
 P('hudMenu').addEventListener('click',closeMenu);
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
-window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();if(!P('nameModal').hidden)closeNameModal();}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
 P('hud').addEventListener('click',e=>{if(e.detail>0)e.target.closest('button')?.blur();});
 resize();startBoard();requestAnimationFrame(frame);
