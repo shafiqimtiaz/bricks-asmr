@@ -127,6 +127,23 @@ test("incoming rows depend on the board seed, not the engine's random source", (
   assert.deepEqual(rows[1], rows[2]);
 });
 
+test("seed-based streaming works on portrait, square and landscape stages", () => {
+  for (const aspect of [9 / 16, 1, 16 / 9, 32 / 9]) {
+    const base = arenaLayout(aspect);
+    const stage = {...base,rows:Math.max(base.rows,Math.ceil((536-10-base.gridY)/base.cell))};
+    const board = infiniteOpeningBoard("face00", stage), E = brickEngine(() => .99);
+    const S = E.create({arena:stage,board,players:[{id:"me",seat:0}],mode:"solo",set:"vintage",lives:5,infinite:true});
+    assert.ok(S.rowCount[0] > 0, "opening is ceiling-anchored");
+    const sourceRow = S.stream.rows[1];
+    S.descent.t = S.descent.interval;
+    E.step(S, 1 / 60);
+    assert.deepEqual(Array.from(S.hp.slice(0, S.COLS)),
+      Array.from(board.hp.slice(sourceRow*S.COLS, (sourceRow+1)*S.COLS), Number),
+      "incoming row matches the V4 seed on aspect " + aspect);
+    assert.equal(S.status, "play", "no early crush on aspect " + aspect);
+  }
+});
+
 test("the continuous feed stays symmetric and never runs out of spawn rows", () => {
   const { E, S } = infiniteSolo();
   for (let tick = 0; tick < 28; tick++) {
