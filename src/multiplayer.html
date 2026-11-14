@@ -159,6 +159,9 @@ body{--lb-accent:#ff8f80;--lb-secondary:#6cd8ff;--lb-line:#416171;--lb-panel:rgb
 @media(prefers-reduced-motion:reduce){#toast{transition:none}#crt{display:none}}
 
 
+#netStatus[hidden]{display:none!important}
+#netStatus{flex:0 1 auto;max-width:40%;white-space:normal;text-align:right;font-size:.78em;color:#ffd2a1;line-height:1.3}
+@media(max-width:480px){#netStatus{max-width:34%;font-size:.68em}}
 /* Unified game lobby and compact heads-up display */
 body{--l-accent:#b8eadb;--l-border:#759f9d;--l-surface:#11191c;--l-ink:#f1f4f5}
 #hud{z-index:6;gap:calc(var(--u)*1.4);padding:calc(var(--u)*2);min-height:calc(var(--u)*11);background:linear-gradient(#090d10e8,#090d1070);border-bottom:1px solid #ffffff17;white-space:nowrap;text-shadow:none!important;font-size:calc(var(--u)*2.3)!important}
@@ -270,6 +273,7 @@ body{--hud-life:#ff7a6b}
   <span id="hudMode">LOBBY</span>
   <div id="hudStats" hidden><span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
   <span class="sp"></span>
+  <span id="netStatus" role="status" aria-live="polite" hidden></span>
   <button id="sound" type="button" title="Toggle sound" aria-label="Toggle sound" aria-pressed="true">♪</button>
   <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
@@ -428,7 +432,7 @@ for(const id of ['panel', 'homeLobby']){
 
 let W=arena.width,H=arena.height,viewW=W,viewH=H;
 const colors=["#d57d70","#8dbbca","#d0a768","#a5ae91"];
-let board=null,sparks=[],rings=[],beams=[],hpArr=null,colArr=null,dirty=[],tilesFull=true,drawnStyle=null,sim=null;
+let board=null,sparks=[],rings=[],beams=[],hpArr=null,colArr=null,dirty=[],tilesFull=true,drawnStyle=null,sim=null,paddlePulse=0;
 let soundOn=true,soundKit=null,notesThisFrame=0;
 const brickMusic=createBrickMusic();
 function clearFx(){sparks=[];rings=[];beams=[];floats=[];}
@@ -517,12 +521,18 @@ async function enter(code,id){
  history.replaceState(null,"","/multiplayer/"+code);
  if(!frame)frame=requestAnimationFrame(draw);
 }
+function setConnection(label,warning=""){
+ $("connection").textContent=label;
+ const indicator=$("netStatus");
+ indicator.textContent=warning;
+ indicator.hidden=!warning;
+}
 function connect(){
  if(closed||!roomCode)return;
  const protocol=location.protocol==="https:"?"wss:":"ws:";
  const ws=new WebSocket(protocol+"//"+location.host+API+"/"+roomCode+"/socket");
- socket=ws;inputSeq=0;lastInputSent=0;clearTimeout(pendingInput);pendingInput=null;$("connection").textContent="Connecting…";
- ws.onopen=()=>{if(socket===ws)$("connection").textContent="Live";};
+ socket=ws;inputSeq=0;lastInputSent=0;clearTimeout(pendingInput);pendingInput=null;setConnection("Connecting…","CONNECTING");
+ ws.onopen=()=>{if(socket===ws){setConnection("Live");for(const key of MOVE_KEYS)held[key]=false;}};
  ws.onmessage=event=>{if(socket!==ws)return;let message;try{message=JSON.parse(event.data);}catch{return;}
   if(message.version&&message.version!==1)return;
   if(message.you)you=message.you;if(message.state)accept(message.state);
@@ -531,7 +541,7 @@ function connect(){
   if(closed||socket!==ws)return;
   if(event.code===1000&&event.reason==="Reconnected"){
    clearTimeout(retry);retry=null;
-   $("connection").textContent="Opened elsewhere";
+   setConnection("Opened elsewhere","SESSION OPEN ELSEWHERE");
    $("panel").hidden=false;$("room").hidden=false;
    $("statusText").textContent="SESSION MOVED";
    $("roomTitle").textContent="Player active in another tab";
@@ -540,7 +550,7 @@ function connect(){
    $("start").hidden=true;
    return;
   }
-  $("connection").textContent="Reconnecting…";
+  setConnection("Reconnecting…","RECONNECTING");
   clearTimeout(retry);retry=setTimeout(connect,1500);
  };
  ws.onerror=()=>{try{ws.close();}catch{}};
@@ -566,7 +576,10 @@ function react(s,e,mine){
    if(own)popAt=w;
    break;}
   case"hit":beep();break;
-  case"paddle":if(own&&notesThisFrame<2)blip(98,.15,.06,"sine");break;
+  case"paddle":if(own){
+   if(notesThisFrame<2)blip(165,.13,.08,"triangle");
+   if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches)paddlePulse=1;
+  }break;
   case"crush":blip(70,.25,.18,"sine");break;
   case"beam":beams.push({...e,t:1});break;
   case"ring":rings.push({x:e.x,y:e.y,r:e.R,t:1,c:e.c,big:1});break;
@@ -591,7 +604,16 @@ function accept(s){
  if(s.arena && (s.arena.width!==W||!!s.arena.square!==!!arena.square))adoptArena(s.arena);
  if(typeof s.now==="number")clock=s.now-Date.now();
  const previous=state,sameRound=!!previous&&previous.code===s.code&&previous.round===s.round;
- if(!sameRound){clearFx();tilesFull=true;localPos=.5;brickMusic.reset(s.seed+":"+s.round);}
+ if(!sameRound){
+  clearFx();tilesFull=true;localPos=.5;paddlePulse=0;
+  for(const id of Object.keys(shownC))delete shownC[id];
+  brickMusic.reset(s.seed+":"+s.round);
+ }
+ for(const p of s.players){
+  const prev=previous?.players.find(old=>old.id===p.id);
+  if(!prev||prev.seat!==p.seat||(!prev.online&&p.online))shownC[p.id]=p.c;
+ }
+ for(const id of Object.keys(shownC))if(!s.players.some(p=>p.id===id))delete shownC[id];
  // The board arrives whole once, then as the list of cells that changed.
  if(s.board?.hp){board=s.board;hpArr=Uint8Array.from(s.board.hp,c=>c.charCodeAt(0)-48);colArr=Uint8Array.from(s.board.colors,c=>parseInt(c,16));tilesFull=true;}
  else if(s.board?.cells&&hpArr)for(let k=0;k<s.board.cells.length;k+=2){hpArr[s.board.cells[k]]=s.board.cells[k+1];dirty.push(s.board.cells[k]);}
@@ -738,7 +760,7 @@ function label(text,x,y,angle){
 const INWARD={0:[0,-1],2:[0,1],1:[1,0],3:[-1,0]};
 function draw(now){
  frame=requestAnimationFrame(draw);notesThisFrame=0;
- const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000)||0);lastFrame=now;
+ const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000)||0);lastFrame=now;paddlePulse=Math.max(0,paddlePulse-dt*5);
  const s=state,me=s?.players.find(p=>p.id===you),V=style==="vapor",C=style==="clean";
  const playing=s?.status==="playing",live=playing&&s.startedAt<=serverNow(),inverted=me?.fx?.invert>0;
  const dir=(held.arrowright||held.d?1:0)-(held.arrowleft||held.a?1:0);
@@ -762,7 +784,8 @@ function draw(now){
  const cOf=p=>{
   if(p.id===you&&mine!==null)return mine;
   const seen=shownC[p.id]??p.c;
-  return shownC[p.id]=seen+(p.c-seen)*Math.min(1,dt*20);
+  if(Math.abs(p.c-seen)<.5)return shownC[p.id]=p.c;
+  return shownC[p.id]=seen+(p.c-seen)*(1-Math.exp(-dt*18));
  };
  const centres={};
  if(s?.players)for(const p of s.players){
@@ -788,7 +811,7 @@ function draw(now){
   for(const q of cs){
    const x=hz?q-pw/2:p.seat===1?face-7:face,y=hz?(p.seat===0?face:face-7):q-pw/2,w=hz?pw:7,h=hz?7:pw;
    ctx.save();ctx.fillStyle=active?color:(V?"#483052":"#414546");
-   if(!C&&active){ctx.shadowColor=color;ctx.shadowBlur=11;}
+   if(!C&&active){ctx.shadowColor=color;ctx.shadowBlur=own&&paddlePulse>0?11+8*paddlePulse:11;}
    ctx.beginPath();ctx.roundRect(x,y,w,h,3.5);ctx.fill();
    if(active&&!C){ctx.shadowBlur=0;ctx.fillStyle="rgba(255,255,255,.55)";
     if(hz)ctx.fillRect(x+3,p.seat===0?y+1:y+h-2,w-6,1);
@@ -1037,7 +1060,7 @@ $("copy").addEventListener("click",async()=>{
 $("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent=soundOn?"♪":"×";$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
- socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
+ socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
 });
 function closeMenu(restoreFocus=false){const open=!$("hudMenu").hidden;$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");if(open&&restoreFocus===true)$("hudMenuToggle").focus();}
 $("hudMenuToggle").addEventListener("click",()=>{
