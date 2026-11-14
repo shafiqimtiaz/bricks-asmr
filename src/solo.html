@@ -156,6 +156,8 @@ body{--hud-life:#ff7a6b}
 .nameActions button[type="submit"]{border-color:#ff8f80;color:#ff8f80}
 
 #wrap.aiming canvas{cursor:crosshair}
+@media(prefers-reduced-motion:reduce){#crt,#crt::after{animation:none}#toast{transition:none}}
+
 </style>
 </head>
 <body class="vintage">
@@ -768,6 +770,14 @@ P('pname').onclick=()=>{
 function closeNameModal(){P('nameModal').hidden=true;P('pname').focus();}
 P('nameCancel').onclick=closeNameModal;
 P('nameModal').addEventListener('pointerdown',e=>{if(e.target===P('nameModal'))closeNameModal();});
+P('nameModal').addEventListener('keydown',e=>{
+ if(e.key!=='Tab')return;
+ const items=[...P('nameModal').querySelectorAll('input,button')].filter(el=>!el.disabled&&!el.hidden);
+ if(!items.length)return;
+ const first=items[0],last=items[items.length-1];
+ if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+ else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+});
 P('nameForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=P('nameInput').value.trim().normalize('NFKC');
@@ -787,7 +797,7 @@ P('pbrag').onclick=()=>{
 };
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}};
-function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus)P('hudMenuToggle').focus();}
+function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();}
 P('hudMenu').addEventListener('click',closeMenu);
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
