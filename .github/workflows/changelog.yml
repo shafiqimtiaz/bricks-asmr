@@ -1,0 +1,29 @@
+name: changelog
+on:
+  push:
+    branches: [main]
+  release:
+    types: [created]
+permissions:
+  contents: write
+jobs:
+  changelog:
+    # The bot's own [changelog] commit must not trigger another run.
+    if: github.event_name == 'release' || !contains(github.event.head_commit.message, '[changelog]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/update-changelog.mjs
+      - name: Commit changelog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add AGENTS.md
+          git diff --cached --quiet && echo "changelog up to date" && exit 0
+          git commit -m "[changelog] auto-update recent changes"
+          git push || (git pull --rebase && git push)
