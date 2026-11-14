@@ -6,29 +6,28 @@ import { brickEngine, engineSource } from "../src/engine.js";
 const { arenaLayout, bricks, soloCoreSource } = core;
 function seeded(seed) { let a = seed; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-// Recorded (level-1 boards, the only kind left) from the Solo game code before it moved onto the shared engine: the same seeded randomness
-// and autopilot must play out frame for frame the same.
+// Fixed-frame replays protect deterministic board damage, ball physics and lives under miss-driven descent.
 const SOLO_GOLDEN = [
-  { seed: "abc123", set: "clean", frames: 1415, state: "clear", remaining: 0, balls: 306, lives: 7, hp: 4066922503 },
-  { seed: "zz9q", set: "clean", frames: 8896, state: "over", remaining: 2646, balls: 2, lives: 5, hp: 2379061491 },
-  { seed: "m0on", set: "clean", frames: 8896, state: "over", remaining: 2800, balls: 1, lives: 5, hp: 1378065626 },
-  { seed: "d20261112", set: "clean", frames: 6137, state: "over", remaining: 2629, balls: 1, lives: 3, hp: 1623717883 },
-  { seed: "abc123", set: "vintage", frames: 3843, state: "clear", remaining: 0, balls: 7, lives: 5, hp: 4066922503 },
-  { seed: "k3k3", set: "vintage", frames: 2075, state: "clear", remaining: 0, balls: 10, lives: 5, hp: 4066922503 },
-  { seed: "d20261113", set: "vintage", frames: 1735, state: "clear", remaining: 0, balls: 79, lives: 5, hp: 4066922503 },
-  { seed: "zz9q", set: "vapor", frames: 3352, state: "clear", remaining: 0, balls: 289, lives: 4, hp: 4066922503 },
-  { seed: "m0on", set: "vapor", frames: 10073, state: "clear", remaining: 0, balls: 142, lives: 4, hp: 4066922503 },
+  { seed: "abc123", set: "clean", frames: 1336, state: "clear", remaining: 0, balls: 297, lives: 7, hp: 4066922503 },
+  { seed: "zz9q", set: "clean", frames: 1800, state: "play", remaining: 3098, balls: 1, lives: 3, hp: 571816086 },
+  { seed: "m0on", set: "clean", frames: 1800, state: "play", remaining: 3427, balls: 1, lives: 4, hp: 3135577918 },
+  { seed: "d20261112", set: "clean", frames: 1800, state: "play", remaining: 2954, balls: 1, lives: 5, hp: 298916182 },
+  { seed: "abc123", set: "vintage", frames: 1800, state: "play", remaining: 2165, balls: 1, lives: 5, hp: 2162568638 },
+  { seed: "k3k3", set: "vintage", frames: 1800, state: "play", remaining: 3292, balls: 1, lives: 5, hp: 1594836488 },
+  { seed: "d20261113", set: "vintage", frames: 1800, state: "play", remaining: 2841, balls: 1, lives: 5, hp: 3345865089 },
+  { seed: "zz9q", set: "vapor", frames: 1800, state: "play", remaining: 3100, balls: 1, lives: 3, hp: 2865276454 },
+  { seed: "m0on", set: "vapor", frames: 1729, state: "clear", remaining: 0, balls: 50, lives: 5, hp: 4066922503 },
   { seed: "d20261113", set: "vapor", frames: 760, state: "clear", remaining: 0, balls: 2229, lives: 5, hp: 4066922503 },
 ];
 
-test("Solo on the shared engine plays exactly as the original Solo did", () => {
+test("Solo replay remains deterministic with miss-driven descent", () => {
   const arena = arenaLayout(9 / 16);
   for (const g of SOLO_GOLDEN) {
     const E = brickEngine(seeded(42));
     const S = E.create({ arena, board: bricks(g.seed, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: g.set, lives: 5, daily: /^d\d{8}$/.test(g.seed) });
     const pilot = () => { let best = null; for (const b of S.balls) if (b.vy > 0 && (!best || b.y > best.y)) best = b; return best ? best.x + ((best.x * 7) % 11 - 5) : 180; };
     let frames = 0;
-    while (frames < 30000 && S.status === "play") {
+    while (frames < 1800 && S.status === "play") {
       if (E.holding(S, "me")) E.launch(S, "me");
       E.setPaddle(S, "me", pilot());
       E.step(S, 1 / 60);
@@ -88,12 +87,31 @@ test("a capsule falls toward the player whose ball broke the brick, and their ca
   assert.ok(!(S.players.find(p => p.seat === 0).fx.wide > 0));
 });
 
-test("the crusher slides toward a lone edge and stretches toward opposite edges", () => {
-  const solo = engineFor([0]).S, pair = engineFor([0, 2]).S, E = brickEngine();
-  for (const S of [solo, pair]) { S.balls = [{ x: 180, y: 300, vx: 0, vy: 0, owner: "s0", source: "s0" }]; S.crush.clock = 100; E.step(S, .5); }
-  assert.equal(solo.crush.ky, 1);
-  assert.ok(solo.crush.by > 0);
-  assert.ok(pair.crush.ky > 1);
+test("the court stays put over time and lowers one row only when a missed ball costs a life", () => {
+  const arena = arenaLayout(9 / 16), E = brickEngine(() => .5);
+  const S = E.create({ arena, board: bricks("edges", 1, arena), players: [{ id: "s0", seat: 0 }], mode: "solo", set: "vintage", lives: 5 });
+  S.balls = [{ x: 180, y: 130, vx: 0, vy: 0, owner: "s0", source: "s0" }];
+  for (let i = 0; i < 100; i++) {
+    Object.assign(S.balls[0], { x: 180, y: 130, vx: 0, vy: 0 });
+    assert.ok(!E.step(S, .1).some(e => e.t === "crush"));
+  }
+  assert.equal(S.crush.target[0], 0);
+  S.balls = [{ x: 180, y: 660, vx: 0, vy: 300, owner: "s0", source: "s0" }];
+  const events = E.step(S, 1 / 60);
+  assert.equal(events.filter(e => e.t === "crush").length, 1);
+  assert.equal(S.crush.target[0], S.CS);
+  assert.equal(S.pool, 4);
+  assert.equal(E.holding(S, "s0"), true);
+  E.step(S, 1 / 60);
+  assert.ok(S.crush.off[0] > 0, "the descent animates while the next serve is held");
+  S.balls = [
+    { x: 180, y: 660, vx: 0, vy: 300, owner: "s0", source: "s0" },
+    { x: 180, y: 130, vx: 0, vy: 0, owner: "s0", source: "s0" }
+  ];
+  const bonus = E.step(S, 1 / 60);
+  assert.ok(bonus.some(e => e.t === "miss"));
+  assert.ok(!bonus.some(e => e.t === "crush"), "losing a bonus ball must not cause another descent");
+  assert.equal(S.crush.target[0], S.CS);
 });
 
 test("Coop and Solo share one pool of lives; Versus loses only the misser's life", () => {

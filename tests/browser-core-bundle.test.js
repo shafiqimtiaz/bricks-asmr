@@ -2,18 +2,14 @@ import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 import * as core from "../src/game-core.js";
-import { browserCoreSource, crusherInterval, soloCoreSource } from "../src/game-core.js";
+import { browserCoreSource, soloCoreSource } from "../src/game-core.js";
 import { engineSource } from "../src/engine.js";
 import { multiHtml, serverSource, soloHtml } from "./helpers.js";
 
-test("Solo browser helpers include the crusher cadence used by the game loop", () => {
-  const actual = runInNewContext(soloCoreSource + "\ncrusherInterval()");
-  assert.equal(actual, crusherInterval());
-});
-
-test("Multiplayer browser helpers include the same crusher cadence", () => {
-  const actual = runInNewContext(browserCoreSource + "\ncrusherInterval()");
-  assert.equal(actual, crusherInterval());
+test("neither browser bundle nor shared engine includes timed crusher logic", () => {
+  assert.doesNotMatch(soloCoreSource, /crusherInterval/);
+  assert.doesNotMatch(browserCoreSource, /crusherInterval/);
+  assert.doesNotMatch(engineSource, /crusherInterval/);
 });
 
 test("Solo browser bundle provides the build-injected function name helper", () => {

@@ -1,4 +1,4 @@
-import { aimVelocity, normalizeBallVelocity, crusherInterval, ballSpeed } from "./game-core.js";
+import { aimVelocity, normalizeBallVelocity, ballSpeed } from "./game-core.js";
 
 // The one Bricks ASMR simulation, shared by Solo (in the browser) and Multiplayer (in the room).
 // Solo is the one-player case: a single paddle on the bottom edge. Every paddle rule is written in the
@@ -49,7 +49,7 @@ function brickEngine(rng=Math.random){
   return d&&d.solo&&mode!=='solo'?PU_BY_ID.slow:d;
  }
  // Edge geometry. Seat 0 is the bottom edge (Solo's paddle), 2 the top, 1 the left and 3 the right.
- const PY=536,PH=7,GRACE=10,COMBO_WINDOW=.7,MILESTONES=[25,50,100,250,500,1000,2500,5000];
+ const PY=536,PH=7,COMBO_WINDOW=.7,MILESTONES=[25,50,100,250,500,1000,2500,5000];
  const SIGN={0:1,2:-1,1:1,3:-1};
  const horizontal=seat=>seat===0||seat===2;
  function face(S,seat){return seat===0?PY:seat===2?48:seat===1?14:S.W-14;}
@@ -76,7 +76,7 @@ function brickEngine(rng=Math.random){
    hp,col,pu,rowCount,colCount,remaining:b.remaining,total:b.total,
    bounds:{X0:a.gridX+minC*a.cell,X1:a.gridX+(maxC+1)*a.cell,Y0:a.gridY+minR*a.cell,Y1:a.gridY+(maxR+1)*a.cell},
    seats:[...new Set(o.players.map(p=>p.seat))],
-   crush:{clock:-GRACE,target:[0,0,0,0],off:[0,0,0,0],kx:1,bx:0,ky:1,by:0},
+   crush:{target:[0,0,0,0],off:[0,0,0,0],kx:1,bx:0,ky:1,by:0},
    status:'play',result:null,clock:0,
    pool:o.mode==='versus'?0:(o.lives??5),maxLives:o.maxLives??Infinity,
    fx:{},luckyLeft:0,laserCd:0,
@@ -312,6 +312,8 @@ function brickEngine(rng=Math.random){
   const target=()=>S.mode==='versus'?S.players.filter(p=>active(S,p)).length:1;
   while(S.misses.length&&S.balls.length<target()){
    const p=player(S,S.misses.shift());
+   for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+   ev.push({t:'crush'});
    if(S.mode==='versus'){
     p.lives=Math.max(0,p.lives-1);ev.push({t:'life',owner:p.id,lives:p.lives});
     if(p.lives>0)serve(S,p,ev);
@@ -350,14 +352,14 @@ function brickEngine(rng=Math.random){
    if(p)Object.assign(b,heldSpot(S,p));
    if(S.holdSeconds&&S.status==='play'){b.hold-=dt;if(b.hold<=0&&p)launchBall(b,p);}
   }
-  if(S.status!=='play'||!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
+  if(S.status!=='play'){settleMisses();checkEnd();return ev;}
+  const c=S.crush;
+  for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
+  updateTransform(S);
+  if(!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
   S.clock+=dt;
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
   for(const p of S.players)for(const k in p.fx)if(p.fx[k]>0)p.fx[k]-=dt;
-  const c=S.crush;c.clock+=dt;
-  if(c.clock>=crusherInterval(S.daily)){c.clock=0;for(const s of S.seats)c.target[s]+=S.CS;ev.push({t:'crush'});}
-  for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
-  updateTransform(S);
   for(const p of S.players){p.comboT+=dt;if(p.comboT>COMBO_WINDOW){p.combo=0;p.milestone=0;}}
   for(const seat of S.seats){
    const p=bySeat(S,seat);

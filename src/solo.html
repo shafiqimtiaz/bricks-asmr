@@ -382,7 +382,6 @@ let maxBalls = MAX_BALLS, perfEma = 16, perfWarned = false;
 let drop = 0, combo = 0, comboPop = 0;
 let introT = 0, conf = [], flashW = 0, hbT = 0, danger = 0, squash = 0, crushed = false;
 const isDaily = () => /^d\d{8}$/.test(seed);
-const dropEvery = () => crusherInterval(isDaily()), GRACE = 10;
 function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e) {} }
 let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim';
 let msgText = '';
@@ -638,7 +637,7 @@ function render(fs = 1){
     ctx.font = style === 'clean' ? 'bold 22px ui-monospace,monospace' : "16px 'Press Start 2P',monospace";
     ctx.fillText(isDaily() ? 'DAILY CHALLENGE' : 'SEED ' + seed.toUpperCase(), W / 2 + off, 236);
     ctx.font = style === 'clean' ? '11px ui-monospace,monospace' : "7px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#ccc';
-    ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + ' · WALL DROPS IN ' + GRACE + 's, THEN EVERY ' + dropEvery().toFixed(1) + 's', W / 2 - off, 262);
+    ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + ' · LOST LIFE = ONE ROW DOWN', W / 2 - off, 262);
     ctx.globalAlpha = 1;
   }
   // danger vignette + flash
