@@ -213,7 +213,7 @@ let BR = CS * .45, PU_R = CS * 1.5;
 const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 let seed = hm ? hm[1].toLowerCase() : randomSeed();
-let generatorVersion = [2,3].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : hm ? 1 : 3;
+let generatorVersion = [2,3,4].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : hm ? 1 : 4;
 function syncURL(){try{
  const url=new URL(location.href);
  if(generatorVersion>1)url.searchParams.set('v',String(generatorVersion));else url.searchParams.delete('v');
@@ -222,7 +222,7 @@ function syncURL(){try{
 window.addEventListener('hashchange',()=>{
  const m=/^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash||'');
  if(m&&m[1].toLowerCase()!==seed){
-  seed=m[1].toLowerCase();generatorVersion=[2,3].includes(Number(new URLSearchParams(location.search).get('v')))?Number(new URLSearchParams(location.search).get('v')):1;startBoard();
+  seed=m[1].toLowerCase();generatorVersion=[2,3,4].includes(Number(new URLSearchParams(location.search).get('v')))?Number(new URLSearchParams(location.search).get('v')):1;startBoard();
  }
 });
 
@@ -385,7 +385,7 @@ function sync(){
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
-const newBoard = () => { generatorVersion=3;seed = randomSeed(); startBoard(); };
+const newBoard = () => { generatorVersion=4;seed = randomSeed(); startBoard(); };
 function startBoard(){
   brickMusic.reset(seed);
   syncArena();
@@ -715,7 +715,7 @@ async function copyText(t, ok){
 document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'board link copied'); };
 document.getElementById('daily').onclick = () => {
   const d = new Date(), ymd = d.toISOString().slice(0,10).replace(/-/g,'');
-  seed = 'd' + ymd; generatorVersion=3;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
+  seed = 'd' + ymd; generatorVersion=4;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
 document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'infinite mode · bricks keep coming' : 'classic mode'); };
@@ -818,7 +818,7 @@ P('nameForm').addEventListener('submit',async e=>{
  if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){P('nameError').textContent='Use 2–24 letters, numbers, spaces, _ . or -';return;}
  myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
  closeNameModal();setLinks();showToast('Leaderboard name saved');
- const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}(?:-v2)?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
+ const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}(?:-v[234])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
  if(saved){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:saved[0],playerId:myId,name:myName,timeMs:saved[1]})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world rankings unavailable');}}
 });
 P('pnext').onclick=()=>newBoard();
