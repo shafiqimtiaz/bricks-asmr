@@ -51,3 +51,7 @@ test("local paddle feedback is brief, isolated from physics, and respects reduce
  assert.match(multiHtml,/paddlePulse=1/);
  assert.doesNotMatch(multiHtml,/hitStop|timeScale/);
 });
+
+test("missed balls travel past the paddle instead of being visually pinned to the court boundary",()=>{
+ assert.match(multiHtml,/const x=mineHeld\?spot\.x:b\[0\]\+b\[2\]\*ahead,y=mineHeld\?spot\.y:b\[1\]\+b\[3\]\*ahead;/);
+});

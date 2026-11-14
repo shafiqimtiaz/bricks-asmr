@@ -92,27 +92,26 @@ test("all players use the same CRT power-up set", async () => {
   assert.equal(inst.snapshot().set, "vintage");
 });
 
-test("paddle-input, aim and launch reach the engine, validated and rate limited", async () => {
+test("paddle-input, aim and launch reach the engine, validated and sequenced", async () => {
   const room = makeRoom(server, "versus", 2), S = room.sim, inst = roomInstance(server, room);
   room.startedAt = Date.now() - 1;
   await message(inst, "p0", { type: "paddle-input", seq: 1, pos: 0, aim: 9 });
   assert.equal(room.players[0].pos, 0);
   assert.equal(player(room, "p0").target, E.paddleAt(S, "p0", 0));
+  assert.equal(player(room, "p0").c, player(room, "p0").target, "physics paddle follows accepted input without lag");
   assert.equal(player(room, "p0").aim, 1.15, "aim is clamped to the serve limit, not rejected");
   // A player's slider runs from their own left: the top paddle's left is the world's right.
-  room.players[1].lastInputAt = 0;
   await message(inst, "p1", { type: "paddle-input", seq: 1, pos: 0 });
   assert.ok(player(room, "p1").target > S.W / 2, "seat 2 slides the other way round");
-  // Stale sequence numbers, other protocol versions, junk and a flood do nothing.
+  // Stale sequence numbers, other protocol versions and junk do nothing.
   await message(inst, "p0", { type: "paddle-input", seq: 1, pos: .9 });
   await message(inst, "p0", { type: "paddle-input", seq: 5, pos: .9, version: 2 });
   await message(inst, "p0", { type: "paddle-input", seq: 6, pos: "x" });
   assert.equal(room.players[0].pos, 0);
-  await message(inst, "p0", { type: "paddle-input", seq: 7, pos: .9 });
-  assert.equal(room.players[0].pos, 0, "inputs closer than 25ms apart are dropped");
-  room.players[0].lastInputAt = 0;
+  await message(inst, "p0", { type: "paddle-input", seq: 7, pos: .2 });
   await message(inst, "p0", { type: "paddle-input", seq: 8, pos: .9 });
-  assert.equal(room.players[0].pos, .9);
+  assert.equal(room.players[0].pos, .9, "the final rapid movement cannot be dropped");
+  assert.equal(player(room, "p0").c, E.paddleAt(S, "p0", .9));
   // Launch: only your own held ball, along your own aim, and not before the countdown ends.
   room.startedAt = Date.now() + 2000;
   await message(inst, "p0", { type: "launch" });
@@ -125,6 +124,25 @@ test("paddle-input, aim and launch reach the engine, validated and rate limited"
   // Whoever is not in the room cannot steer it.
   await BrickRoom.prototype.webSocketMessage.call(inst, socketFor("stranger"), JSON.stringify({ version: 1, type: "launch" }));
   assert.ok(theirs.held);
+});
+
+test("accepted paddle positions catch balls on every edge across multiplayer modes", async () => {
+  for (const [mode, count] of [["versus", 4], ["coop", 4], ["infinite", 2]]) {
+    const room = makeRoom(server, mode, count), S = room.sim, inst = roomInstance(server, room);
+    for (const member of room.players) {
+      const p = player(room, member.id);
+      await message(inst, member.id, { type: "paddle-input", seq: 1, pos: .78 });
+      const at = E.paddleAt(S, p.id, .78);
+      assert.equal(p.c, at, mode + " seat " + p.seat + " should match its visible position");
+      const start = E.point(S, p.seat, at, S.BR + 1);
+      const velocity = aimVelocity(p.seat, 0, S.speed);
+      const ball = { ...start, vx: -velocity.vx, vy: -velocity.vy, owner: null, source: member.id };
+      S.balls = [ball];
+      const events = E.step(S, 1 / 60);
+      assert.equal(ball.owner, member.id, mode + " seat " + p.seat + " must bounce");
+      assert.ok(events.some(e => e.t === "paddle" && e.owner === member.id));
+    }
+  }
 });
 
 test("a held ball launches along the player's own aim, relative to their screen", () => {

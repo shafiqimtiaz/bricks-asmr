@@ -831,11 +831,11 @@ function draw(now){
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
-  // Predict each ball forward from the last snapshot; cap the guess so a late packet cannot fling it off the court.
+  // Predict briefly from the last snapshot; never pin a missed ball to the paddle line.
   const ahead=live?Math.min((performance.now()-lastStateAt)/1000,.1):0;
   for(const b of s.balls){
    const held=b[5],ownBall=s.players[b[4]]?.id===you,mineHeld=held&&ownBall&&spot;
-   const x=mineHeld?spot.x:Math.max(6+radius,Math.min(W-6-radius,b[0]+b[2]*ahead)),y=mineHeld?spot.y:Math.max(40+radius,Math.min(544-radius,b[1]+b[3]*ahead));
+   const x=mineHeld?spot.x:b[0]+b[2]*ahead,y=mineHeld?spot.y:b[1]+b[3]*ahead;
    const hot=Math.hypot(b[2],b[3])>cruise*1.14;
    const color=hot?(V?"#fffb96":"#ffd166"):ownBall?(V?"#ff71ce":"#ffa58a"):(V?"#01cdfe":"#a7dce9");
    if(live&&!held){
