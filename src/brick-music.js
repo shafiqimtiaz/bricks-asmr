@@ -78,13 +78,13 @@ export function createBrickMusic() {
     };
   }
 
-  function hit(soundKit) {
+  function hit(soundKit, pan = 0) {
     if (!soundKit) return false;
     const now = soundKit.context.currentTime;
     const delay = Math.max(0, nextAt - now);
     if (delay > .45) return false;
     const note = next();
-    soundKit.blip(note.frequency, note.volume, note.duration, note.wave, delay);
+    soundKit.blip(note.frequency, note.volume, note.duration, note.wave, delay, pan);
     nextAt = now + delay + tune.step;
     return true;
   }
