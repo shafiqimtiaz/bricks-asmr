@@ -226,6 +226,7 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
    <div id="hudMenu" hidden>
     <div id="hudStatus" role="status"></div>
     <button id="soundToggle" type="button" aria-pressed="true">SOUND ON</button>
+    <button id="sensitivityToggle" type="button" aria-label="Change paddle sensitivity">SENS LOW</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTI</a>
     <button id="top" type="button">SCORES</button><button id="daily" type="button">DAILY</button>
     <button id="share" type="button">SHARE</button><button id="newb" type="button">NEW RUN</button>
@@ -260,8 +261,7 @@ const lockedArena=/^\d{3,4}$/.test(arenaParam)&&Number(arenaParam)>=256&&Number(
 let arena = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
 let W = arena.width, H = arena.height, CS = arena.cell, COLS = arena.cols, ROWS = arena.rows;
 let GX = arena.gridX, GY = arena.gridY;
-const SY = 614, SZONE = 572, PY = 536, PH = 7, MAX_BALLS = 2500;
-let SX0 = Math.max(40, W * .11), SX1 = W - SX0;
+const SY = 614, SZONE = 550, PY = 536, PH = 7, MAX_BALLS = 2500;
 let BR = CS * .45, PU_R = CS * 1.5;
 
 // ---------- seeded RNG: game-core.js ----------
@@ -287,6 +287,10 @@ const wrap = document.getElementById('wrap'), cv = document.getElementById('c'),
 let scaleX = 1, scaleY = 1, bcv = document.createElement('canvas'), bctx = bcv.getContext('2d');
 const gcv = document.getElementById('g');
 const style = 'vintage';
+const SENS_KEY='bricksPaddleSensitivity',SENS_VALUES=[.65,1,1.35],SENS_NAMES=['LOW','MID','HIGH'];
+let sensitivityLevel=0;
+try{const saved=localStorage.getItem(SENS_KEY);if(['0','1','2'].includes(saved))sensitivityLevel=Number(saved);}catch(e){}
+const sensitivity=()=>SENS_VALUES[sensitivityLevel];
 const FX = {vintage: {k: 0.07, ch: 0.0018, vg: 0.45, br: 1.3}};
 let gl = null, glTex, glU = {};
 try {
@@ -436,7 +440,6 @@ function syncArena(){
   if(next.width === W && next.rows === ROWS && next.cell === CS)return;
   arena=next;W=next.width;H=next.height;CS=next.cell;COLS=next.cols;ROWS=next.rows;
   GX=next.gridX;GY=next.gridY;N=COLS*ROWS;
-  SX0=Math.max(40,W*.11);SX1=W-SX0;
   BR=CS*.45;PU_R=CS*1.5;
   px=W/2;
   hp=null;resize();
@@ -580,12 +583,13 @@ function render(fs = 1){
   if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 260), '#e4f4ec', onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
   if (state === 'aim') { ctx.font = style === 'clean' ? 'bold 11px ui-monospace,monospace' : "8px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#eee'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DRAG AIM · TAP LAUNCH', W / 2, SY - 34); }
 
-  // slider
-  const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
-  ctx.fillStyle = '#262626'; ctx.beginPath(); ctx.roundRect(SX0 - 14, SY - 14, SX1 - SX0 + 28, 28, 14); ctx.fill();
-  ctx.fillStyle = '#3a3a3a'; ctx.fillRect(SX0, SY - 1.5, SX1 - SX0, 3);
-  ctx.fillStyle = V ? (sliding ? '#ff9de0' : '#ff71ce') : (sliding ? '#e08a78' : '#c96a5a'); ctx.beginPath(); ctx.roundRect(hx - 24, SY - 11, 48, 22, 11); ctx.fill();
-  ctx.fillStyle = '#0003'; for (const o of [-6, 0, 6]) ctx.fillRect(hx + o - 0.75, SY - 5, 1.5, 10);
+  ctx.fillStyle='#121a18';ctx.fillRect(0,SZONE,W,H-SZONE);
+  ctx.save();ctx.beginPath();ctx.rect(0,SZONE,W,H-SZONE);ctx.clip();
+  ctx.strokeStyle='rgba(139,171,154,.10)';ctx.lineWidth=1;ctx.beginPath();
+  for(let x=-(H-SZONE);x<W;x+=14){ctx.moveTo(x,SZONE);ctx.lineTo(x+H-SZONE,H);}
+  ctx.stroke();ctx.restore();
+  ctx.fillStyle=sliding?'#d9a596':'#7d9a8b';
+  for(let x=px-pw/2+1;x<px+pw/2-1;x+=6)ctx.fillRect(x,SZONE+7,2,2);
   ctx.save();
   if (style !== 'clean') { ctx.shadowColor = V ? '#01cdfe' : '#ff8a70'; ctx.shadowBlur = 10; }
   if (V) { const pg = ctx.createLinearGradient(px - pw / 2, 0, px + pw / 2, 0); pg.addColorStop(0, '#ff71ce'); pg.addColorStop(1, '#01cdfe'); ctx.fillStyle = pg; }
@@ -708,34 +712,36 @@ function toLogical(e){
   if (useGL()) { const k = FX[style].k, cx = u * 2 - 1, cy = v * 2 - 1; u = (cx * (1 + k * cy * cy)) * .5 + .5; v = (cy * (1 + k * cx * cx)) * .5 + .5; }
   return [u * W, v * H];
 }
-function sliderTo(lx){ let t = Math.max(0, Math.min(1, (lx - SX0) / (SX1 - SX0))); if (fx.invert > 0) t = 1 - t; E.setPaddle(S, 'me', pw / 2 + t * (W - pw)); }
-// board: tap = launch only; drag = relative fine-aim (never jumps, never moves the paddle)
-let downX = 0, downAim = 0, moved = false, sliding = false, onBoard = false;
-wrap.addEventListener('pointerdown', e => {
-  if (e.target.tagName !== 'CANVAS') return;
-  audioInit(); downX = e.clientX; moved = false;
-  const [lx, ly] = toLogical(e);
-  sliding = ly >= SZONE; onBoard = !sliding; downAim = aimAng;
-  try { wrap.setPointerCapture(e.pointerId); } catch(_) {}
-  if (sliding) sliderTo(lx);
+// Touching the lower zone never jumps; only horizontal movement shifts the paddle.
+let downX=0,lastControlX=0,downAim=0,moved=false,sliding=false,onBoard=false,activePointer=null;
+wrap.addEventListener('pointerdown',e=>{
+  if(e.target.tagName!=='CANVAS'||activePointer!==null||paused)return;
+  audioInit();downX=lastControlX=e.clientX;moved=false;
+  const [,ly]=toLogical(e);
+  sliding=ly>=SZONE;onBoard=!sliding;downAim=aimAng;activePointer=e.pointerId;
+  try{wrap.setPointerCapture(e.pointerId);}catch(_){}
 });
-wrap.addEventListener('pointermove', e => {
-  if (!sliding && !onBoard) return;
-  const [lx] = toLogical(e);
-  if (sliding) { sliderTo(lx); return; }
-  if (Math.abs(e.clientX - downX) > 8) moved = true;
-  if (moved && state === 'aim') { E.setAim(S, 'me', aimDragAngle(downAim, e.clientX - downX, wrap.getBoundingClientRect().width)); aimAng = me.aim; }
+wrap.addEventListener('pointermove',e=>{
+  if(activePointer!==e.pointerId)return;
+  if(sliding){
+    const dx=(e.clientX-lastControlX)/wrap.getBoundingClientRect().width*W*sensitivity();
+    lastControlX=e.clientX;
+    if(dx)E.setPaddle(S,'me',Math.max(pw/2,Math.min(W-pw/2,(me.target??px)+(fx.invert>0?-dx:dx))));
+    return;
+  }
+  if(Math.abs(e.clientX-downX)>8)moved=true;
+  if(moved&&state==='aim'){E.setAim(S,'me',aimDragAngle(downAim,e.clientX-downX,wrap.getBoundingClientRect().width));aimAng=me.aim;}
 });
 function endPtr(e){
-  if (!sliding && !onBoard) return;
-  const wasBoard = onBoard; sliding = false; onBoard = false;
-  if (!wasBoard || moved) return;
-  if (state === 'aim') launch();
-  else if (state === 'clear') newBoard();
-  else if (state === 'over') newBoard();
+  if(activePointer!==e.pointerId)return;
+  activePointer=null;
+  const wasBoard=onBoard;sliding=false;onBoard=false;
+  if(!wasBoard||moved)return;
+  if(state==='aim')launch();
+  else if(state==='clear'||state==='over')newBoard();
 }
-wrap.addEventListener('pointerup', endPtr);
-wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
+wrap.addEventListener('pointerup',endPtr);
+wrap.addEventListener('pointercancel',e=>{if(activePointer===e.pointerId){activePointer=null;sliding=false;onBoard=false;}});
 const keys = {};
 window.addEventListener('keydown', e => {
   if(!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
@@ -744,7 +750,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arrowleft || keys.a) E.setPaddle(S, 'me', px - d); if (keys.arrowright || keys.d) E.setPaddle(S, 'me', px + d); if (state === 'aim') { const turn = (keys.arrowup || keys.w ? 1 : 0) - (keys.arrowdown || keys.s ? 1 : 0); if (turn) E.setAim(S, 'me', me.aim + turn * .02); } }, 16);
+setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360 * sensitivity(); if (keys.arrowleft || keys.a) E.setPaddle(S, 'me', px - d); if (keys.arrowright || keys.d) E.setPaddle(S, 'me', px + d); if (state === 'aim') { const turn = (keys.arrowup || keys.w ? 1 : 0) - (keys.arrowdown || keys.s ? 1 : 0); if (turn) E.setAim(S, 'me', me.aim + turn * .02); } }, 16);
 
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
@@ -912,7 +918,9 @@ function syncPause(){ paused = !P('hudMenu').hidden || !P('panel').hidden; }
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));P('hudMenuToggle').textContent=opened?'×':'☰';P('hudMenuToggle').setAttribute('aria-label',opened?'Close menu':'Open menu');if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}syncPause();};
 function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');P('hudMenuToggle').textContent='☰';P('hudMenuToggle').setAttribute('aria-label','Open menu');if(open&&restoreFocus===true)P('hudMenuToggle').focus();syncPause();}
 P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
-P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle'&&e.target.id!=='soloMode')closeMenu();});
+P('sensitivityToggle').textContent='SENS '+SENS_NAMES[sensitivityLevel];
+P('sensitivityToggle').onclick=()=>{sensitivityLevel=(sensitivityLevel+1)%SENS_VALUES.length;try{localStorage.setItem(SENS_KEY,String(sensitivityLevel));}catch(e){}P('sensitivityToggle').textContent='SENS '+SENS_NAMES[sensitivityLevel];};
+P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle'&&e.target.id!=='sensitivityToggle'&&e.target.id!=='soloMode')closeMenu();});
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
