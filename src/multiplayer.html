@@ -801,7 +801,7 @@ function draw(now){
   simMe.c=centres[you];simMe.aim=aimAng;
   spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
   sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
-  drawAimGuide(ctx,E.predict(sim,you,900),"#e4f4ec",now,!!drag?.moved);
+  drawAimGuide(ctx,E.predict(sim,you,900),"#e4f4ec",now,!!drag?.moved,spot);
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
@@ -983,7 +983,7 @@ for(const canvas of [cv,gcv]){
   else{drag=null;pointer(event);}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(drag.aim+dx/drag.width*2.3);}
+  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));}
   else if(event.buttons||event.pointerType==="touch")pointer(event);
  });
  canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
