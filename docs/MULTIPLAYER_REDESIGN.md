@@ -43,7 +43,7 @@ The host picks a mode in the lobby; neither mode has a timer. **Coop:** the whol
 
 ### Lobby and home
 
-The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and matching the shared visual presentation styling. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
+The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and the same restrained pixel presentation. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
 
 The host may start when **at least two players are connected**. While waiting, the same board remains visible with only joined paddles. Starting locks the round's paddle assignments and shared board state. Late joins to an active round are not allowed unless joining as an authenticated reconnect to an existing seat.
 
