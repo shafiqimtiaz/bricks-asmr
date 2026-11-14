@@ -739,7 +739,7 @@ async function loadBoard(){
 }
 async function onInfiniteOver(reason){
   lastRows=S.descent?S.descent.rows:0;
-  lastScore=Math.round(me.score);
+  lastScore=Math.round(me.brickScore);
   lastBricks=me.bricksBroken;
   lastCombo=me.maxCombo;
   lastEndReason=reason;
