@@ -21,7 +21,7 @@ test("global scores preserve historical IDs but hide their style suffix",()=>{
  assert.equal(format("abc123-vintage"),"SEED ABC123");
  assert.equal(format("abc123-clean-a1280"),"SEED ABC123");
  assert.equal(format("abc123-vapor-a360"),"SEED ABC123");
- assert.equal(format("d20261114-vintage"),"DAILY 261114");
+ assert.equal(format("d20261114-vintage"),"DAILY 1114");
  assert.doesNotMatch(format("abc123-vintage"),/vintage|CRT/i);
 });
 
