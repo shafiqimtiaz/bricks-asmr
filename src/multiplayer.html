@@ -263,6 +263,14 @@ body{--hud-life:#ff7a6b}
 @media(prefers-reduced-motion:reduce){#hudFill,#hud button{transition:none}}
 
 #wrap.aiming canvas{cursor:crosshair}
+/* Gameplay HUD only; CRT and world styling are unchanged. */
+#hud{justify-content:flex-end;min-height:0;padding:calc(var(--u)*1.2);border:0;background:transparent;box-shadow:none}
+#hud>#hudMode,#hud>#hudStats,#hud>.sp,#hudBar{display:none!important}
+#hud #netStatus:not([hidden]){position:absolute;left:calc(var(--u)*2);top:calc(var(--u)*2);max-width:55%;font-size:.8em}
+#hud #menuStatus{display:block;white-space:normal;line-height:1.9;padding:calc(var(--u)*2);font-size:.85em;color:var(--lb-soft);border-bottom:1px solid var(--l-border)}
+#hud #hudMenu button{display:block;width:100%;box-sizing:border-box;margin:0;padding:calc(var(--u)*2.3);min-height:0;border:0!important;border-radius:4px;background:transparent!important;text-align:left;color:var(--l-ink);font:inherit;line-height:1.5}
+#hud #hudMenu button:hover{background:#ffffff12!important;color:var(--l-accent)}
+#toast{background:#05080add;color:#ced5ce;border-radius:2px;letter-spacing:.1em;font-size:calc(var(--u)*2.1)}
 </style>
 </head>
 <body class="vintage">
@@ -274,10 +282,9 @@ body{--hud-life:#ff7a6b}
   <div id="hudStats" hidden><span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
   <span class="sp"></span>
   <span id="netStatus" role="status" aria-live="polite" hidden></span>
-  <button id="sound" type="button" title="Toggle sound" aria-label="Toggle sound" aria-pressed="true">♪</button>
   <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
-  <div id="hudMenu" hidden><a href="/">SINGLE PLAYER</a><a href="/multiplayer" aria-current="page">MULTIPLAYER LOBBY</a><a href="/leaderboard">WORLD RANKINGS</a>
+  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND · ON</button><a href="/">SINGLE PLAYER</a><a href="/multiplayer" aria-current="page">MULTIPLAYER LOBBY</a><a href="/leaderboard">WORLD RANKINGS</a>
   </div>
  </div>
  <div id="panel">
@@ -385,14 +392,12 @@ function fit(){
   // Size to the layout viewport: an on-screen keyboard or page zoom only shrinks the visual viewport.
   const vw = Math.max(1, Math.floor(window.innerWidth));
   const vh = Math.max(1, Math.floor(window.innerHeight));
-  const panelOpen = !$('panel').hidden;
   view = boardView(arena, state?.players.find(p=>p.id===you)?.seat ?? 0);
   viewW = view.width; viewH = view.height;
-  wrap.style.setProperty('--u', stageFit(vw, vh, viewW, viewH, panelOpen).unit + 'px');
-  const f = stageFit(vw, vh, viewW, viewH, panelOpen, $('hud').offsetHeight);
+  const f = stageFit(vw, vh, viewW, viewH, false);
   wrap.classList.toggle('sidecar', f.dock);
   wrap.style.width = f.width + 'px'; wrap.style.height = f.height + 'px';
-  wrap.style.marginTop = f.hudOver / 2 + 'px';
+  wrap.style.marginTop = '0px';
   wrap.style.setProperty('--u', f.unit + 'px');
   wrap.style.setProperty('--hud-over', f.hudOver + 'px');
   wrap.style.setProperty('--sidebar-width', f.sidebar + 'px');
@@ -510,7 +515,7 @@ function openNicknamePrompt(){
  $("nickname").focus({preventScroll:true});
  $("nickname").select();
 }
-function beep(){brickMusic.hit(soundOn?soundKit:null);}
+function beep(pan=0){brickMusic.hit(soundOn?soundKit:null,pan);}
 async function enter(code,id){
  const result=await request("/"+code+"/state");
  clearTimeout(retry);retry=null;socket?.close();socket=null;
@@ -572,11 +577,11 @@ function react(s,e,mine){
  switch(e.t){
   case"break":{
    const w=cellWorld(s,e.i);
-   beep();
+   beep(((viewPoint(view,w.x,w.y).x/viewW)*2-1)*.5);
    if(sparks.length<120)sparkle({x:w.x,y:w.y,c:parseInt(s.board.colors[e.i],16)||0});
    if(own)popAt=w;
    break;}
-  case"hit":beep();break;
+  case"hit":{const w=cellWorld(s,e.i);beep(((viewPoint(view,w.x,w.y).x/viewW)*2-1)*.5);break;}
   case"paddle":if(own){
    if(notesThisFrame<2)blip(165,.13,.08,"triangle");
    if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches)paddlePulse=1;
@@ -584,8 +589,8 @@ function react(s,e,mine){
   case"descent":case"crush":blip(70,.25,.18,"sine");break;
   case"beam":beams.push({...e,t:1});break;
   case"ring":rings.push({x:e.x,y:e.y,r:e.R,t:1,c:e.c,big:1});break;
-  case"power":if(own){const d=E.puDef(s.set,e.k,s.mode);toast(d.nm+"!");blip(262*Math.pow(2,(e.k-1)/12),.12,.12,d.bad?"square":"triangle");}break;
-  case"miss":if(own){toast("MISS");blip(95,.13,.18);}break;
+  case"power":if(own){const d=E.puDef(s.set,e.k,s.mode);blip(262*Math.pow(2,(e.k-1)/12),.12,.12,d.bad?"square":"triangle");}break;
+  case"life":if(own){toast("−1 LIFE");blip(95,.13,.18);}break;
   case"out":if(own){toast("OUT");blip(80,.15,.3,"square");}break;
   case"crushed":if(own){toast("CRUSHED");blip(110,.25,.3,"square");}break;
  }
@@ -665,6 +670,7 @@ function render(){
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
  $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
  $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.remaining/s.board.total).toFixed(3):0)+")";
+ $("menuStatus").textContent="ROOM "+s.code+" · "+mode.toUpperCase()+" · "+me.lives+" LIVES · "+s.players.map(p=>p.name+" "+p.score).join(" / ");
  $("hudStats").hidden=s.status!=="playing";
  $("hudMode").hidden=s.status==="playing";
  $("hudMode").textContent=s.status==="finished"?"RESULTS":"LOBBY";
@@ -891,19 +897,6 @@ function draw(now){
   }
   ctx.globalAlpha=1;
  }
- if(s&&me){
-  // Opponents are named just inside their own edge, facing the player.
-  ctx.fillStyle=V?"#01cdfe":"#b0b6b5";ctx.font=small;ctx.globalAlpha=.75;
-  for(const p of s.players){
-   if(p.id===you)continue;
-   const text=p.name.toUpperCase().slice(0,14)+(s.status==="waiting"?"":" "+p.score+" ♥"+p.lives);
-   const side=(p.seat-view.seat+4)%4;
-   if(side===2)label(text,view.cx,62);
-   if(side===1)label(text,34,view.cy,-Math.PI/2);
-   if(side===3)label(text,viewW-34,view.cy,Math.PI/2);
-  }
-  ctx.globalAlpha=1;
- }
  ctx.restore();
  const trackStart=Math.max(40,viewW*.11),trackEnd=viewW-trackStart,controlY=viewH-26;
  const handle=trackStart+(playing?localPos:.5)*(trackEnd-trackStart);
@@ -912,35 +905,7 @@ function draw(now){
  ctx.fillStyle=V?"#ff71ce":"#c96a5a";ctx.beginPath();ctx.roundRect(handle-24,controlY-11,48,22,11);ctx.fill();
  ctx.fillStyle="#0003";for(const o of [-6,0,6])ctx.fillRect(handle+o-.75,controlY-5,1.5,10);
  ctx.font=small;
- if(playing&&me){
-  const mult=1+Math.min(4,Math.floor((me.combo||0)/5));
-  ctx.fillStyle=V?"#ff9de0":"#e8b9ad";
-  const yours=me.out?"OUT · "+me.score:"YOU "+me.score;
-  ctx.fillText((s.mode==="coop"||s.mode==="infinite")?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-84);
-  if(mult>1){
-   const beat=1+.12*Math.sin(now/90);
-   ctx.save();ctx.translate(viewW/2,view.height-112);ctx.scale(beat,beat);
-   ctx.font=C?"bold 16px ui-monospace,monospace":"12px 'Press Start 2P',monospace";
-   ctx.fillStyle=mult>=4?(V?"#05ffa1":"#ffd166"):V?"#ff71ce":"#ff9a5a";
-   if(!C){ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=10;}
-   ctx.fillText("COMBO x"+mult,0,0);ctx.restore();ctx.font=small;
-  }
- }
- if(live&&serve){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-72);}
- else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-72);}
- // Active effects: yours, then the ones everybody shares.
- if(playing&&me){
-  const act=[];
-  for(const [k,v] of Object.entries({...s.fx,...me.fx}))if(E.PU_BY_ID[k])act.push([E.PU_BY_ID[k],v.toFixed(1)]);
-  if(s.lucky>0)act.push([E.PU_BY_ID.lucky,String(s.lucky)]);
-  if(act.length){
-   ctx.font=C?"bold 7px ui-monospace,monospace":"5px 'Press Start 2P',monospace";ctx.textAlign="left";
-   let x=12,y=viewH-60;
-   for(const [d,v] of act){const t=d.nm+" "+v,w=ctx.measureText(t).width+10;if(x+w>viewW-8){x=12;y+=10;}
-    ctx.fillStyle=d.c;ctx.fillRect(x,y-2,4,4);ctx.fillText(t,x+6,y);x+=w;}
-   ctx.textAlign="center";ctx.font=small;
-  }
- }
+
  if(live&&me&&me.out){
   const left=s.players.filter(p=>!p.out).length,half=Math.min(150,viewW/2-12);
   ctx.fillStyle=V?"rgba(26,5,51,.82)":"rgba(7,9,12,.8)";ctx.fillRect(view.cx-half,view.cy-34,half*2,68);
@@ -1058,7 +1023,7 @@ $("copy").addEventListener("click",async()=>{
  try{await navigator.clipboard.writeText(url);$("copy").textContent="COPIED";setTimeout(()=>$("copy").textContent="COPY LINK",1800);}
  catch{window.prompt("Copy this invite:",url);}
 });
-$("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent=soundOn?"♪":"×";$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
+$("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent="SOUND · "+(soundOn?"ON":"OFF");$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
  socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
