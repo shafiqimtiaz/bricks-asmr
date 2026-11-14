@@ -433,6 +433,7 @@ let soundOn=true,soundKit=null,notesThisFrame=0;
 const brickMusic=createBrickMusic();
 function clearFx(){sparks=[];rings=[];beams=[];floats=[];}
 function sparkle(b){
+ if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
  const c=(style==="vapor"?state?.board?.vaporPalette:state?.board?.palette)?.[b.c]||colors[b.c%4];const x=b.x,y=b.y;
  rings.push({x,y,r:2,t:1,c});
  for(let i=0;i<2;i++){const a=Math.random()*Math.PI*2,v=35+Math.random()*105;sparks.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,t:.6+Math.random()*.5,c});}
@@ -803,7 +804,7 @@ function draw(now){
   simMe.c=centres[you];simMe.aim=aimAng;
   spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
   sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
-  drawAimGuide(ctx,E.predict(sim,you,260),"#e4f4ec",now,!!drag?.moved,spot);
+  drawAimGuide(ctx,E.predict(sim,you,260),"#e4f4ec",!!drag?.moved,spot);
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
@@ -981,20 +982,12 @@ for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
   audioInit();canvas.setPointerCapture(event.pointerId);
   const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe()){
-    let origin=null;
-    const me=state?.players.find(p=>p.id===you);
-    if(sim&&me){
-     const centre=E.paddleAt(sim,you,amInverted()?1-localPos:localPos);
-     const spot=E.point(sim,me.seat,centre,sim.BR+1),start=viewPoint(view,spot.x,spot.y),touch=boardPointer(event);
-     if(Math.hypot(touch.x-start.x,touch.y-start.y)<=52)origin=start;
-    }
-    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false,origin};
-   }
+  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())
+    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false};
   else{drag=null;pointer(event);}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved){const target=drag.origin?boardPointer(event):null;setAim(target?aimPointerAngle(drag.origin.x,drag.origin.y,target.x,target.y):aimDragAngle(drag.aim,dx,drag.width));}}
+  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));}
   else if(event.buttons||event.pointerType==="touch")pointer(event);
  });
  canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
@@ -1005,8 +998,8 @@ const KEY_NUDGE=0.035;
 window.addEventListener("keydown",event=>{
  const key=event.key.toLowerCase();
  if(key==="escape")closeMenu();
- if(key===" "&&!document.activeElement?.matches("input")&&$("panel").hidden){event.preventDefault();launch();}
- if(!MOVE_KEYS.includes(key)||document.activeElement?.matches("input")||!$("panel").hidden)return;
+ if(key===" "&&!document.activeElement?.matches("input")&&$("panel").hidden&&$("hudMenu").hidden){event.preventDefault();launch();}
+ if(!MOVE_KEYS.includes(key)||document.activeElement?.matches("input")||!$("panel").hidden||!$("hudMenu").hidden)return;
  held[key]=true;
  // A tap moves the paddle at once; holding keeps gliding it via the frame loop.
  // Only the first press nudges, so auto-repeat does not stack on top of the glide.
@@ -1046,13 +1039,15 @@ $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
  socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
 });
-function closeMenu(){$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");}
+function closeMenu(restoreFocus=false){const open=!$("hudMenu").hidden;$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");if(open&&restoreFocus===true)$("hudMenuToggle").focus();}
 $("hudMenuToggle").addEventListener("click",()=>{
  const expanded=$("hudMenu").hidden;
  $("hudMenu").hidden=!expanded;
  $("hudMenuToggle").setAttribute("aria-expanded",String(expanded));
+ if(expanded){for(const key of MOVE_KEYS)held[key]=false;$("hudMenu").querySelector("a,button")?.focus();}
 });
 document.addEventListener("pointerdown",event=>{if(!event.target.closest("#hudMenu,#hudMenuToggle"))closeMenu();});
+window.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("hudMenu").hidden){event.preventDefault();closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or the next key press would trigger it again.
 $("hud").addEventListener("click",event=>{if(event.detail>0)event.target.closest("button")?.blur();});
 resize();

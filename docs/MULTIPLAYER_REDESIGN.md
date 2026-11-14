@@ -8,11 +8,11 @@
 
 ## 1. Non-negotiable requirements
 
-1. **One home experience.** The existing Solo game is the visual and gameplay foundation. Entering Multiplayer uses the same pixel typography, HUD, panels, graphics, sound, themes, animations and interaction language. Do not create another landing-page brand.
+1. **One home experience.** The existing Solo game is the visual and gameplay foundation. Entering Multiplayer uses the same pixel typography, HUD, panels, graphics, sound, animations and interaction language. Do not create another landing-page brand.
 2. **One shared board, always.** With 1 waiting player or 2, 3 or 4 joined players, render **exactly one** game arena. Never render 2–4 separate Solo arenas or mini previews.
 3. **One paddle per participating player.** Place paddles on the **bottom, top, left and/or right edges** of that same arena. Each player controls their own paddle and cannot move another player's.
 4. **Shared gameplay.** Every player sees the same bricks, balls, collisions, power-ups, destruction, effects and match state in real time. This is one cooperative/shared simulation, **not** independent runs with a common seed.
-5. **Solo visual fidelity.** Preserve the recognizable brick art, square tiles, ball physics feel and ASMR effects while allowing the shared logical arena dimensions to follow the selected screen aspect ratio, ball physics feel, break effects, synthesized ASMR, HUD language, Clean / CRT-Vintage / Vapor themes, and pixel animations. Add only the boundary and paddle logic necessary for additional players.
+5. **Solo visual fidelity.** Preserve the recognizable brick art, square tiles, ball physics feel and ASMR effects while allowing the shared logical arena dimensions to follow the selected screen aspect ratio, ball physics feel, break effects, synthesized ASMR, HUD language and pixel animations. Add only the boundary and paddle logic necessary for additional players.
 6. **Mobile first.** The single board must fill the available viewport on phones, tablets, laptops, desktops and TVs, with no horizontal scrolling, clipped paddles or inaccessible controls.
 7. **Preserve Solo and its D1 leaderboard.** Multiplayer match results stay room-scoped and do not post unverified scores to the global Solo leaderboard.
 8. **TypeScript migration.** Use a shared typed engine and renderer, with runtime-validated network messages, by migrating the existing application incrementally rather than rewriting an unrelated game.
@@ -21,7 +21,7 @@
 
 - One complete board for every connected player
 - A four-board gallery or opponent gameplay previews
-- Different Solo and Multiplayer visual styles or landing pages
+- Different Solo and Multiplayer interfaces or landing pages
 - Four separate simulations with independent balls, bricks or power-ups
 - A square arena with unrelated brick patterns, physics and controls
 - Accounts, matchmaking, chat, spectators, or more than four players
@@ -43,7 +43,7 @@ The host picks a mode in the lobby; neither mode has a timer. **Coop:** the whol
 
 ### Lobby and home
 
-The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and matching Clean / CRT / Vapor styling. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
+The home presentation opens a unified **Bricks ASMR Lobby** with distinct Single Player and Multiplayer choices, a small italic "by Shafiq 😉" byline, and the same restrained pixel presentation. Each mode has a compact top bar; less-used settings and actions move into a menu. Multiplayer hosting, entering a required player name, joining by room code, copying an invite URL, waiting and starting use the same lobby visual language.
 
 The host may start when **at least two players are connected**. While waiting, the same board remains visible with only joined paddles. Starting locks the round's paddle assignments and shared board state. Late joins to an active round are not allowed unless joining as an authenticated reconnect to an existing seat.
 
@@ -51,7 +51,7 @@ The host may start when **at least two players are connected**. While waiting, t
 
 The same shared arena geometry works at tall-mobile, square, landscape, ultrawide, and TV aspect ratios. Instead of stretching a fixed portrait canvas, the game selects a logical arena width from the display aspect ratio, **reflows the shared brick generator into an appropriately sized grid of square cells**, and uses matching collision boundaries and paddle positions. Uniform canvas scaling preserves brick, ball, and paddle proportions. On desktop, the Lobby docks beside a landscape arena when space permits; on mobile it overlays the playfield. The host selects the Multiplayer room's authoritative dimensions at creation, so participants on different devices share identical bricks, hits, physics and power-ups. Side-seat camera rotation preserves geometry and puts the assigned paddle at the bottom even where the rotated room appears portrait. Canvas backing resolution remains capped. Never create additional boards or horizontally scrolling gameplay.
 
-Themes are a **local display preference**: Clean, CRT-Vintage and Vapor change how the same shared state is rendered, not the physics or authoritative state. A user changing their theme must not change other players' themes.
+Both modes render the same game state with consistent pixel graphics; presentation does not alter the authoritative physics.
 
 ## 3. Technical architecture
 
@@ -86,7 +86,7 @@ package.json
 - **Shared game engine:** The same source of truth for brick generation, ball movement, collisions, power-ups, lives/progress and event effects used by Solo and Multiplayer.
 - **Solo client:** Drives that engine locally in Solo mode, with one bottom paddle; Solo behavior is preserved.
 - **Durable Object:** Owns the single authoritative Multiplayer instance per room, joined players, paddle assignment, start/finish, inputs, reconnects and shared snapshots.
-- **Multiplayer client:** Sends only its own paddle input, interpolates incoming authoritative snapshots and renders **the same shared board** using the Solo renderer and local theme.
+- **Multiplayer client:** Sends only its own paddle input, interpolates incoming authoritative snapshots and renders **the same shared board** using the shared renderer.
 - **D1:** Continues to support only Solo/global leaderboard data. Multiplayer room-scoped provisional results remain separate.
 
 ### Fairness and performance
@@ -116,7 +116,7 @@ Handle temporary disconnects without duplicating seats. A disconnected player's 
 ## 5. Migration and verification gates
 
 ### Phase 0 — Baseline
-Capture the Solo board and controls in all three themes and record seeded-level output, collision/power-up behavior and current leaderboard behavior.
+Capture the Solo board and controls and record seeded-level output, collision/power-up behavior and current leaderboard behavior.
 
 **Gate:** Existing Solo screen and gameplay have reproducible baseline checks.
 
@@ -138,7 +138,7 @@ Replace the current square-arena simulation with one shared instance of the comm
 ### Phase 4 — Polish and resilience
 Adapt rotated side-seat inputs, collision balance, sound, postprocessing, HUD, joined-player names, reconnect handling and touch controls. Verify host/rejoin/start/end behavior, including player count changes in the lobby.
 
-**Gate:** Mobile tests at 320, 375 and 768px and desktop show the entire board without scrolling or clipped controls, with all three themes intact.
+**Gate:** Mobile tests at 320, 375 and 768px and desktop show the entire board without scrolling or clipped controls, with the visual presentation intact.
 
 ### Phase 5 — Release
 Review a focused PR with visual comparisons and tests. Merge only when accepted, deploy the existing Cloudflare Worker, then smoke-test Solo, multiplayer and the global Solo leaderboard independently.
@@ -157,7 +157,7 @@ Review a focused PR with visual comparisons and tests. Merge only when accepted,
 - [x] Each player controls exactly their assigned paddle, with side-appropriate touch and keyboard input
 - [ ] Host start requires two online players; authenticated reconnects do not duplicate seats
 - [x] Authoritative input validation and bounded, efficient WebSocket snapshots
-- [ ] Clean, CRT-Vintage and Vapor render the shared game correctly
+- [ ] The game renders consistently in both modes
 - [ ] No horizontal scrolling or clipped HUD/paddles on mobile
 - [ ] Original Solo game and global D1 leaderboard keep working
 - [ ] Regression tests, 2–4-client integration tests and visual comparisons pass
@@ -169,7 +169,7 @@ The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz
 ## 8. Implementation progress (November 8, 2026)
 
 **Implemented and checked:**
-- One shared responsive arena, reusing the Solo HUD and Clean/CRT/Vapor presentation.
+- One shared responsive arena, reusing the Solo HUD and pixel graphics.
 - Occupied paddle positions for one through four joined players; no decorative player boards.
 - Shared authoritative ball, brick and paddle state through Cloudflare Durable Objects.
 - Original Solo deterministic brick patterns and palettes for equivalent seed and level.
@@ -180,7 +180,7 @@ The initial implementation was merged in [PR #1](https://github.com/shafiqimtiaz
 - Activated authoritative multiball, wide paddles, piercing, shockwave, chain blast, extra lives, speed modifiers, and time extension from generated power-up cells.
 - Added a synchronized 3-second countdown, active buff indicators and local paddle input prediction.
 - Reduced redundant WebSocket traffic by sending board metadata once and brick HP changes only when needed.
-- Fixed CRT/Vapor pointer input to target the visible WebGL canvas, not just the hidden 2D canvas.
+- Fixed WebGL pointer input to target the visible WebGL canvas, not just the hidden 2D canvas.
 - Implemented and released [PR #2](https://github.com/shafiqimtiaz/bricks-asmr/pull/2) and [PR #3](https://github.com/shafiqimtiaz/bricks-asmr/pull/3). The isolated QA Worker was deleted after verification.
 
 **Not yet fully verified or ported:**
@@ -194,7 +194,7 @@ The multiplayer release includes the core shared-board gameplay, synchronized bo
 
 Solo and Multiplayer now consume `src/game-core.js` for the deterministic seeded brick generator, brick/palette metadata, velocity normalization, equivalent Solo-angle paddle bounce, per-cell pixel drawing, the compressed ASMR oscillator, brick-note scale, and crusher timing. Solo calls the level generator without multiplayer pruning; Multiplayer keeps one server-authoritative world and removes bricks to make space for extra players. The multiplayer crusher applies a synchronized 2D transform toward all occupied sides, with physics coordinates inverted through the same transform. Each client then rotates that single world into its personal bottom-paddle view.
 
-**Remaining gameplay parity gaps:** Solo still includes theme-specific power-ups (and falling pickups), manual aiming/launch, a stopwatch and extra visual feedback that Multiplayer has not completely adopted. Multiplayer currently uses a room-timed round and simplified immediate power-ups. Those differences must not be described as full Solo/Multiplayer mechanic parity. The new shared core is JavaScript, not the planned TypeScript migration. Browser-based live 2–4-player endurance verification also remains outstanding.
+**Remaining gameplay parity gaps:** Solo still includes additional power-ups (and falling pickups), manual aiming/launch, a stopwatch and extra visual feedback that Multiplayer has not completely adopted. Multiplayer currently uses a room-timed round and simplified immediate power-ups. Those differences must not be described as full Solo/Multiplayer mechanic parity. The new shared core is JavaScript, not the planned TypeScript migration. Browser-based live 2–4-player endurance verification also remains outstanding.
 
 ## 10. Level alignment, camera and layout fixes (November 11, 2026)
 
@@ -204,7 +204,7 @@ Solo and Multiplayer now consume `src/game-core.js` for the deterministic seeded
 - **HUD.** The HUD owns the top 36 logical pixels; on small screens the remainder hangs above the stage instead of covering the top paddle or brick rows.
 - **Play feel.** A replacement ball rides its owner's paddle for 1.2s before launching. Players start with 5 lives. Remote paddles are eased between snapshots, held keys move the paddle smoothly, countdown and buff timers use the room's clock, and bricks are cached at device resolution.
 - **Lobby.** Friends can join between rounds, not only before the first.
-- **Pickups.** A power-up brick releases a capsule that falls toward the player whose ball broke it and takes effect only if that player catches it, as in Solo. Capsules look the same in every theme because the power-up set is shared by the room; Solo's per-theme sets stay Solo-only by design.
+- **Pickups.** A power-up brick releases a capsule that falls toward the player whose ball broke it and takes effect only if that player catches it, as in Solo. Capsules render consistently because the power-up set is shared by the room.
 - **Launch.** A held replacement ball launches on a tap on the board or Space, or by itself after 2.5s.
 - **Still open from section 9:** drag-to-aim and Solo's stopwatch scoring are not in Multiplayer (rounds stay timed and scored). The room is always the portrait arena: the host-aspect option is not wired through the room-creation route.
 
@@ -222,7 +222,7 @@ Supersedes the room-simulation details in sections 9–11 (the room's own ball, 
 
 - **One simulation.** `BrickRoom` keeps one engine state (`room.sim`, created by `brickEngine().create`) per round: mode `coop` or `versus`, `holdSeconds` 5, at most 40 balls. Coop has a shared pool of lives (3 per player, up to that plus 3); Versus gives each player 4 (up to 6). Every paddle rule is written in the owning player's frame, so the top and side paddles deflect exactly as the bottom one does.
 - **Rules are Solo's.** Slow-mo halves and Hyper doubles ball speed, combos use a 0.7s window, and a ball lost while others remain in play costs nothing; a life goes only when the balls on the board fall below the target (Coop 1, Versus one per player standing). The old rally speed-up, the 11 room power-ups and wall-clock effect timers are removed. Crushed: Coop ends the round, Versus puts that player out. Solo-only timer power-ups (`time`, `freeze`) become SLOW-MO.
-- **Power-ups.** The set is the host's theme when the round starts (the client sends `set` with the start action: Clean, CRT or Vapor); each player still draws with their own theme. Effects marked `own` (wide, laser, floor, shrink, mitosis, twin, sunbeam, invert) affect only the catcher and are drawn on that player's paddle; INVERTED flips the catcher's own controls on their client.
+- **Power-ups.** The round uses the shared power-up set. The internal `set` value is retained for compatibility with existing game data. Effects marked `own` (wide, laser, floor, shrink, mitosis, twin, sunbeam, invert) affect only the catcher and are drawn on that player's paddle; INVERTED flips the catcher's own controls on their client.
 - **Seeds.** Each round gets a fresh random seed (same for everyone because the room builds the board); `round` is just a counter.
 - **Inputs.** `paddle-input` carries a slider position from the player's own left (0) to right (1) and an aim; `launch` carries an aim. The room maps them with the engine (`paddleAt`, `setAim`, `launch`). Sequence checks and the 25ms rate limit stay; launches before the countdown ends are ignored.
 - **Presence.** Disconnecting marks the player offline in the engine (nobody serves for them); after 30s offline, or on an explicit leave, they are out. A Coop round in which everyone is out ends as `allout`.

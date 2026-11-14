@@ -193,10 +193,9 @@ const brickBox=P('bricks');
 for(let i=0;i<40;i++)brickBox.append(document.createElement('span'));
 const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
 function boardLabel(key){
- const m=/^([a-z0-9]+?)(?:-\d+)?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
- if(!m)return 'BOARD '+String(key||'').toUpperCase();
- const label=m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
- return label+' · '+(m[2]==='vintage'?'CRT':m[2].toUpperCase());
+ const m=/^([a-z0-9]+?)(?:-\d+)?-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
+ if(!m)return 'BOARD '+String(key||'').replace(/-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/,'').toUpperCase();
+ return m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
 }
 function empty(title,message){
  const shell=cell('empty',''),art=cell('empty-art','');
