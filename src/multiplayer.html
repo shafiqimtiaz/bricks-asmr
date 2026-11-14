@@ -340,7 +340,7 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
   <span id="netStatus" role="status" aria-live="polite" hidden></span>
   <button id="hudMenuToggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
-  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="sensitivityToggle" type="button" aria-label="Change paddle sensitivity">SENS LOW</button><a href="/">SOLO</a><a href="/multiplayer" aria-current="page">LOBBY</a><a href="/leaderboard">SCORES</a>
+  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND ON</button><button id="sensitivityToggle" type="button">SENS LOW</button><a href="/">SOLO</a><a href="/multiplayer" aria-current="page">LOBBY</a><a href="/leaderboard">SCORES</a>
   </div>
  </div>
  <div id="panel">
@@ -1044,7 +1044,7 @@ function pointer(event,previousX){
 // The lower strip is a relative trackpad; the court remains reserved for serving.
 for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
-  if(state?.status!=="playing")return;
+  if(state?.status!=="playing"||!$("hudMenu").hidden)return;
   audioInit();
   const y=boardPointer(event).y;
   if(y>=viewH-90){controlDrag={id:event.pointerId,x:event.clientX};drag=null;}
