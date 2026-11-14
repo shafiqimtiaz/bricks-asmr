@@ -35,12 +35,19 @@ jobs:
                 pr.head.ref === branch.name &&
                 pr.head.sha === branch.commit.sha
               );
-              if (!approved) {
-                core.info("Preserving unverified branch: " + branch.name);
+              let safe = Boolean(approved);
+              if (!safe) {
+                const comparison = await github.rest.repos.compareCommits({
+                  owner, repo, base: defaultBranch, head: branch.name
+                });
+                safe = comparison.data.ahead_by === 0;
+              }
+              if (!safe) {
+                core.info("Preserving branch with unmerged commits: " + branch.name);
                 continue;
               }
               await github.rest.git.deleteRef({
                 owner, repo, ref: "heads/" + branch.name
               });
-              core.info("Deleted merged PR #" + approved.number + ": " + branch.name);
+              core.info("Deleted " + (approved ? "merged PR #" + approved.number : "branch without unique commits") + ": " + branch.name);
             }
