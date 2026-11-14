@@ -491,7 +491,7 @@ function render(fs = 1){
   ctx.globalAlpha = 1;
 
   // trajectory previews
-  if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 900), '#e4f4ec', performance.now(), onBoard && moved);
+  if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 900), '#e4f4ec', performance.now(), onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
@@ -658,7 +658,7 @@ wrap.addEventListener('pointermove', e => {
   const [lx] = toLogical(e);
   if (sliding) { sliderTo(lx); return; }
   if (Math.abs(e.clientX - downX) > 8) moved = true;
-  if (moved && state === 'aim') { E.setAim(S, 'me', downAim + (e.clientX - downX) / wrap.getBoundingClientRect().width * 2.3); aimAng = me.aim; }
+  if (moved && state === 'aim') { E.setAim(S, 'me', aimDragAngle(downAim, e.clientX - downX, wrap.getBoundingClientRect().width)); aimAng = me.aim; }
 });
 function endPtr(e){
   if (!sliding && !onBoard) return;
