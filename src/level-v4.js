@@ -66,7 +66,8 @@ export function buildLevelV4(base, seed, players, arena, hashSeed, randomSeed) {
    else if(original[index(x,y)]===3){set(x,y,4);reflectorCount++;}
   }
   // A short ball-sized continuation makes the entrance usable before the reward pocket is cleared.
-  for(let j=0;j<aperture;j++)for(let d=1;d<=rand(2,3);d++){
+  const depth=rand(2,3);
+  for(let j=0;j<aperture;j++)for(let d=1;d<=depth;d++){
    const gate=offset+gap+j;
    if(run.horizontal)set(run.x+gate,run.y+(feature%2?-d:d),0);
    else set(run.x+(feature%2?-d:d),run.y+gate,0);
@@ -108,6 +109,12 @@ export function buildLevelV4(base, seed, players, arena, hashSeed, randomSeed) {
  }
  if(base.quad)for(let y=top;y<lowerTop;y++)for(let x=left;x<=right;x++){
   const a=index(x,bottom-(y-top)),b=index(x,y);
+  hp[b]=hp[a];color[b]=color[a];power[b]=power[a];
+ }
+ // Some legacy families have colour metadata outside their occupied brick footprint.
+ // Mirror the complete arrays, including empty cells, for exact deterministic symmetry.
+ for(let y=0;y<rows;y++)for(let x=0;x<cols/2;x++){
+  const a=index(x,y),b=index(cols-1-x,y);
   hp[b]=hp[a];color[b]=color[a];power[b]=power[a];
  }
  // Reflector-only flood fill: every breakable cell must remain accessible after clearing bricks.
