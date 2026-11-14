@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, bricks, aimVelocity, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource } from "../src/game-core.js";
+import { arenaLayout, bricks, aimVelocity, normalizeBallVelocity, drawBrickTile, randomPlayerName, browserCoreSource, soloCoreSource } from "../src/game-core.js";
 
 import { loadServer, makeRoom, roomInstance, multiHtml as html, serverSource, soloHtml, soloWorker } from "./helpers.js";
 
@@ -39,6 +39,18 @@ test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",
   assert.equal(board.total,[...board.hp].filter(c=>c!=="0"&&c!=="4").length);
   assert.ok(board.scale.length>=5);
  }
+});
+
+test("new player names use varied adjective–noun combinations in both modes",()=>{
+ const names=Array.from({length:100},randomPlayerName);
+ for(const name of names){
+  assert.match(name,/^[A-Z][a-z]+ [A-Z][a-z]+$/);
+  assert.ok(name.length<=18);
+ }
+ assert.ok(new Set(names).size>1);
+ assert.match(browserCoreSource,/function randomPlayerName\(\)/);
+ assert.match(soloCoreSource,/function randomPlayerName\(\)/);
+ assert.match(soloHtml,/myName=randomPlayerName\(\)/);
 });
 
 test("paddle rotations use Solo's exact angular response and ball speed",()=>{
@@ -224,7 +236,7 @@ test("room-specific invitations take priority, legacy query invites do not join"
  assert.match(html,/id="acceptInvite"/);
 });
 
-test("invited player must enter a real gamer name before joining", async () => {
+test("invited players get editable generated names and retain saved names", async () => {
  const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
  const nameStart=client.indexOf("function name(){"),nameEnd=client.indexOf("function waiting(",nameStart);
  const $=()=>({value:""});
@@ -234,19 +246,23 @@ test("invited player must enter a real gamer name before joining", async () => {
  assert.equal(readName(()=>({value:"  Brick Master  "}))(),"Brick Master");
  const from=client.indexOf("function showInvitePrompt("),to=client.indexOf("function openNicknamePrompt(",from);
  const ui={joinCode:{},inviteCode:{},playerName:{value:"StoredName",focus(){}},roomActions:{},inviteDetails:{},panel:{},intro:{},room:{}};
- const build=new Function("$","enter","error",client.slice(from,to)+"return {showInvitePrompt,loadInvite};");
- const events=[],gate=build(id=>ui[id],async code=>{events.push(["check",code]);throw Object.assign(new Error("Join the lobby first"),{status:401});},message=>events.push(["error",message]));
+ const build=new Function("$","enter","error","localStorage","randomPlayerName",client.slice(from,to)+"return {showInvitePrompt,loadInvite};");
+ const storage={getItem:()=>null};
+ const events=[],gate=build(id=>ui[id],async code=>{events.push(["check",code]);throw Object.assign(new Error("Join the lobby first"),{status:401});},message=>events.push(["error",message]),storage,()=>"Hollow Lantern");
  await gate.loadInvite("ABCD23");
  assert.deepEqual(events,[["check","ABCD23"]]);
- assert.equal(ui.playerName.value,"");
+ assert.equal(ui.playerName.value,"Hollow Lantern");
  assert.equal(ui.inviteDetails.hidden,false);
  assert.equal(ui.roomActions.hidden,true);
  assert.equal(ui.joinCode.value,"ABCD23");
- const returning=build(id=>ui[id],async code=>events.push(["resumed",code]),message=>events.push(["error",message]));
+ const returning=build(id=>ui[id],async code=>events.push(["resumed",code]),message=>events.push(["error",message]),storage,()=>"Hollow Lantern");
  ui.inviteDetails.hidden=true;events.length=0;
  await returning.loadInvite("ABCD23");
  assert.deepEqual(events,[["resumed","ABCD23"]]);
  assert.equal(ui.inviteDetails.hidden,true);
+ const named=build(id=>ui[id],async()=>{},()=>{},{getItem:()=>"My Own Name"},()=>"Pale Visitor");
+ named.showInvitePrompt("ABCD23");
+ assert.equal(ui.playerName.value,"My Own Name");
  assert.match(client,/await joinRoom\(code,displayName\)/);
  assert.match(client,/const displayName=name\(\)/);
 });
