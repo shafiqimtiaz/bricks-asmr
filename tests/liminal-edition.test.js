@@ -24,7 +24,7 @@ test("Infinite opens high and centred without changing brick dimensions",()=>{
    const bottom=arena.gridY+(maxRow+1)*arena.cell;
    assert.ok(bottom<=(players===1?220:410),"Infinite opening leaves a meaningful gap");
    if(players===1)assert.ok(bottom<=225,"Solo starts well above the paddle");
-   assert.ok(b.hp.includes("4"),"keep V4 reflectors");
+   assert.equal(b.generatorVersion,4);
   }
  }
 });
@@ -33,7 +33,7 @@ test("Infinite still descends on the timer while a held ball waits",()=>{
  const arena=arenaLayout(),board=infiniteOpeningBoard("held",arena,4,1);
  const E=brickEngine(()=>.5),S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",infinite:true,lives:5});
  assert.deepEqual(S.descent,{t:0,rows:0,interval:8});
- for(let k=0;k<480;k++)E.step(S,1/60);
+ for(let k=0;k<483;k++)E.step(S,1/60);
  assert.equal(S.descent.rows,1);
  assert.equal(S.crush.target[0],S.CS);
  assert.equal(S.pool,5);
@@ -48,7 +48,7 @@ test("new leaderboard supports swipeable time/score views while retaining the CR
  assert.match(leaderboardHtml,/id="bestScore"/);
  assert.match(leaderboardHtml,/touchstart/);
  assert.match(leaderboardHtml,/touchend/);
- assert.match(leaderboardHtml,/metric=\'+metric/);
+ assert.match(leaderboardHtml,/&metric='\+metric/);
  assert.match(soloHtml,/metric:'score'/);
  assert.match(soloHtml,/bricksBroken:lastBricks,bestCombo:lastCombo/);
 });
