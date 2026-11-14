@@ -7,7 +7,7 @@ import LEADERBOARD from "./leaderboard.html";
 import { icons, manifest, serviceWorker, withPwa } from "./pwa.js";
 
 function json(v,status=200){return new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});}
-const KEY=/^[a-z0-9]{1,16}(?:-v2)?-(clean|vintage|vapor)(?:-a\d{3,4})?$/,ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,NAME=/^[\p{L}\p{N} _.-]{2,24}$/u;
+const KEY=/^[a-z0-9]{1,16}(?:-v[23])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/,ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,NAME=/^[\p{L}\p{N} _.-]{2,24}$/u;
 async function api(req,env,url){
  if(req.method==='GET'){
   if(url.searchParams.get('scope')==='world'){
