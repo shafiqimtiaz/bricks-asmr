@@ -54,7 +54,7 @@ export function createBrickMusic() {
     }
   ];
 
-  let tune = tunes[0], position = 0, nextAt = 0, pitchDrop = 0;
+  let tune = tunes[0], position = 0, nextAt = 0, lifePitchDrop = 0, depthPitchDrop = 0;
 
   function reset(seed = "") {
     let hash = 2166136261;
@@ -63,13 +63,17 @@ export function createBrickMusic() {
     tune = tunes[(hash >>> 0) % tunes.length];
     position = 0;
     nextAt = 0;
-    pitchDrop = 0;
+    lifePitchDrop = depthPitchDrop = 0;
     return tune.name;
   }
 
   function setLives(lives, maxLives) {
     const total = Math.max(1, maxLives);
-    pitchDrop = Math.round(12 * (1 - Math.max(0, Math.min(lives, total)) / total));
+    lifePitchDrop = Math.round(12 * (1 - Math.max(0, Math.min(lives, total)) / total));
+  }
+
+  function setDepth(rows) {
+    depthPitchDrop = Math.min(8, Math.max(0, rows) / 2);
   }
 
   function next() {
@@ -77,7 +81,7 @@ export function createBrickMusic() {
     while (pitch < 55) pitch += 12;
     while (pitch > 88) pitch -= 12;
     return {
-      frequency: 440 * Math.pow(2, (pitch - pitchDrop - 69) / 12),
+      frequency: 440 * Math.pow(2, (pitch - Math.min(18, lifePitchDrop + depthPitchDrop) - 69) / 12),
       volume: tune.wave === "square" ? .085 : tune.wave === "sine" ? .18 : .17,
       duration: tune.duration,
       wave: tune.wave
@@ -96,7 +100,7 @@ export function createBrickMusic() {
   }
 
   return {
-    reset, setLives, next, hit,
+    reset, setLives, setDepth, next, hit,
     get name() { return tune.name; },
     get length() { return tune.notes.length; },
     get count() { return tunes.length; }

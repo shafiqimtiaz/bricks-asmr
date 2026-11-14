@@ -408,6 +408,7 @@ function sync(){
   balls = S.balls; pups = S.pups; lasers = S.lasers; fx = {...S.fx, ...me.fx}; luckyLeft = S.luckyLeft; fxClock = S.clock;
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
   brickMusic.setLives(lives, MAX_LIVES);
+  brickMusic.setDepth(S.descent?.rows || 0);
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
 const newBoard = () => { generatorVersion=4;seed = randomSeed(); startBoard(); };
@@ -463,7 +464,7 @@ function react(e){
       seq.forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(base * Math.pow(2, s / 12), 0.18, 0.15, d.bad ? 'square' : 'triangle'); }, j * 45));
       break;
     }
-    case 'life': vib(60); showToast('−1 LIFE',1100); break;
+    case 'life': vib(60); showToast(e.lives + ' ' + (e.lives === 1 ? 'LIFE' : 'LIVES') + ' REMAINING',1100); break;
     case 'end':
       timerOn = false;
       if (e.reason === 'cleared') {
@@ -692,7 +693,7 @@ function endPtr(e){
   if (!wasBoard || moved) return;
   if (state === 'aim') launch();
   else if (state === 'clear') newBoard();
-  else if (state === 'over') startBoard();
+  else if (state === 'over') newBoard();
 }
 wrap.addEventListener('pointerup', endPtr);
 wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
@@ -700,7 +701,7 @@ const keys = {};
 window.addEventListener('keydown', e => {
   if(!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
   audioInit(); keys[e.key.toLowerCase()] = true;
-  if (e.key === ' ') { if (state === 'aim') launch(); else if (state === 'clear') newBoard(); else if (state === 'over') startBoard(); }
+  if (e.key === ' ') { if (state === 'aim') launch(); else if (state === 'clear') newBoard(); else if (state === 'over') newBoard(); }
 });
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
@@ -720,7 +721,7 @@ document.getElementById('daily').onclick = () => {
   seed = 'd' + ymd; generatorVersion=4;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
-document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC'); };
+document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); newBoard(); showToast(soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC'); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
@@ -848,7 +849,7 @@ P('nameForm').addEventListener('submit',async e=>{
  }catch(e){showToast('Score name will update with your next run');}}
 });
 P('pnext').onclick=()=>newBoard();
-P('pretry').onclick=()=>startBoard();
+P('pretry').onclick=()=>newBoard();
 P('pclose').onclick=()=>hidePanel();
 function setSoloMode(mode){
  soloMode = mode === 'infinite' ? 'infinite' : 'solo';
@@ -856,8 +857,8 @@ function setSoloMode(mode){
  P('soloMode').textContent = soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC';
  P('soloMode').setAttribute('aria-label',soloMode === 'infinite' ? 'Infinite mode. Switch to Classic' : 'Classic mode. Switch to Infinite');
 }
-P('pmodeInf').onclick=()=>{setSoloMode('infinite');startBoard();};
-P('pmodeCls').onclick=()=>{setSoloMode('solo');startBoard();};
+P('pmodeInf').onclick=()=>{setSoloMode('infinite');newBoard();};
+P('pmodeCls').onclick=()=>{setSoloMode('solo');newBoard();};
 setSoloMode(soloMode);
 P('pbrag').onclick=()=>{
  const i=boardKey===boardId()?boardRows.findIndex(x=>x.boardKey===boardId()&&x.playerId===myId):-1;

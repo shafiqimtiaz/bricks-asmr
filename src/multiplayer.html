@@ -611,7 +611,7 @@ function react(s,e,mine){
   case"beam":beams.push({...e,t:1});break;
   case"ring":rings.push({x:e.x,y:e.y,r:e.R,t:1,c:e.c,big:1});break;
   case"power":if(own){const d=E.puDef(s.set,e.k,s.mode);blip(262*Math.pow(2,(e.k-1)/12),.12,.12,d.bad?"square":"triangle");}break;
-  case"life":if(own){toast("−1 LIFE");blip(95,.13,.18);}break;
+  case"life":if(own||s.mode!=="versus"){toast(e.n+" "+(e.n===1?"LIFE":"LIVES")+" REMAINING");if(own)blip(95,.13,.18);}break;
   case"out":if(own){toast("OUT");blip(80,.15,.3,"square");}break;
   case"crushed":if(own){toast("CRUSHED");blip(110,.25,.3,"square");}break;
  }
@@ -638,6 +638,7 @@ function accept(s){
  }
  const mine = s.players.find(p=>p.id===you);
  if(mine)brickMusic.setLives(mine.lives,s.mode==="versus"?6:3*s.players.length);
+ brickMusic.setDepth(s.mode==="infinite"?s.descentRows:0);
  for(const p of s.players){
   const prev=previous?.players.find(old=>old.id===p.id);
   if(!prev||prev.seat!==p.seat||(!prev.online&&p.online))shownC[p.id]=p.c;

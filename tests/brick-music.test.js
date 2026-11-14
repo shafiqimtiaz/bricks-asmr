@@ -3,7 +3,7 @@ import test from "node:test";
 import { runInNewContext } from "node:vm";
 import { createBrickMusic } from "../src/brick-music.js";
 import { browserCoreSource, soloCoreSource } from "../src/game-core.js";
-import { soloHtml, multiHtml } from "./helpers.js";
+import { soloHtml, multiHtml, serverSource, loadServer, makeRoom, roomInstance } from "./helpers.js";
 
 test("ten built-in public-domain tunes play without files or selection", () => {
   const music = createBrickMusic();
@@ -38,6 +38,41 @@ test("MIDI notes deepen as lives decrease without changing melodies or timing", 
   music.setLives(0, 5);
   music.reset("life-pitch");
   assert.deepEqual(music.next(), notes[0]);
+});
+
+test("infinite descent deepens the melody while combining with lives", () => {
+  const music = createBrickMusic();
+  const noteAt = (lives, rows) => {
+    music.reset("infinite-pitch");
+    music.setLives(lives, 5);
+    music.setDepth(rows);
+    return music.next();
+  };
+  const normal = noteAt(5, 0);
+  const descended = noteAt(5, 8);
+  const deeper = noteAt(5, 16);
+  const combined = noteAt(2, 16);
+  const lowest = noteAt(0, 100);
+  assert.ok(normal.frequency > descended.frequency);
+  assert.ok(descended.frequency > deeper.frequency);
+  assert.ok(deeper.frequency > combined.frequency);
+  assert.ok(combined.frequency > lowest.frequency);
+  assert.ok(Math.abs(normal.frequency / lowest.frequency - Math.pow(2, 18 / 12)) < .001);
+  assert.equal(lowest.wave, normal.wave);
+  assert.equal(lowest.duration, normal.duration);
+  assert.deepEqual(noteAt(5, 0), normal);
+  music.setDepth(12);
+  music.reset("infinite-pitch");
+  assert.deepEqual(music.next(), normal);
+});
+
+test("multiplayer snapshots include actual infinite descent progress", () => {
+  const server = loadServer();
+  const room = makeRoom(server, "infinite", 2);
+  const instance = roomInstance(server, room);
+  assert.equal(instance.snapshot(false).descentRows, 0);
+  room.sim.descent.rows = 6;
+  assert.equal(instance.snapshot(false).descentRows, 6);
 });
 
 test("same board or multiplayer round chooses the same tune, with varied seeds", () => {
@@ -92,9 +127,12 @@ test("solo and multiplayer use the same automatic music source", () => {
   }
   assert.match(soloHtml, /brickMusic\.reset\(seed\)/);
   assert.match(soloHtml, /brickMusic\.setLives\(lives, MAX_LIVES\)/);
+  assert.match(soloHtml, /brickMusic\.setDepth\(S\.descent\?\.rows \|\| 0\)/);
   assert.match(multiHtml, /brickMusic\.setLives\(mine\.lives,s\.mode===\"versus\"\?6:3\*s\.players\.length\)/);
   assert.doesNotMatch(soloHtml, /hbT|danger vignette|rgba\(255,0,40/);
   assert.match(multiHtml, /brickMusic\.reset\(s\.seed/);
+  assert.match(multiHtml, /brickMusic\.setDepth\(s\.mode===\"infinite\"\?s\.descentRows:0\)/);
+  assert.match(serverSource, /descentRows:S\?\.descent\?\.rows\|\|0/);
   for (const bundle of [soloCoreSource, browserCoreSource]) {
     assert.equal(runInNewContext(bundle + "\ntypeof createBrickMusic"), "function");
     assert.equal(runInNewContext(bundle + "\ncreateBrickMusic().count"), 10);

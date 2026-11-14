@@ -90,6 +90,7 @@ export class BrickRoom extends DurableObject{
    pups:S?S.pups.map(u=>[num(u.x),num(u.y),u.k,at(u.owner)]):[],
    lasers:S?S.lasers.map(l=>[num(l.x),num(l.y),l.seat]):[],
    fx:S?fxOf(S.fx):{},lucky:S?S.luckyLeft:0,remaining:S?S.remaining:r.board.remaining,
+   descentRows:S?.descent?.rows||0,
    crush:S?[num(S.crush.kx,100),num(S.crush.bx,100),num(S.crush.ky,100),num(S.crush.by,100)]:[1,0,1,0]};
   if(withBoard)state.board={...this.boardInfo(),hp:Array.from(this.hpNow(),h=>h).join("")};
   return state;
