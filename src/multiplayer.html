@@ -969,23 +969,32 @@ function holdingServe(){return state?.status==="playing"&&!!state.balls?.some(b=
 function launch(){
  if(socket?.readyState===WebSocket.OPEN&&holdingServe()&&serverNow()>=state.startedAt)socket.send(JSON.stringify({type:"launch",version:1,aim:aimAng}));
 }
-function pointer(event){
+function boardPointer(event){
  const rect=event.currentTarget.getBoundingClientRect();
- let u=(event.clientX-rect.left)/rect.width;
- // Undo the CRT barrel distortion so the paddle follows the finger exactly.
- if(useGL()){const k=FX[style].k,cx=u*2-1,cy=(event.clientY-rect.top)/rect.height*2-1;u=cx*(1+k*cy*cy)*.5+.5;}
- send(sliderPos(view,u*viewW));
+ let u=(event.clientX-rect.left)/rect.width,v=(event.clientY-rect.top)/rect.height;
+ if(useGL()){const k=FX[style].k,cx=u*2-1,cy=v*2-1;u=cx*(1+k*cy*cy)*.5+.5;v=cy*(1+k*cx*cx)*.5+.5;}
+ return {x:u*viewW,y:v*viewH};
 }
+function pointer(event){send(sliderPos(view,boardPointer(event).x));}
 // As in Solo: the strip below the board moves the paddle; while serving, dragging the board aims and a tap launches.
 for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
   audioInit();canvas.setPointerCapture(event.pointerId);
   const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false};
+  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe()){
+    let origin=null;
+    const me=state?.players.find(p=>p.id===you);
+    if(sim&&me){
+     const centre=E.paddleAt(sim,you,amInverted()?1-localPos:localPos);
+     const spot=E.point(sim,me.seat,centre,sim.BR+1),start=viewPoint(view,spot.x,spot.y),touch=boardPointer(event);
+     if(Math.hypot(touch.x-start.x,touch.y-start.y)<=52)origin=start;
+    }
+    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false,origin};
+   }
   else{drag=null;pointer(event);}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));}
+  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved){const target=drag.origin?boardPointer(event):null;setAim(target?aimPointerAngle(drag.origin.x,drag.origin.y,target.x,target.y):aimDragAngle(drag.aim,dx,drag.width));}}
   else if(event.buttons||event.pointerType==="touch")pointer(event);
  });
  canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
