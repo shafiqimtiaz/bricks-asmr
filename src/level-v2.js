@@ -17,7 +17,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     playerCount === 3 ? [0, 2, 1] : [0, 2, 1, 3];
   const midX = Math.floor((left + right) / 2), midY = Math.floor((top + bottom) / 2);
   const ix = Math.max(4, Math.floor(width * (kind === 5 ? .15 : .19)));
-  const iy = Math.max(2, Math.floor(height * (height < 28 ? .13 : kind === 3 ? .16 : .19)));
+  const iy = Math.max(height<=10?1:2, Math.floor(height * (height < 28 ? .13 : kind === 3 ? .16 : .19)));
   const x0 = left + ix, x1 = right - ix, y0 = top + iy, y1 = bottom - iy;
   const index = (c, r) => r * cols + c;
   const inField = (c, r) => c >= left && c <= right && r >= top && r <= bottom;
@@ -159,7 +159,8 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     return {valid,score,hp,color,powers,remaining,wallCount};
   }
   const a=candidate(0), b=candidate(1);
-  const chosen=b.valid&&(!a.valid||b.score>a.score)?b:a;
+  let chosen=b.valid&&(!a.valid||b.score>a.score)?b:a;
+  if(!chosen.valid)chosen=candidate(2);
   if (!chosen.valid) return {...base,generatorVersion:2,pattern:"fallback"};
   return {
     ...base,
