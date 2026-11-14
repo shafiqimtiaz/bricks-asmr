@@ -213,7 +213,7 @@ let BR = CS * .45, PU_R = CS * 1.5;
 const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 let seed = hm ? hm[1].toLowerCase() : randomSeed();
-let generatorVersion = [2,3].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : hm ? 1 : 3;
+let generatorVersion = [2,3].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : 1;
 function syncURL(){try{
  const url=new URL(location.href);
  if(generatorVersion>1)url.searchParams.set('v',String(generatorVersion));else url.searchParams.delete('v');
@@ -385,7 +385,7 @@ function sync(){
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
-const newBoard = () => { generatorVersion=3;seed = randomSeed(); startBoard(); };
+const newBoard = () => { generatorVersion=1;seed = randomSeed(); startBoard(); };
 function startBoard(){
   brickMusic.reset(seed);
   syncArena();
@@ -715,7 +715,7 @@ async function copyText(t, ok){
 document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'board link copied'); };
 document.getElementById('daily').onclick = () => {
   const d = new Date(), ymd = d.toISOString().slice(0,10).replace(/-/g,'');
-  seed = 'd' + ymd; generatorVersion=3;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
+  seed = 'd' + ymd; generatorVersion=1;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
 document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'infinite mode · bricks keep coming' : 'classic mode'); };
