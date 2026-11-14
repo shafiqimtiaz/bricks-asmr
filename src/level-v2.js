@@ -9,7 +9,7 @@ export function buildLevelV2(base, seed, playerCount, arena, hashSeed, randomSee
     top = Math.min(top, r); bottom = Math.max(bottom, r);
   }
   const width = right - left + 1, height = bottom - top + 1;
-  if (width < 16 || height < 11) return {...base, generatorVersion: 2, pattern: "fallback"};
+  if (width < 16 || height < 8) return {...base, generatorVersion: 2, pattern: "fallback"};
 
   const kinds = ["needle", "prison", "domino", "serpent", "jackpot", "twins"];
   const kind = hashSeed(seed + ":v2:pattern") % kinds.length;
