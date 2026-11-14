@@ -87,7 +87,14 @@ function brickEngine(rng=Math.random){
   for(const p of S.players){p.pw=basePaddle(S);const [lo,hi]=edgeSpan(S,p.seat);p.c=p.target=(lo+hi)/2;}
   // Infinite is a flag, not a mode: lives/pool/serve rules stay exactly as the mode defines.
   S.infinite=!!o.infinite;
-  if(S.infinite){S.descent={t:0,rows:0,interval:8};S.spawnC0=minC;S.spawnC1=maxC;}
+  if(S.infinite){
+   S.descent={t:0,rows:0,interval:8};S.spawnC0=minC;S.spawnC1=maxC;
+   if(S.mode==='solo'&&S.seats.length===1&&S.seats[0]===0){
+    const rows=[];
+    for(let r=0;r<a.rows;r++)if(rowCount[r]>0)rows.push(r);
+    S.stream={rows,hp:hp.slice(),col:col.slice(),pu:pu.slice()};
+   }
+  }
   const ev=[];
   if(S.mode==='solo'||S.mode==='coop'){const first=S.players.find(p=>p.id===o.server)||S.players[0];serve(S,first,ev);}
   else for(const p of S.players)serve(S,p,ev);
@@ -377,20 +384,16 @@ function brickEngine(rng=Math.random){
   }
   S.rowCount.copyWithin(1,0,ROWS-1);
   S.rowCount[0]=0;
-  const useful=[1,2,3,4,6,8,8,9],phase=S.descent.rows%19,eye=Math.floor(COLS*.28);
-  for(let c=S.spawnC0;c<=(COLS-1)/2;c++){
-   const mirror=COLS-1-c;
-   if(mirror>S.spawnC1)continue;
-   // A recurring symmetric negative-space detail keeps the stream uncanny.
-   if(phase>=4&&phase<=8&&Math.abs(c-eye)<=2)continue;
-   if(rng()>=.78)continue;
-   const color=2+((Math.floor(c/4)+Math.floor(S.descent.rows/3))%13);
-   const power=rng()<.07?useful[Math.floor(rng()*useful.length)]:0;
-   for(const x of c===mirror?[c]:[c,mirror]){
-    S.hp[x]=1;S.col[x]=color;S.pu[x]=power;
-    S.rowCount[0]++;S.colCount[x]++;
-    S.remaining++;S.total++;
-   }
+  const source=S.stream,period=Math.max(1,(source.rows.length-1)*2);
+  const phase=S.descent.rows%period;
+  // Reflect the original V4 motif at its ends so new rows extend the seed's design.
+  const row=source.rows[phase<source.rows.length?phase:period-phase];
+  for(let c=0;c<COLS;c++){
+   const i=row*COLS+c,hp=source.hp[i];
+   if(!hp)continue;
+   S.hp[c]=hp;S.col[c]=source.col[i];S.pu[c]=source.pu[i];
+   S.rowCount[0]++;S.colCount[c]++;
+   if(hp!==4){S.remaining++;S.total++;}
   }
   ev.push({t:'board'});
  }
