@@ -356,10 +356,27 @@ function createASMR(host){
  };
 }
 
-// Infinite uses the same complete procedural level as Classic.
-// Its timed descent is handled by the engine, never by cropping the board.
+// Infinite Solo starts with a V4 face near the ceiling and leaves room for the
+// incoming rows to advance. Multiplayer retains its symmetric shared formation.
 function infiniteOpeningBoard(seed,arena,players=1){
- return bricks(seed,players,arena);
+ if(players!==1)return bricks(seed,players,arena);
+ const openingRows=Math.min(arena.rows-4,Math.max(12,Math.floor(arena.rows*.48)));
+ const original=bricks(seed,1,{...arena,rows:openingRows});
+ const size=arena.cols*arena.rows,pad=value=>value.padEnd(size,"0");
+ const first=original.hp.search(/[1-4]/),offset=first<0?0:Math.floor(first/arena.cols)*arena.cols;
+ const hp=pad(original.hp.slice(offset)),power=Uint8Array.from(pad(original.powerups.slice(offset)),value=>parseInt(value,16));
+ const rng=random(hash(seed+":infinite:power"));
+ const useful=[1,2,3,4,6,8,8,9];
+ for(let r=0;r<openingRows;r++)for(let c=0;c<Math.ceil(arena.cols/2);c++){
+  const a=r*arena.cols+c,b=r*arena.cols+arena.cols-1-c;
+  if(hp[a]==="0"||hp[a]==="4")continue;
+  const current=power[a];
+  const kind=current===7?8:current===10?4:current||(rng()<.07?useful[Math.floor(rng()*useful.length)]:0);
+  power[a]=power[b]=kind;
+ }
+ return {...original,arena,hp,colors:pad(original.colors.slice(offset)),
+  powerups:Array.from(power,value=>value.toString(16)).join(""),
+  centerY:arena.gridY+openingRows*arena.cell/2};
 }
 
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.

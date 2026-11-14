@@ -428,8 +428,12 @@ let soloMode = 'solo';
 try { if (localStorage.getItem(SOLO_MODE_KEY) === 'infinite') soloMode = 'infinite'; } catch (e) {}
 let lives = MAX_LIVES, runTime = 0, timerOn = false, paused = false;
 function syncArena(){
-  const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
-  if(next.width === W)return;
+  const base = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
+  // Infinite's grid reaches the paddle line; its opening formation occupies only the top.
+  const next = soloMode==='infinite'
+    ? {...base,rows:Math.max(base.rows,Math.ceil((PY-10-base.gridY)/base.cell))}
+    : base;
+  if(next.width === W && next.rows === ROWS && next.cell === CS)return;
   arena=next;W=next.width;H=next.height;CS=next.cell;COLS=next.cols;ROWS=next.rows;
   GX=next.gridX;GY=next.gridY;N=COLS*ROWS;
   SX0=Math.max(40,W*.11);SX1=W-SX0;
@@ -483,6 +487,7 @@ function react(e){
     }
     case 'hit': brickNote(((e.c+.5)*CS+GX)/W*1.1-.55); drawCell(e.i); break;
     case 'cell': drawCell(e.i); break;
+     case 'board': redrawAll(); break;
     case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
     case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
     case 'descent': case 'crush': blip(70, .25, .18, 'sine'); if (style !== 'clean') shake = Math.max(shake, 2.5); break;
