@@ -338,8 +338,6 @@ let aimAng=0,heldBefore=false,drag=null;
 let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,localPos=.5,inputSeq=0;
 let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
 const serverNow=()=>Date.now()+clock,shownC={},held={};
-const relativeSeat=(worldSeat,viewerSeat)=>(viewerSeat%2?viewerSeat-worldSeat+4:worldSeat-viewerSeat+4)%4;
-const worldSeat=(relative,viewer)=>(viewer+(viewer%2?-relative:relative)+4)%4;
 // The room's rules are Solo's: the same engine runs here for the aim path, paddle geometry and power-up tables.
 const E=brickEngine();
 const ARCH_NAMES=['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
@@ -692,7 +690,7 @@ function render(){
   }
  }
  $("finishText").textContent=s.status==="finished"?(hosting?"Ready for another round.":"Waiting for the host to restart."):"";
- for(let relativeSide=0;relativeSide<4;relativeSide++){const worldSide=worldSeat(relativeSide,me.seat);const p=s.players.find(v=>v.seat===worldSide);renderSeat(relativeSide,p,p?.id===you);}
+ for(let relativeSide=0;relativeSide<4;relativeSide++){const worldSide=(me.seat+relativeSide)%4;const p=s.players.find(v=>v.seat===worldSide);renderSeat(relativeSide,p,p?.id===you);}
 }
 
 let GRID_X=arena.gridX,GRID_Y=arena.gridY,GRID_SIZE=arena.cell,GRID_COLS=arena.cols,GRID_ROWS=arena.rows;
@@ -898,7 +896,7 @@ function draw(now){
   for(const p of s.players){
    if(p.id===you)continue;
    const text=p.name.toUpperCase().slice(0,14)+(s.status==="waiting"?"":" "+p.score+" ♥"+p.lives);
-   const side=relativeSeat(p.seat,view.seat);
+   const side=(p.seat-view.seat+4)%4;
    if(side===2)label(text,view.cx,62);
    if(side===1)label(text,34,view.cy,-Math.PI/2);
    if(side===3)label(text,viewW-34,view.cy,Math.PI/2);
