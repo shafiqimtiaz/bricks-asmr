@@ -40,7 +40,7 @@ function startRound(r){
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
  r.arena=arenaFor(r.players.length,r.arena);
  r.board=bricks(r.seed,r.players.length,r.arena,3);r.generatorVersion=3;
- for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
+ for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
  // Infinite plays coop-like (shared pool, one ball, host serves) with the descent flag.
  const inf=r.mode==="infinite",coop=r.mode==="coop"||inf,lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
@@ -204,9 +204,9 @@ export class BrickRoom extends DurableObject{
   let v;try{v=JSON.parse(data);}catch{return;}
   const S=r.sim,aim=typeof v?.aim==="number"&&Number.isFinite(v.aim)?clamp(v.aim,-MAX_AIM,MAX_AIM):null;
   if(v?.type==="paddle-input"&&v.version===1&&r.status==="playing"&&typeof v.pos==="number"&&Number.isFinite(v.pos)&&Number.isSafeInteger(v.seq)&&v.seq>(p.lastSeq??-1)){
-   const now=Date.now();if(now-(p.lastInputAt||0)<25)return;
-   p.pos=clamp(v.pos,0,1);p.lastSeq=v.seq;p.lastInputAt=now;
+   p.pos=clamp(v.pos,0,1);p.lastSeq=v.seq;
    E.setPaddle(S,p.id,E.paddleAt(S,p.id,p.pos));
+   const paddle=simPlayer(r,p.id);if(paddle)paddle.c=paddle.target;
    if(aim!==null)E.setAim(S,p.id,aim);
    if(!this.loop)this.ensureLoop();
   }else if(v?.type==="launch"&&v.version===1&&r.status==="playing"&&Date.now()>=r.startedAt){
