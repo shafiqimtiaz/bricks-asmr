@@ -81,7 +81,7 @@ function brickEngine(rng=Math.random){
    pool:o.mode==='versus'?0:(o.lives??5),maxLives:o.maxLives??Infinity,
    fx:{},luckyLeft:0,laserCd:0,
    players:o.players.map(p=>({id:p.id,seat:p.seat,online:p.online!==false,out:false,lives:o.mode==='versus'?(o.lives??4):0,
-    c:0,target:0,pw:0,aim:0,fx:{},score:0,combo:0,comboT:0,maxCombo:0,milestone:0})),
+    c:0,target:0,pw:0,aim:0,fx:{},score:0,brickScore:0,bricksBroken:0,combo:0,comboT:0,maxCombo:0,milestone:0})),
    balls:[],pups:[],lasers:[],misses:[]
   };
   for(const p of S.players){p.pw=basePaddle(S);const [lo,hi]=edgeSpan(S,p.seat);p.c=p.target=(lo+hi)/2;}
@@ -179,8 +179,10 @@ function brickEngine(rng=Math.random){
    S.remaining--;S.rowCount[r]--;S.colCount[c]--;
    ev.push({t:'break',i,r,c,owner});
    if(p){
+    p.bricksBroken++;
     p.combo++;p.comboT=0;if(p.combo>p.maxCombo)p.maxCombo=p.combo;
-    p.score+=10*(1+Math.min(4,Math.floor(p.combo/5)));
+    const brickPoints=10*(1+Math.min(4,Math.floor(p.combo/5)));
+    p.score+=brickPoints;p.brickScore+=brickPoints;
     if(p.milestone<MILESTONES.length&&p.combo>=MILESTONES[p.milestone])ev.push({t:'milestone',owner,n:MILESTONES[p.milestone++]});
    }
    if(S.pu[i]){

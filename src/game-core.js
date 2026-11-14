@@ -320,18 +320,61 @@ function createASMR(host){
  const audio=new Context();
  const compressor=audio.createDynamicsCompressor();compressor.threshold.value=-20;compressor.ratio.value=6;
  const master=audio.createGain();master.gain.value=.35;
- master.connect(compressor);compressor.connect(audio.destination);
+ const dry=audio.createGain();dry.gain.value=.85;
+ master.connect(dry);dry.connect(compressor);compressor.connect(audio.destination);
+ // A quiet stereo convolution tail suggests a large, empty corridor without blurring impacts.
+ const length=Math.floor(audio.sampleRate*2.4),impulse=audio.createBuffer(2,length,audio.sampleRate);
+ let noise=0x47a5b21;
+ for(let channel=0;channel<2;channel++){
+  const data=impulse.getChannelData(channel);let smoothed=0;
+  for(let i=0;i<length;i++){
+   noise=(Math.imul(noise,1664525)+1013904223)|0;
+   const sample=(noise>>>0)/2147483648-1;
+   smoothed=smoothed*.72+sample*.28;
+   data[i]=smoothed*Math.pow(1-i/length,2.8);
+  }
+ }
+ const preDelay=audio.createDelay(.1);preDelay.delayTime.value=.028;
+ const reverb=audio.createConvolver();reverb.buffer=impulse;
+ const lowpass=audio.createBiquadFilter();lowpass.type="lowpass";lowpass.frequency.value=2400;
+ const wet=audio.createGain();wet.gain.value=.22;
+ master.connect(preDelay);preDelay.connect(reverb);reverb.connect(lowpass);lowpass.connect(wet);wet.connect(compressor);
  return {
   context:audio,
   resume(){if(audio.state==="suspended")audio.resume();},
-  blip(freq,vol,dur,type="triangle",delay=0){
+  blip(freq,vol,dur,type="triangle",delay=0,pan=0){
    const t=audio.currentTime+delay,o=audio.createOscillator(),g=audio.createGain();
    o.type=type;o.frequency.value=freq;
    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.003);
    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-   o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.02);
+   o.connect(g);
+   if(audio.createStereoPanner){
+    const stereo=audio.createStereoPanner();
+    stereo.pan.value=Math.max(-.5,Math.min(.5,pan));
+    g.connect(stereo);stereo.connect(master);
+   }else g.connect(master);
+   o.start(t);o.stop(t+dur+.02);
   }
  };
+}
+
+// Infinite openings use complete, smaller logical formations so the first timed
+// descent is a distant threat, with equal clearance from occupied multiplayer edges.
+function infiniteOpeningBoard(seed,arena,version=4,players=1){
+ const compactRows=Math.max(18,2*Math.floor(arena.rows*(players===1?.48:players===2?.72:.81)/2));
+ const compactCols=players>=3?Math.max(32,2*Math.floor(arena.cols*.81/2)):arena.cols;
+ const temp={...arena,rows:compactRows,cols:compactCols};
+ const source=bricks(seed,players,temp,version);
+ const offsetY=players===1?0:Math.floor((arena.rows-compactRows)/2);
+ const offsetX=Math.floor((arena.cols-compactCols)/2);
+ const cells=arena.cols*arena.rows;
+ const hp=new Array(cells).fill("0"),colors=hp.slice(),powerups=hp.slice();
+ for(let r=0;r<compactRows;r++)for(let c=0;c<compactCols;c++){
+  const target=(r+offsetY)*arena.cols+c+offsetX,sourceIndex=r*compactCols+c;
+  hp[target]=source.hp[sourceIndex];colors[target]=source.colors[sourceIndex];powerups[target]=source.powerups[sourceIndex];
+ }
+ return {...source,hp:hp.join(""),colors:colors.join(""),powerups:powerups.join(""),
+  centerX:source.centerX+offsetX*arena.cell,centerY:source.centerY+offsetY*arena.cell,arena};
 }
 
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
@@ -364,7 +407,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,buildLevelV2,buildLevelV3,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV2,buildLevelV3,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");

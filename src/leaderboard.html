@@ -145,6 +145,11 @@ h1 span{color:var(--txt)}
 .board-seed{display:block;font-size:9px;line-height:1.7;color:var(--second);font-weight:400;margin-top:6px}
 .loadFooter{display:flex;justify-content:center;padding:15px 0}
 .loadFooter [hidden]{display:none}
+.metric-tabs{display:flex;align-items:center;gap:8px;padding:18px 0 1px}
+.metric-tabs button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--cell);color:var(--muted);border-radius:3px;font-size:11px}
+.metric-tabs button[aria-pressed="true"]{border-color:var(--second);color:var(--second)}
+.metric-hint{text-align:center;font-size:9px;color:var(--muted);margin:6px 0 0}
+@media(max-width:480px){.metric-tabs button{font-size:9px}}
 </style></head>
 <body data-theme="vintage">
 <div class="noise" aria-hidden="true"></div>
@@ -153,24 +158,26 @@ h1 span{color:var(--txt)}
 <header class="top"><a class="back" href="/" aria-label="Back to the game">← GAME</a><div class="logo pixel">BRICK <span>ASMR</span></div><div class="system">● <b>GLOBAL</b> // 01</div></header>
 <div class="pixel-stripe" aria-hidden="true"></div>
 <section class="marquee">
-<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">All saved scores from every player, on every board. The fastest times appear first.</p></div>
+<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">Two records. Swipe between the fastest clear and the highest score.</p></div>
 <div class="art" id="bricks" aria-hidden="true"></div>
 </section>
 <dl class="stats">
-<div class="stat"><dt>FASTEST</dt><dd id="fastest">--:--</dd></div>
+<div class="stat"><dt id="bestLabel">FASTEST</dt><dd id="fastest">--:--</dd></div>
 <div class="stat"><dt>PLAYERS</dt><dd id="players">--</dd></div>
 <div class="stat"><dt>YOUR BEST</dt><dd id="mine">--:--</dd></div>
 </dl>
-<section aria-label="Leaderboard">
+<section aria-label="Leaderboard" id="rankingArea">
+<div class="metric-tabs" role="group" aria-label="Leaderboard category"><button id="bestTime" type="button" aria-pressed="true">BEST TIME</button><button id="bestScore" type="button" aria-pressed="false">BEST SCORE</button></div>
+<p class="metric-hint">SWIPE LEFT / RIGHT TO CHANGE</p>
 <div class="board-top">
 <div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">WORLD RANKINGS</h2><p class="board-description" id="description">ALL PLAYERS · ALL SAVED SCORES</p></div>
 <div class="board-actions"><button class="action secondary" type="button" id="refresh">↻ REFRESH</button><a class="action" id="play" href="/">▶ PLAY</a></div>
 </div>
 <div class="podium" id="podium" hidden></div>
-<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER / BOARD</span><span style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
+<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER / BOARD</span><span id="valueLabel" style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
 <div class="loadFooter"><button id="more" class="smallbtn" type="button" hidden>LOAD MORE</button></div>
 </section>
-<div class="foot"><span>01 · Every saved score appears globally. Different board layouts may have different difficulty. Scores are community-submitted.</span><span class="state" id="updated">● READY</span></div>
+<div class="foot"><span>01 · Every saved score appears globally. Best Time ranks Classic clears; Best Score ranks Infinite runs by brick and combo points. Scores are community-submitted.</span><span class="state" id="updated">● READY</span></div>
 </div>
 <div class="outside">BRICK ASMR / INSERT SKILL, NOT COINS</div>
 </main>
@@ -178,6 +185,8 @@ h1 span{color:var(--txt)}
 (()=>{
 const P=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
+let metric=params.get('metric')==='score'?'score':'time';
+let localScore={};try{localScore=JSON.parse(localStorage.getItem('brick-asmr-high-scores')||'{}')||{};}catch{}
 const seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
 const arenaParam=params.get('arena')||'';
 const arenaWidth=/^\d{3,4}$/.test(arenaParam)?Number(arenaParam):360;
@@ -188,7 +197,18 @@ let playerId='',localBest={};
 try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
 const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
 const best=Math.min(Infinity,...Object.values(localBest).filter(Number.isFinite));
-P('mine').textContent=Number.isFinite(best)?fmt(best):'--:--';
+const scoreBest=Math.max(0,...Object.values(localScore).filter(Number.isFinite));
+const metricValue=r=>metric==='score'?Number(r.score||0).toLocaleString():fmt(r.timeMs);
+function updateMetricLabels(){
+ P('bestTime').setAttribute('aria-pressed',String(metric==='time'));
+ P('bestScore').setAttribute('aria-pressed',String(metric==='score'));
+ P('bestLabel').textContent=metric==='score'?'HIGHEST':'FASTEST';
+ P('valueLabel').textContent=metric==='score'?'SCORE':'TIME';
+ P('mine').textContent=metric==='score'?(scoreBest?scoreBest.toLocaleString():'--'):(Number.isFinite(best)?fmt(best):'--:--');
+ P('fastest').textContent=metric==='score'?'--':'--:--';
+ P('description').textContent=metric==='score'?'INFINITE · BRICKS + COMBO POINTS':'CLASSIC · FASTEST BOARD CLEARS';
+}
+updateMetricLabels();
 const brickBox=P('bricks');
 for(let i=0;i<40;i++)brickBox.append(document.createElement('span'));
 const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
@@ -204,19 +224,19 @@ function empty(title,message){
  const heading=document.createElement('h3');heading.className='pixel';heading.textContent=title;
  const description=document.createElement('p');description.textContent=message;
  shell.append(art,heading,description);
- if(title==='NO TIMES YET'){const a=document.createElement('a');a.className='action';a.href=P('play').href;a.textContent='▶ SET THE RECORD';shell.append(a);}
+ if(title==='NO TIMES YET'||title==='NO SCORES YET'){const a=document.createElement('a');a.className='action';a.href=P('play').href;a.textContent='▶ SET THE RECORD';shell.append(a);}
  P('rows').append(shell);
 }
 let offset=0,hasMore=false,loading=false,run=0;
 function renderRows(entries,first){
  if(first){
   P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=!entries.length;
-  P('fastest').textContent=entries.length?fmt(entries[0].timeMs):'--:--';
-  if(!entries.length){empty('NO TIMES YET','No game scores have been saved yet. Be the first.');return;}
+  P('fastest').textContent=entries.length?metricValue(entries[0]):(metric==='score'?'--':'--:--');
+  if(!entries.length){empty(metric==='score'?'NO SCORES YET':'NO TIMES YET',metric==='score'?'Survive an Infinite run to set the first score.':'Clear a Classic board to set the first time.');return;}
   for(const [i,r] of entries.slice(0,3).entries()){
    const item=cell('podium-card',''),name=cell('podium-name',r.playerId===playerId?'YOU':r.name);
    name.append(cell('board-seed',boardLabel(r.boardKey)));
-   item.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',fmt(r.timeMs)));
+   item.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',metricValue(r)));
    P('podium').append(item);
   }
  }
@@ -225,13 +245,14 @@ function renderRows(entries,first){
   const item=cell('entry'+(rank===1?' first':'')+(r.playerId===playerId?' mine':''),'');
   const user=cell('name',r.name);
   user.append(cell('board-seed',boardLabel(r.boardKey)));
+  if(metric==='score')user.append(cell('board-seed',r.bricksBroken+' BRICKS · '+r.bestCombo+' MAX COMBO'));
   if(r.playerId===playerId)user.append(cell('me-tag','YOU'));
-  item.append(cell('rank','#'+String(rank).padStart(2,'0')),user,cell('value',fmt(r.timeMs)));
+  item.append(cell('rank','#'+String(rank).padStart(2,'0')),user,cell('value',metricValue(r)));
   P('rows').append(item);
  }
 }
 async function load(reset=false){
- if(loading)return;
+ if(loading&&!reset)return;
  const call=++run;
  loading=true;
  if(reset){
@@ -241,7 +262,7 @@ async function load(reset=false){
  }
  P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNCING';
  try{
-  const res=await fetch('/api/leaderboard?scope=world&offset='+offset,{cache:'no-store'});
+  const res=await fetch('/api/leaderboard?scope=world&offset='+offset+'&metric='+metric,{cache:'no-store'});
   if(!res.ok)throw Error('Network error');
   const data=await res.json();
   if(call!==run)return;
@@ -261,6 +282,27 @@ async function load(reset=false){
   if(call===run){loading=false;P('refresh').disabled=false;P('more').disabled=false;}
  }
 }
+function setMetric(next){
+ if(next===metric)return;
+ metric=next;const u=new URL(location.href);u.searchParams.set('metric',metric);history.replaceState(null,'',u.pathname+u.search);
+ updateMetricLabels();load(true);
+}
+P('bestTime').onclick=()=>setMetric('time');
+P('bestScore').onclick=()=>setMetric('score');
+const ranking=P('rankingArea');
+let startX=null,startY=null;
+ranking.addEventListener('touchstart',e=>{if(e.touches.length===1){startX=e.touches[0].clientX;startY=e.touches[0].clientY;}},{passive:true});
+ranking.addEventListener('touchend',e=>{
+ if(startX===null||!e.changedTouches.length)return;
+ const dx=e.changedTouches[0].clientX-startX,dy=e.changedTouches[0].clientY-startY;
+ startX=startY=null;
+ if(Math.abs(dx)>=65&&Math.abs(dx)>Math.abs(dy)*1.5)setMetric(dx<0?'score':'time');
+},{passive:true});
+ranking.addEventListener('keydown',e=>{
+ if(e.target.tagName==='BUTTON'&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){
+  e.preventDefault();setMetric(e.key==='ArrowRight'?'score':'time');P(e.key==='ArrowRight'?'bestScore':'bestTime').focus();
+ }
+});
 P('refresh').onclick=()=>load(true);
 P('more').onclick=()=>load();
 load(true);
