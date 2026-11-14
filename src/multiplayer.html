@@ -590,7 +590,7 @@ function react(s,e,mine){
    if(sparks.length<120)sparkle({x:w.x,y:w.y,c:parseInt(s.board.colors[e.i],16)||0});
    if(own)popAt=w;
    break;}
-  case"hit":blip(140+Math.floor(e.i/GRID_COLS),.12,.05,"sine");break;
+  case"hit":beep(Math.floor(e.i/GRID_COLS));break;
   case"paddle":if(own&&notesThisFrame<2)blip(98,.15,.06,"sine");break;
   case"crush":blip(70,.25,.18,"sine");break;
   case"beam":beams.push({...e,t:1});break;
