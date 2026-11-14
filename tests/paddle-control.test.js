@@ -52,11 +52,11 @@ test("multiplayer lower surface uses the same no-jump delta, separate from serve
   };
   const positions = [];
   let launched = 0;
-  const getPos = new Function("cv", "gcv", "state", "audioInit", "boardPointer", "viewH",
+  const getPos = new Function("cv", "gcv", "state", "$", "audioInit", "boardPointer", "viewH",
     "holdingServe", "sensitivity", "onMove", "setAim", "aimDragAngle", "launch",
     "let localPos=.5,drag=null,aimAng=0;const send=pos=>{localPos=pos;onMove(pos);};" +
     multiHtml.slice(start, end) + "return () => localPos;"
-  )(canvas, canvas, { status: "playing" }, () => {}, e => ({ y: e.clientY }), 640,
+  )(canvas, canvas, { status: "playing" }, () => ({ hidden: true }), () => {}, e => ({ y: e.clientY }), 640,
     () => true, () => .65, pos => positions.push(pos), () => {}, () => 0, () => launched++);
   const event = (x, y = 580) => ({ pointerId: 2, clientX: x, clientY: y, currentTarget: canvas });
   listeners.pointerdown(event(100));
