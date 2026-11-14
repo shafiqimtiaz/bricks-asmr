@@ -65,3 +65,19 @@ test("liminal rankings and menus keep essential actions with no arcade decoratio
  assert.match(soloHtml,/e.target.id!=='soundToggle'&&e.target.id!=='soloMode'/);
  assert.match(soloHtml,/P\('soloMode'\)\.textContent = soloMode === 'infinite' \? 'INFINITE' : 'CLASSIC'/);
 });
+
+
+test("all game screens use pixel type and the same curved CRT glass",()=>{
+ for(const html of [soloHtml,multiHtml,leaderboard]){
+  assert.match(html,/html,body,body \*\{font-family:'Press Start 2P',ui-monospace,monospace!important\}/);
+  assert.match(html,/<div id="crt" aria-hidden="true"><\/div>/);
+  assert.match(html,/#crt\{[\s\S]*?z-index:60;pointer-events:none;/);
+  assert.match(html,/border-radius:4% \/ 3%;opacity:1/);
+  assert.match(html,/#crt::before\{/);
+  assert.match(html,/crtGlassRoll 13s linear infinite/);
+  assert.match(html,/@media\(prefers-reduced-motion:reduce\)\{#crt\{display:block!important;animation:none!important\}/);
+ }
+ assert.match(leaderboard,/:root\{color-scheme:dark;font-family:'Press Start 2P'/);
+ assert.match(soloHtml,/#nameInput\{font-size:10px;line-height:1.7/);
+ assert.match(multiHtml,/#panel \.lobbyHero \.byline\{font-size:calc\(var\(--u\)\*2.35\);font-style:italic/);
+});
