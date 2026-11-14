@@ -369,7 +369,7 @@ const MAX_LIVES = 5;
 const SOLO_MODE_KEY = 'bricksSoloMode';
 let soloMode = 'solo';
 try { if (localStorage.getItem(SOLO_MODE_KEY) === 'infinite') soloMode = 'infinite'; } catch (e) {}
-let lives = MAX_LIVES, runTime = 0, timerOn = false;
+let lives = MAX_LIVES, runTime = 0, timerOn = false, paused = false;
 function syncArena(){
   const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
   if(next.width === W)return;
@@ -650,10 +650,13 @@ function render(fs = 1){
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.033, (now - last) / 1000); last = now;
-  if (timerOn && !(fx.freeze > 0) && (state === 'play' || state === 'aim')) runTime += dt * 1000;
-  notesThisFrame = 0;
-  update(dt); render(dt * 60); postFX(now);
-  if (danger > .2) { hbT -= dt; if (hbT <= 0) { hbT = danger > .7 ? .45 : .75; blip(55, .4, .13, 'sine'); setTimeout(() => { notesThisFrame = 0; blip(48, .3, .12, 'sine'); }, 110); } }
+  if (!paused) {
+    if (timerOn && !(fx.freeze > 0) && (state === 'play' || state === 'aim')) runTime += dt * 1000;
+    notesThisFrame = 0;
+    update(dt);
+    if (danger > .2) { hbT -= dt; if (hbT <= 0) { hbT = danger > .7 ? .45 : .75; blip(55, .4, .13, 'sine'); setTimeout(() => { notesThisFrame = 0; blip(48, .3, .12, 'sine'); }, 110); } }
+  }
+  render(paused ? 0 : dt * 60); postFX(now);
   perfEma += ((now - (frame.prev || now)) - perfEma) * .05; frame.prev = now;
   if (perfEma > 30 && balls.length > 600 && maxBalls > balls.length * .9) { maxBalls = S.maxBalls = Math.max(600, Math.floor(balls.length * .85)); if (!perfWarned) { perfWarned = true; showToast('smooth mode · ball cap ' + maxBalls); } }
   requestAnimationFrame(frame);
@@ -765,8 +768,8 @@ async function onClear(ms){
   if(key===boardId()){lastNote+=' · saved worldwide';await loadBoard();}
  }catch(e){if(key===boardId()){lastNote+=' · saved on device';boardStatus='error';renderPanel();}}
 }
-function showPanel(mode){panelMode=mode;P('panel').hidden=false;setLinks();renderPanel();if(mode!=='over')loadBoard();}
-function hidePanel(){panelMode=null;P('panel').hidden=true;}
+function showPanel(mode){panelMode=mode;P('panel').hidden=false;setLinks();renderPanel();if(mode!=='over')loadBoard();syncPause();}
+function hidePanel(){panelMode=null;P('panel').hidden=true;syncPause();}
 function emptyBoard(note){const li=document.createElement('li');li.className='empty';li.textContent=note;P('plist').append(li);}
 function renderPanel(){
  if(!panelMode)return;
@@ -838,8 +841,9 @@ P('pbrag').onclick=()=>{
  copyText(t,'Result copied');
 };
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
-P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}};
-function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();}
+function syncPause(){ paused = !P('hudMenu').hidden || !P('panel').hidden; }
+P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}syncPause();};
+function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();syncPause();}
 P('hudMenu').addEventListener('click',closeMenu);
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});

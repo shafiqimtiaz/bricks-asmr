@@ -64,6 +64,20 @@ test("entering a room blurs the name field so Space can launch", () => {
   assert.match(html, /if\(key===" "&&!document\.activeElement\?\.matches\("input"\)/);
 });
 
+test("opening the Solo menu or panel pauses the run; closing it resumes", () => {
+  // Live QA: with the menu open the timer kept running and the ball fell
+  // behind it. Any overlay open (menu or panel) must freeze the sim,
+  // the timer, and the visuals until it closes.
+  assert.match(soloHtml, /let lives = MAX_LIVES, runTime = 0, timerOn = false, paused = false;/);
+  assert.match(soloHtml, /function syncPause\(\)\{ paused = !P\('hudMenu'\)\.hidden \|\| !P\('panel'\)\.hidden; \}/);
+  assert.match(soloHtml, /if \(!paused\) \{\s*if \(timerOn && !\(fx\.freeze > 0\) && \(state === 'play' \|\| state === 'aim'\)\) runTime \+= dt \* 1000;/);
+  assert.match(soloHtml, /render\(paused \? 0 : dt \* 60\); postFX\(now\);/);
+  assert.match(soloHtml, /P\('hudMenuToggle'\)\.onclick=\(\)=>\{const opened=P\('hudMenu'\)\.hidden;[\s\S]*?syncPause\(\);\};/);
+  assert.match(soloHtml, /function closeMenu\(restoreFocus=false\)\{[\s\S]*?syncPause\(\);\}/);
+  assert.match(soloHtml, /function showPanel\(mode\)\{[\s\S]*?syncPause\(\);\}/);
+  assert.match(soloHtml, /function hidePanel\(\)\{panelMode=null;P\('panel'\)\.hidden=true;syncPause\(\);\}/);
+});
+
 test("a key tap nudges the paddle at once, not only while the key is held", () => {
   assert.match(html, /const KEY_NUDGE=0\.035;/);
   assert.match(html, /if\(!event\.repeat&&state\?\.status==="playing"&&\$\("hudMenu"\)\.hidden\)\{\s*const nudge=/);
