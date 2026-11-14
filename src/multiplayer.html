@@ -318,7 +318,7 @@ body{--hud-life:#ff7a6b}
     </form>
    <div class="statLine"><span id="playerCount">1/4</span><span>CONNECTED: <b id="connection">CONNECTING…</b></span></div>
    <div class="seatGrid"><div id="slot0" class="seat"></div><div id="slot2" class="seat"></div><div id="slot1" class="seat"></div><div id="slot3" class="seat"></div></div>
-   <div class="modePick" role="group" aria-label="Game mode"><button id="modeCoop" type="button">COOP</button><button id="modeVersus" type="button">VERSUS</button></div>
+   <div class="modePick" role="group" aria-label="Game mode"><button id="modeCoop" type="button">COOP</button><button id="modeVersus" type="button">VERSUS</button><button id="modeInfinite" type="button">INFINITE</button></div>
    <p id="modeNote" class="note"></p>
    <div id="glass"><strong id="glassTitle">Waiting for friends</strong><p id="glassText">Share the code to fill the other sides.</p></div>
    <div id="finishText" aria-live="polite"></div>
@@ -580,7 +580,7 @@ function react(s,e,mine){
    if(notesThisFrame<2)blip(165,.13,.08,"triangle");
    if(!window.matchMedia("(prefers-reduced-motion: reduce)").matches)paddlePulse=1;
   }break;
-  case"crush":blip(70,.25,.18,"sine");break;
+  case"descent":case"crush":blip(70,.25,.18,"sine");break;
   case"beam":beams.push({...e,t:1});break;
   case"ring":rings.push({x:e.x,y:e.y,r:e.R,t:1,c:e.c,big:1});break;
   case"power":if(own){const d=E.puDef(s.set,e.k,s.mode);toast(d.nm+"!");blip(262*Math.pow(2,(e.k-1)/12),.12,.12,d.bad?"square":"triangle");}break;
@@ -671,14 +671,14 @@ function render(){
  $("roomTitle").textContent=s.status==="waiting"?"Invite your friends.":s.status==="playing"?"Playing together.":"Well played.";
  $("start").hidden=!(hosting&&(s.status==="waiting"||s.status==="finished"));
  $("start").textContent=s.status==="finished"?"PLAY AGAIN":"START ROUND";$("start").disabled=online<2;
- $("modeCoop").classList.toggle("on",mode==="coop");$("modeVersus").classList.toggle("on",mode==="versus");
- $("modeCoop").disabled=$("modeVersus").disabled=!hosting||s.status==="playing";
- $("modeNote").textContent=(mode==="coop"?"COOP · ONE SHARED BALL · CLEAR THE BOARD TOGETHER":"VERSUS · A BALL EACH · LAST PLAYER STANDING WINS")+(hosting?"":" · HOST PICKS");
+ $("modeCoop").classList.toggle("on",mode==="coop");$("modeVersus").classList.toggle("on",mode==="versus");$("modeInfinite").classList.toggle("on",mode==="infinite");
+ $("modeCoop").disabled=$("modeVersus").disabled=$("modeInfinite").disabled=!hosting||s.status==="playing";
+ $("modeNote").textContent=(mode==="coop"?"COOP · ONE SHARED BALL · CLEAR THE BOARD TOGETHER":mode==="infinite"?"INFINITE · BRICKS KEEP COMING · SURVIVE THE DESCENT":"VERSUS · A BALL EACH · LAST PLAYER STANDING WINS")+(hosting?"":" · HOST PICKS");
  $("glass").hidden=s.status==="playing";$("panel").hidden=s.status==="playing";
  if(s.status==="waiting"){$("glassTitle").textContent="WAITING FOR PLAYERS";$("glassText").textContent="Share "+s.code+" · "+s.players.length+" active paddle"+(s.players.length===1?"":"s")+" · start with two online.";}
  if(s.status==="finished"){
   const result=s.result||{},top=Math.max(...s.players.map(p=>p.score)),winner=s.players.find(p=>p.id===result.winner);
-  if(mode==="coop"){
+  if(mode==="coop"||mode==="infinite"){
    $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":result.reason==="crushed"?"CRUSHED":"ALL OUT";
    $("glassText").textContent="TEAM SCORE "+s.players.reduce((t,p)=>t+p.score,0)+" · "+Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
   }else if(winner){
@@ -915,7 +915,7 @@ function draw(now){
   const mult=1+Math.min(4,Math.floor((me.combo||0)/5));
   ctx.fillStyle=V?"#ff9de0":"#e8b9ad";
   const yours=me.out?"OUT · "+me.score:"YOU "+me.score;
-  ctx.fillText(s.mode==="coop"?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-84);
+  ctx.fillText((s.mode==="coop"||s.mode==="infinite")?"TEAM "+s.players.reduce((t,p)=>t+p.score,0)+" · "+yours:yours,viewW/2,viewH-84);
   if(mult>1){
    const beat=1+.12*Math.sin(now/90);
    ctx.save();ctx.translate(viewW/2,view.height-112);ctx.scale(beat,beat);
@@ -1050,7 +1050,7 @@ $("nicknameForm").addEventListener("submit",async event=>{
  }catch(e){$("nameError").textContent=e.message;}
  finally{$("saveName").disabled=false;}
 });
-for(const [id,mode] of [["modeCoop","coop"],["modeVersus","versus"]])$(id).addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"mode",mode});}catch(e){$("finishText").textContent=e.message;}});
+for(const [id,mode] of [["modeCoop","coop"],["modeVersus","versus"],["modeInfinite","infinite"]])$(id).addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"mode",mode});}catch(e){$("finishText").textContent=e.message;}});
 $("start").addEventListener("click",async()=>{try{await request("/"+roomCode+"/action",{action:"start"});}catch(e){$("finishText").textContent=e.message;}});
 $("copy").addEventListener("click",async()=>{
  const url=location.origin+"/multiplayer/"+roomCode;

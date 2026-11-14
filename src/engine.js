@@ -85,6 +85,9 @@ function brickEngine(rng=Math.random){
    balls:[],pups:[],lasers:[],misses:[]
   };
   for(const p of S.players){p.pw=basePaddle(S);const [lo,hi]=edgeSpan(S,p.seat);p.c=p.target=(lo+hi)/2;}
+  // Infinite is a flag, not a mode: lives/pool/serve rules stay exactly as the mode defines.
+  S.infinite=!!o.infinite;
+  if(S.infinite){S.descent={t:0,rows:0,interval:8};S.spawnC0=minC;S.spawnC1=maxC;}
   const ev=[];
   if(S.mode==='solo'||S.mode==='coop'){const first=S.players.find(p=>p.id===o.server)||S.players[0];serve(S,first,ev);}
   else for(const p of S.players)serve(S,p,ev);
@@ -324,11 +327,14 @@ function brickEngine(rng=Math.random){
   const target=()=>S.mode==='versus'?S.players.filter(p=>active(S,p)).length:1;
   while(S.misses.length&&S.balls.length<target()){
    const p=player(S,S.misses.shift());
-   // Versus: the court closes in only on the edge that missed, so one player's
-   // miss does not squeeze everyone else. Coop and Solo keep the shared descent.
-   if(S.mode==="versus")S.crush.target[p.seat]+=S.CS;
-   else for(const seat of S.seats)S.crush.target[seat]+=S.CS;
-   ev.push({t:'crush'});
+   // Infinite: the timer owns descent, so a miss costs a life but never lowers the court.
+   if(!S.infinite){
+    // Versus: the court closes in only on the edge that missed, so one player's
+    // miss does not squeeze everyone else. Coop and Solo keep the shared descent.
+    if(S.mode==="versus")S.crush.target[p.seat]+=S.CS;
+    else for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+    ev.push({t:'crush'});
+   }
    if(S.mode==='versus'){
     p.lives=Math.max(0,p.lives-1);ev.push({t:'life',owner:p.id,lives:p.lives});
     if(p.lives>0)serve(S,p,ev);
@@ -356,6 +362,39 @@ function brickEngine(rng=Math.random){
   return false;
  }
 
+ // Infinite mode: the board descends one row on a timer and never stops until
+ // the lowest row reaches a paddle. The crusher transform carries the
+ // formation down, exactly as a miss does, and the existing gap() check in
+ // step() ends the round. New bricks refill the top row as it descends.
+ function descentTick(dt){
+  if(!S.infinite||S.status!=="play")return;
+  const d=S.descent;d.t+=dt;
+  if(d.t<d.interval)return;
+  d.t=0;d.rows++;
+  d.interval=Math.max(2.5,8*Math.pow(0.97,d.rows));
+  for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+  refillTopRow();
+  ev.push({t:"descent",rows:d.rows});
+ }
+ function refillTopRow(){
+  const {COLS}=S,c0=S.spawnC0,c1=S.spawnC1,rows=S.descent.rows;
+  const density=S.players.length===1?0.01:0.03;
+  for(let c=c0;c<=c1;c++){
+   const m=COLS-1-c;
+   if(c>m)continue;
+   if(rng()>=0.8)continue;
+   let hp=1,col=2+((c+rows)%13);
+   if(rng()<0.15){hp=3;col=0;}
+   let pu=0;
+   if(rng()<density)pu=1+Math.floor(rng()*10);
+   for(const cc of c===m?[c]:[c,m]){
+    if(S.hp[cc]!==0)continue;
+    S.hp[cc]=hp;S.col[cc]=col;S.pu[cc]=pu;
+    S.rowCount[0]++;S.colCount[cc]++;S.remaining++;S.total++;
+   }
+  }
+ }
+
  function step(state,dt){
   S=state;ev=[];
   for(const p of S.players){
@@ -373,6 +412,7 @@ function brickEngine(rng=Math.random){
   updateTransform(S);
   if(!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
   S.clock+=dt;
+  if(S.infinite)descentTick(dt);
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
   for(const p of S.players)for(const k in p.fx)if(p.fx[k]>0)p.fx[k]-=dt;
   for(const p of S.players){p.comboT+=dt;if(p.comboT>COMBO_WINDOW){p.combo=0;p.milestone=0;}}
@@ -388,7 +428,7 @@ function brickEngine(rng=Math.random){
   stepLasers(dt);
   stepBalls(dt);
   stepPowers(dt);
-  if(S.remaining===0){finish({reason:'cleared'});return ev;}
+  if(S.remaining===0&&!S.infinite){finish({reason:'cleared'});return ev;}
   settleMisses();checkEnd();
   return ev;
  }

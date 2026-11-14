@@ -26,7 +26,7 @@ function assignSides(players){
 
 // The room runs the same engine as Solo: one authoritative state (room.sim) for the whole round.
 const E=brickEngine(Math.random);
-const MODES=["coop","versus"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.15;
+const MODES=["coop","versus","infinite"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.15;
 const num=(v,k=10)=>Math.round(v*k)/k;
 const simPlayer=(r,id)=>r.sim?.players.find(p=>p.id===id)||null;
 // Whether a player can no longer take part: explicitly out, or (Versus) without lives, or (Coop) the pool is empty.
@@ -42,9 +42,10 @@ function startRound(r){
  r.board=bricks(r.seed,r.players.length,r.arena,3);r.generatorVersion=3;
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
- const coop=r.mode==="coop",lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
- const S=r.sim=E.create({arena:r.arena,board:r.board,players:r.players.map(p=>({id:p.id,seat:p.seat,online:p.online!==false})),mode:r.mode,set:r.set,
-  lives,maxLives:coop?lives+3:8,holdSeconds:HOLD_SECONDS,maxBalls:MAX_BALLS,server:host?.id});
+ // Infinite plays coop-like (shared pool, one ball, host serves) with the descent flag.
+ const inf=r.mode==="infinite",coop=r.mode==="coop"||inf,lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
+ const S=r.sim=E.create({arena:r.arena,board:r.board,players:r.players.map(p=>({id:p.id,seat:p.seat,online:p.online!==false})),mode:inf?"coop":r.mode,set:r.set,
+  lives,maxLives:coop?lives+3:8,holdSeconds:HOLD_SECONDS,maxBalls:MAX_BALLS,server:host?.id,infinite:inf});
  // Nobody serves for a player who is not connected; the engine hands them a ball when they return.
  S.balls=S.balls.filter(b=>r.players.find(p=>p.id===b.source)?.online!==false);
  // The first serves wait out the countdown as well.
@@ -104,6 +105,7 @@ export class BrickRoom extends DurableObject{
     case"life":this.pending.push({t:"life",o:at(e.owner),n:e.lives});break;
     case"power":this.pending.push({t:"power",o:at(e.owner),id:e.id,k:e.k,x:num(e.x),y:num(e.y)});break;
     case"crush":this.pending.push({t:"crush"});break;
+   case"descent":this.pending.push({t:"descent",rows:e.rows});break;
     case"beam":this.pending.push({...e,x:e.x===undefined?undefined:num(e.x),y:e.y===undefined?undefined:num(e.y)});break;
     case"ring":this.pending.push({t:"ring",x:num(e.x),y:num(e.y),R:e.R,c:e.c});break;
    }

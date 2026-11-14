@@ -39,6 +39,31 @@ test("starting a round builds one engine state with the room's mode, set, lives 
   assert.equal(coop.set, "vintage", "all new rounds use CRT");
 });
 
+test("infinite rooms play coop-like with a shared pool and the descent flag", async () => {
+  const room = makeRoom(server, "infinite", 2), S = room.sim;
+  assert.equal(room.mode, "infinite");
+  assert.equal(S.mode, "coop", "the engine still runs coop rules");
+  assert.equal(S.infinite, true);
+  assert.deepEqual(S.descent, { t: 0, rows: 0, interval: 8 });
+  assert.equal(S.pool, 6, "a pool of 3 lives per player");
+  assert.equal(S.balls.length, 1, "one shared ball, host serves");
+  assert.equal(roomInstance(server, room).snapshot().mode, "infinite");
+  // The host can switch a waiting room to infinite.
+  const waiting = makeRoom(server, "coop", 2);
+  waiting.status = "waiting";
+  const inst = roomInstance(server, waiting);
+  inst.save = async () => {}; inst.broadcast = () => {}; inst.ensureLoop = () => {};
+  const post = (mode, token = "token-0") => BrickRoom.prototype.fetch.call(inst, new Request("https://t/api/rooms/BRICKS/action", {
+    method: "POST", headers: { cookie: "brick_room_BRICKS=" + token, "content-type": "application/json" }, body: JSON.stringify({ action: "mode", mode })
+  }));
+  assert.equal((await post("bogus")).status, 400);
+  assert.equal((await post("infinite")).status, 200);
+  assert.equal(waiting.mode, "infinite");
+  startRound(waiting);
+  assert.equal(waiting.sim.mode, "coop");
+  assert.equal(waiting.sim.infinite, true);
+});
+
 test("each round gets a fresh seed and board", () => {
   const room = makeRoom(server, "coop", 2);
   const seeds = new Set([room.seed]), boards = new Set([room.board.hp]);

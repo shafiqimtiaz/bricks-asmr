@@ -162,6 +162,16 @@ test("CRT and Vapor canvases both receive direct pointer input", () => {
   assert.match(html, /send\(sliderPos\(view,boardPointer\(event\)\.x\)\)/);
 });
 
+test("infinite mode is offered in the multiplayer lobby and Solo", () => {
+  assert.match(html, /id="modeInfinite"/);
+  assert.match(html, /\["modeInfinite","infinite"\]/);
+  assert.match(html, /mode==="infinite"\?"INFINITE · BRICKS KEEP COMING/);
+  assert.match(html, /\$\("modeInfinite"\)\.classList\.toggle\("on",mode==="infinite"\)/);
+  assert.match(soloHtml, /id="soloMode"/);
+  assert.match(soloHtml, /bricksSoloMode/);
+  assert.match(soloHtml, /soloMode!=="infinite"/);
+});
+
 test("Solo HUD exposes multiplayer without a second homepage", () => {
   const game = soloHtml;
   assert.match(game, /id="multi" href="\/multiplayer"/);
@@ -270,7 +280,7 @@ test("connecting players update online counts immediately without waiting for th
   const incoming={...initial,players:[{id:"p0",online:true}]};
   let renders=0;
   const fn=new Function("performance","render","oldState","newState",
-    "let state=oldState,you='p0',lastUiRender=100,lastStateAt=0,tilesFull=false,localPos=.5,popAt=null,W=360,clock=0,board=null,hpArr=null,colArr=null,dirty=[],sim=null,floats=[],style='clean',heldBefore=false;"
+    "let state=oldState,you='p0',lastUiRender=100,lastStateAt=0,tilesFull=false,localPos=.5,popAt=null,W=360,clock=0,board=null,hpArr=null,colArr=null,dirty=[],sim=null,floats=[],style='clean',heldBefore=false,shownC={},paddlePulse=0;"
     +"function clearFx(){}function react(){}function buildSim(){}function holdingServe(){return false;}function queueInput(){}function adoptArena(){}function resize(){}"
     +client.slice(from,to)+"accept(newState);");
   fn({now:()=>101},()=>{renders++},initial,incoming);
@@ -419,11 +429,12 @@ test("an old tab does not repeatedly reconnect after another tab takes the same 
  const client=html.slice(html.indexOf("<script>")+8,html.lastIndexOf("</script>"));
  const from=client.indexOf("function connect(){"),to=client.indexOf("let lastUiRender=",from);
  assert.ok(from>=0&&to>from);
- const sockets=[],nodes={connection:{},panel:{hidden:true},room:{hidden:true},statusText:{},roomTitle:{},glass:{hidden:true},glassTitle:{},glassText:{},start:{hidden:false}};
+ const sockets=[],nodes={connection:{},netStatus:{},panel:{hidden:true},room:{hidden:true},statusText:{},roomTitle:{},glass:{hidden:true},glassTitle:{},glassText:{},start:{hidden:false}};
  let scheduled=0;
  const WebSocket=class{constructor(url){this.url=url;sockets.push(this);}};
  const setup=new Function("WebSocket","location","$","clearTimeout","setTimeout",
   'const API="/api/multiplayer/rooms";let closed=false,roomCode="ABCD23",socket=null,retry=null,inputSeq=0,lastInputSent=0,pendingInput=null;'
+  +'function setConnection(label,warning=""){$("connection").textContent=label;const indicator=$("netStatus");indicator.textContent=warning;indicator.hidden=!warning;}'
   +client.slice(from,to)+'return {connect,getRetry:()=>retry};');
  const conn=setup(WebSocket,{protocol:"https:",host:"game.example"},id=>nodes[id],()=>{},()=>{scheduled++;return scheduled;});
  conn.connect();

@@ -172,6 +172,7 @@ body{--hud-life:#ff7a6b}
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
     <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
     <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
+    <button id="soloMode" type="button">MODE · CLASSIC</button>
    </div>
   </div>
   <div id="toast"></div>
@@ -181,7 +182,7 @@ body{--hud-life:#ff7a6b}
     <div id="lbidentity"><button id="pname" type="button">Player</button><a id="pfull" target="_blank" rel="noopener" href="/leaderboard">World ↗</a></div><div id="ptime"></div>
     <div id="pnote"></div>
     <ol id="plist"></ol>
-    <div class="pb"><button id="pbrag">brag ⤴</button><button id="pretry">retry</button><button id="pnext">new board ▶</button><button id="pclose">close</button></div>
+    <div class="pb"><button id="pbrag">brag ⤴</button><button id="pretry">retry</button><button id="pnext">new board ▶</button><button id="pclose">close</button><button id="pmodeInf" type="button" hidden>PLAY INFINITE</button><button id="pmodeCls" type="button" hidden>PLAY CLASSIC</button></div>
   </div>
 </div>
 <div id="crt"></div>
@@ -365,6 +366,9 @@ let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flas
 let msgText = '';
 
 const MAX_LIVES = 5;
+const SOLO_MODE_KEY = 'bricksSoloMode';
+let soloMode = 'solo';
+try { if (localStorage.getItem(SOLO_MODE_KEY) === 'infinite') soloMode = 'infinite'; } catch (e) {}
 let lives = MAX_LIVES, runTime = 0, timerOn = false;
 function syncArena(){
   const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
@@ -386,7 +390,7 @@ function startBoard(){
   brickMusic.reset(seed);
   syncArena();
   genBoard();
-  S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, daily: isDaily(), maxBalls});
+  S = E.create({arena, board, players: [{id: 'me', seat: 0}], mode: 'solo', set: style, lives: MAX_LIVES, daily: isDaily(), maxBalls, infinite: soloMode === 'infinite'});
   me = S.players[0]; hp = S.hp; col = S.col; pu = S.pu;
   me.c = me.target = Math.max(me.pw / 2, Math.min(W - me.pw / 2, px));
   redrawAll(); syncURL();
@@ -422,7 +426,7 @@ function react(e){
     case 'cell': drawCell(e.i); break;
     case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
     case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
-    case 'crush': blip(70, .25, .18, 'sine'); if (style !== 'clean') shake = Math.max(shake, 2.5); break;
+    case 'descent': case 'crush': blip(70, .25, .18, 'sine'); if (style !== 'clean') shake = Math.max(shake, 2.5); break;
     case 'beam': beams.push({...e, t: 1}); break;
     case 'ring': rings.push({x: e.x, y: e.y, t: 1, R: e.R, c: e.c}); break;
     case 'time': runTime = Math.max(0, runTime + e.ms); break;
@@ -446,6 +450,7 @@ function react(e){
         crushed = true; showMsg('CRUSHED!\ntap to restart');
         flashW = .8; shake = 12; vib([80, 40, 160]); [0, -3, -7, -12].forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(110 * Math.pow(2, s / 12), .3, .3, 'square'); }, j * 110));
       } else { showMsg('out of lives\ntap to restart'); flashW = .5; }
+      if (soloMode === 'infinite') onInfiniteOver(e.reason);
       break;
   }
 }
@@ -713,12 +718,13 @@ document.getElementById('daily').onclick = () => {
   seed = 'd' + ymd; generatorVersion=3;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
+document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); startBoard(); showToast(soloMode === 'infinite' ? 'infinite mode · bricks keep coming' : 'classic mode'); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
 const boardId=()=>seed+(generatorVersion>1?'-v'+generatorVersion:'')+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
-let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
+let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='',lastRows=0,lastScore=0,lastEndReason='';
 try{
  myId=localStorage.getItem('brick-asmr-player-id')||'';
  if(!/^[0-9a-f-]{36}$/i.test(myId)){myId=crypto.randomUUID();localStorage.setItem('brick-asmr-player-id',myId);}
@@ -739,6 +745,12 @@ async function loadBoard(){
  }catch(e){if(seq===boardSeq)boardStatus='error';}
  if(seq===boardSeq)renderPanel();
 }
+function onInfiniteOver(reason){
+  lastRows = S.descent ? S.descent.rows : 0;
+  lastScore = me.score;
+  lastEndReason = reason;
+  showPanel('over');
+}
 async function onClear(ms){
  const key=boardId(),old=myBest(key);
  lastTime=ms;
@@ -746,17 +758,29 @@ async function onClear(ms){
  lastNote=improved?(old===undefined?'first clear!':'new best! · was '+fmtTime(old)):'best '+fmtTime(old);
  if(improved){localBest[key]=ms;try{localStorage.setItem('brick-asmr-best',JSON.stringify(localBest));}catch(e){}}
  showPanel('clear');
- try{
+ // Infinite runs never clear, and endless scores stay out of the world rankings.
+ if(soloMode!=="infinite")try{
   const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key,playerId:myId,name:myName,timeMs:ms})});
   if(!res.ok)throw Error('Rejected');
   if(key===boardId()){lastNote+=' · saved worldwide';await loadBoard();}
  }catch(e){if(key===boardId()){lastNote+=' · saved on device';boardStatus='error';renderPanel();}}
 }
-function showPanel(mode){panelMode=mode;P('panel').hidden=false;setLinks();renderPanel();loadBoard();}
+function showPanel(mode){panelMode=mode;P('panel').hidden=false;setLinks();renderPanel();if(mode!=='over')loadBoard();}
 function hidePanel(){panelMode=null;P('panel').hidden=true;}
 function emptyBoard(note){const li=document.createElement('li');li.className='empty';li.textContent=note;P('plist').append(li);}
 function renderPanel(){
  if(!panelMode)return;
+ if(panelMode==='over'){
+  P('ptitle').textContent='INFINITE · '+(lastEndReason==='crushed'?'CRUSHED':'OUT OF LIVES');
+  P('ptime').textContent=lastRows+' ROWS · '+lastScore+' PTS';
+  P('pnote').textContent='endless run over · infinite runs are not ranked worldwide';
+  P('pnext').hidden=true;P('pclose').hidden=false;P('pbrag').hidden=true;
+  P('pmodeInf').hidden=false;P('pmodeCls').hidden=false;
+  setLinks();
+  const ol=P('plist');ol.replaceChildren();emptyBoard('Survive longer to beat '+lastRows+' rows.');
+  return;
+ }
+ P('pmodeInf').hidden=true;P('pmodeCls').hidden=true;
  const mine=myBest(boardId());
  P('ptitle').textContent=(panelMode==='clear'?'CLEARED · ':'')+(isDaily()?'DAILY '+seed.slice(5,7)+'/'+seed.slice(7):'SEED '+seed);
  P('ptime').textContent=panelMode==='clear'?fmtTime(lastTime):(mine!==undefined?fmtTime(mine):'--:--');
@@ -800,6 +824,14 @@ P('nameForm').addEventListener('submit',async e=>{
 P('pnext').onclick=()=>newBoard();
 P('pretry').onclick=()=>startBoard();
 P('pclose').onclick=()=>hidePanel();
+function setSoloMode(mode){
+ soloMode = mode === 'infinite' ? 'infinite' : 'solo';
+ try { localStorage.setItem(SOLO_MODE_KEY, soloMode); } catch (e) {}
+ P('soloMode').textContent = soloMode === 'infinite' ? 'MODE · INFINITE' : 'MODE · CLASSIC';
+}
+P('pmodeInf').onclick=()=>{setSoloMode('infinite');startBoard();};
+P('pmodeCls').onclick=()=>{setSoloMode('solo');startBoard();};
+setSoloMode(soloMode);
 P('pbrag').onclick=()=>{
  const i=boardKey===boardId()?boardRows.findIndex(x=>x.boardKey===boardId()&&x.playerId===myId):-1;
  const t='BRICKS ASMR · '+(isDaily()?'Daily '+seed.slice(1):'Seed '+seed)+'\nTime: '+fmtTime(lastTime)+(i>=0?' · World #'+(i+1):'')+'\nBeat me: '+shareURL();
