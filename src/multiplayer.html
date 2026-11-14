@@ -733,14 +733,6 @@ function label(text,x,y,angle){
  ctx.save();ctx.translate(x,y);if(angle)ctx.rotate(angle);ctx.fillText(text,0,0);ctx.restore();
 }
 // The serve's predicted path (wall and brick bounces, then a return off the server's own paddle), as in Solo.
-function drawPath(pr,color){
- const n=pr.pts.length/2;
- ctx.fillStyle=color;
- for(let k=0;k<n;k++){ctx.globalAlpha=.85*(1-k/n)+.1;ctx.fillRect(pr.pts[2*k]-1,pr.pts[2*k+1]-1,2,2);}
- ctx.globalAlpha=.9;ctx.strokeStyle=color;ctx.lineWidth=.8;
- for(let k=0;k<pr.marks.length;k+=2){ctx.beginPath();ctx.arc(pr.marks[k],pr.marks[k+1],3,0,Math.PI*2);ctx.stroke();}
- ctx.globalAlpha=1;
-}
 const INWARD={0:[0,-1],2:[0,1],1:[1,0],3:[-1,0]};
 function draw(now){
  frame=requestAnimationFrame(draw);notesThisFrame=0;
@@ -809,7 +801,7 @@ function draw(now){
   simMe.c=centres[you];simMe.aim=aimAng;
   spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
   sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
-  drawPath(E.predict(sim,you,900),V?"#01cdfe":"#ffffff");
+  drawAimGuide(ctx,E.predict(sim,you,900),"#e4f4ec",now,!!drag?.moved);
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
@@ -983,16 +975,15 @@ function pointer(event){
  send(sliderPos(view,u*viewW));
 }
 // As in Solo: the strip below the board moves the paddle; while serving, dragging the board aims and a tap launches.
-const boardX=event=>{const rect=event.currentTarget.getBoundingClientRect();return (event.clientX-rect.left)/rect.width*viewW;};
 for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
   audioInit();canvas.setPointerCapture(event.pointerId);
   const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())drag={x:boardX(event),aim:aimAng,moved:false};
+  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false};
   else{drag=null;pointer(event);}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=boardX(event)-drag.x;if(Math.abs(dx)>4)drag.moved=true;if(drag.moved)setAim(drag.aim+dx*.006);}
+  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(drag.aim+dx/drag.width*2.3);}
   else if(event.buttons||event.pointerType==="touch")pointer(event);
  });
  canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
