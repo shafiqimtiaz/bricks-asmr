@@ -373,26 +373,46 @@ function brickEngine(rng=Math.random){
   d.t=0;d.rows++;
   d.interval=Math.max(2.5,8*Math.pow(0.97,d.rows));
   for(const seat of S.seats)S.crush.target[seat]+=S.CS;
-  refillTopRow();
+  refillEdges();
   ev.push({t:"descent",rows:d.rows});
  }
- function refillTopRow(){
-  const {COLS}=S,c0=S.spawnC0,c1=S.spawnC1,rows=S.descent.rows;
+ // New bricks enter just beyond the formation, on the far side from each
+ // occupied edge, so the wall keeps coming without ever spawning inside
+ // the crush zone. Refilling grid row 0 crushed a 2-player room on the
+ // very first descent: row 0 sits past the top paddle line, so the top
+ // gap went negative the moment it filled.
+ function refillEdges(){
+  const {COLS,ROWS}=S,rows=S.descent.rows;
   const density=S.players.length===1?0.01:0.03;
-  for(let c=c0;c<=c1;c++){
-   const m=COLS-1-c;
-   if(c>m)continue;
-   if(rng()>=0.8)continue;
-   let hp=1,col=2+((c+rows)%13);
-   if(rng()<0.15){hp=3;col=0;}
-   let pu=0;
-   if(rng()<density)pu=1+Math.floor(rng()*10);
-   for(const cc of c===m?[c]:[c,m]){
-    if(S.hp[cc]!==0)continue;
-    S.hp[cc]=hp;S.col[cc]=col;S.pu[cc]=pu;
-    S.rowCount[0]++;S.colCount[cc]++;S.remaining++;S.total++;
+  let rMin=-1,rMax=-1,cMin=-1,cMax=-1;
+  for(let r=0;r<ROWS;r++)if(S.rowCount[r]>0){if(rMin<0)rMin=r;rMax=r;}
+  for(let c=0;c<COLS;c++)if(S.colCount[c]>0){if(cMin<0)cMin=c;cMax=c;}
+  if(rMin<0)return;
+  const has=s=>S.seats.includes(s);
+  const put=(i,hp,col,pu)=>{if(S.hp[i]!==0)return;S.hp[i]=hp;S.col[i]=col;S.pu[i]=pu;S.rowCount[(i/COLS)|0]++;S.colCount[i%COLS]++;S.remaining++;S.total++;};
+  const roll=c=>{let hp=1,col=2+((c+rows)%13);if(rng()<0.15){hp=3;col=0;}let pu=0;if(rng()<density)pu=1+Math.floor(rng()*10);return[hp,col,pu];};
+  const fillRow=r=>{
+   if(r<0||r>=ROWS)return;
+   for(let c=S.spawnC0;c<=S.spawnC1;c++){
+    const m=COLS-1-c;
+    if(c>m)continue;
+    if(rng()>=0.8)continue;
+    const [hp,col,pu]=roll(c);
+    for(const cc of c===m?[c]:[c,m])put(r*COLS+cc,hp,col,pu);
    }
-  }
+  };
+  const fillCol=c=>{
+   if(c<0||c>=COLS)return;
+   for(let r=rMin;r<=rMax;r++){
+    if(rng()>=0.8)continue;
+    const [hp,col,pu]=roll(c);
+    put(r*COLS+c,hp,col,pu);
+   }
+  };
+  if(has(0))fillRow(rMin-1);
+  if(has(2))fillRow(rMax+1);
+  if(has(1))fillCol(cMax+1);
+  if(has(3))fillCol(cMin-1);
  }
 
  function step(state,dt){

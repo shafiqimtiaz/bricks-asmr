@@ -40,8 +40,11 @@ test("infinite create carries descent state and the spawn span; classic has none
   assert.equal(classic.descent, undefined);
 });
 
-test("stepping ~8s descends exactly one row and refills the top row", () => {
+test("stepping ~8s descends exactly one row and refills just above the formation", () => {
   const { E, S } = infiniteSolo();
+  let rMin = -1;
+  for (let r = 0; r < S.rowCount.length; r++) if (S.rowCount[r] > 0) { rMin = r; break; }
+  assert.ok(rMin > 0, "the formation starts below grid row 0");
   assert.equal(S.rowCount[0], 0, "the top grid row starts empty");
   playFrames(E, S, 479);
   assert.equal(S.descent.rows, 0, "no descent before the 8s interval");
@@ -49,7 +52,7 @@ test("stepping ~8s descends exactly one row and refills the top row", () => {
   playFrames(E, S, 3);
   assert.equal(S.descent.rows, 1);
   assert.equal(S.crush.target[0], S.CS, "one row down, exactly as a miss does");
-  assert.ok(S.rowCount[0] > 0, "the top row was refilled");
+  assert.ok(S.rowCount[rMin - 1] > 0, "a fresh row appeared just above the formation");
   assert.ok(S.remaining > before, "the refill adds more bricks than the ball broke");
 });
 
@@ -107,4 +110,34 @@ test("the formation reaching the paddle ends an infinite run as crushed", () => 
   E.step(S, 1 / 60);
   assert.equal(S.status, "over");
   assert.equal(S.result.reason, "crushed");
+});
+
+// A 2-player Infinite room, as the server builds it: coop engine, shared
+// pool, 5s serve hold, V3 board. Live QA found these rounds ending at
+// exactly 0:13 — the first descent refilled grid row 0, which sits past
+// the top paddle line, so the top gap went negative at once.
+const infiniteDuo = (seed = "9K7YBR", lives = 6) => {
+  const E = brickEngine(() => .5), board = bricks(seed, 2, arena, 3);
+  const S = E.create({ arena, board, players: [{ id: "me", seat: 0 }, { id: "guest", seat: 2 }], mode: "coop", set: "clean", lives, holdSeconds: 5, maxBalls: 1, server: "me", infinite: true });
+  return { E, S, board };
+};
+
+test("a 2-player infinite room survives its first descent on both edges", () => {
+  const { E, S } = infiniteDuo();
+  assert.ok(E.crushGap(S, 0) > 0 && E.crushGap(S, 2) > 0, "both gaps start open");
+  assert.equal(S.rowCount[0], 0, "grid row 0 starts empty");
+  playFrames(E, S, 60 * 9);
+  assert.ok(S.descent.rows >= 1, "at least one descent fired");
+  assert.equal(S.status, "play", "the round did not end on the first descent");
+  assert.ok(E.crushGap(S, 0) > 0, "bottom gap still open");
+  assert.ok(E.crushGap(S, 2) > 0, "top gap still open");
+  assert.equal(S.rowCount[0], 0, "grid row 0 is never refilled");
+});
+
+test("a 2-player infinite room keeps coming for a minute without crushing", () => {
+  const { E, S } = infiniteDuo("9K7YBR", 50);
+  playFrames(E, S, 60 * 60);
+  assert.equal(S.status, "play");
+  assert.ok(S.descent.rows >= 6, "several rows descended, got " + S.descent.rows);
+  assert.ok(E.crushGap(S, 0) > 0 && E.crushGap(S, 2) > 0, "both gaps still open");
 });
