@@ -16,12 +16,12 @@ const topMiss = source => ({ x: 30, y: 52, vx: 0, vy: -330, owner: source, sourc
 const farBall = source => ({ x: 180, y: 300, vx: 0, vy: 300, owner: source, source });
 
 test("starting a round builds one engine state with the room's mode, set, lives and countdown", () => {
-  const versus = makeRoom(server, "versus", 3, "vapor"), S = versus.sim;
+  const versus = makeRoom(server, "versus", 3), S = versus.sim;
   assert.equal(versus.status, "playing");
   assert.equal(versus.round, 1);
   assert.match(versus.seed, /^[a-z0-9]{1,8}$/);
   assert.equal(S.mode, "versus");
-  assert.equal(S.set, "vapor");
+  assert.equal(S.set, "vintage");
   assert.equal(S.maxBalls, 40);
   assert.equal(S.holdSeconds, 5);
   assert.deepEqual(S.players.map(p => [p.id, p.seat, p.lives]), [["p0", 0, 4], ["p1", 2, 4], ["p2", 1, 4]]);
@@ -29,26 +29,26 @@ test("starting a round builds one engine state with the room's mode, set, lives 
   assert.equal(S.balls.length, 3, "versus serves a ball to every player");
   assert.ok(S.balls.every(b => b.held && b.hold === 5 + 3), "serves wait out the 3 second countdown, then 5 more");
   assert.ok(S.hp instanceof Uint8Array && S.remaining > 0);
-  const coop = makeRoom(server, "coop", 3, "clean");
+  const coop = makeRoom(server, "coop", 3);
   assert.equal(coop.sim.pool, 9, "a pool of 3 lives per player");
   assert.equal(coop.sim.maxLives, 12);
   assert.equal(coop.sim.balls.length, 1);
   assert.equal(coop.sim.balls[0].source, "p0", "the host serves first");
-  assert.equal(coop.sim.set, "clean");
-  startRound(coop, "nonsense");
-  assert.equal(coop.set, "vintage", "an unknown set falls back");
+  assert.equal(coop.sim.set, "vintage");
+  startRound(coop);
+  assert.equal(coop.set, "vintage", "all new rounds use CRT");
 });
 
 test("each round gets a fresh seed and board", () => {
   const room = makeRoom(server, "coop", 2);
   const seeds = new Set([room.seed]), boards = new Set([room.board.hp]);
-  for (let i = 0; i < 6; i++) { startRound(room, "clean"); seeds.add(room.seed); boards.add(room.board.hp); }
+  for (let i = 0; i < 6; i++) { startRound(room); seeds.add(room.seed); boards.add(room.board.hp); }
   assert.equal(room.round, 7);
   assert.equal(seeds.size, 7);
   assert.equal(boards.size, 7);
 });
 
-test("the host's theme picks the power-up set; unknown sets are refused", async () => {
+test("all players use the same CRT power-up set", async () => {
   const room = makeRoom(server, "coop", 2);
   room.status = "waiting";
   const inst = roomInstance(server, room);
@@ -59,11 +59,12 @@ test("the host's theme picks the power-up set; unknown sets are refused", async 
   assert.equal((await post("neon")).status, 400);
   assert.equal(room.status, "waiting");
   assert.equal((await post("vintage", "token-1")).status, 403);
-  assert.equal((await post("vapor")).status, 200);
+  assert.equal((await post("vapor")).status, 400);
+  assert.equal((await post()).status, 200);
   assert.equal(room.status, "playing");
-  assert.equal(room.set, "vapor");
-  assert.equal(room.sim.set, "vapor");
-  assert.equal(inst.snapshot().set, "vapor");
+  assert.equal(room.set, "vintage");
+  assert.equal(room.sim.set, "vintage");
+  assert.equal(inst.snapshot().set, "vintage");
 });
 
 test("paddle-input, aim and launch reach the engine, validated and rate limited", async () => {
@@ -278,19 +279,19 @@ test("leaving a live round puts that player out and hands the host over", async 
   assert.equal(room.status, "playing", "two are left");
 });
 
-test("Versus power-ups that belong to one player change only the player who caught them", () => {
-  const room = makeRoom(server, "versus", 2, "clean"), S = room.sim, inst = roomInstance(server, room);
+test("CRT player-only power-ups change only the player who caught them", () => {
+  const room = makeRoom(server, "versus", 2), S = room.sim, inst = roomInstance(server, room);
   S.balls = [farBall("p0"), farBall("p1")];
   const p0 = player(room, "p0");
   p0.c = p0.target = 180;
-  // Kind 3 in the Clean set is WIDE (kind 1 +3 balls, 2 x3, 3 wide); dropped on p0's paddle.
-  S.pups = [{ x: 180, y: 520, k: 3, c: 0, r: 0, owner: "p0" }];
+  // Kind 6 in the CRT set is TWIN PADDLE; dropped on p0's paddle.
+  S.pups = [{ x: 180, y: 520, k: 6, c: 0, r: 0, owner: "p0" }];
   run(inst, .6);
-  assert.ok(p0.fx.wide > 0);
-  assert.ok(!(player(room, "p1").fx.wide > 0));
-  assert.ok(p0.pw > player(room, "p1").pw, "only the catcher's paddle grows");
+  assert.ok(p0.fx.twin > 0);
+  assert.ok(!(player(room, "p1").fx.twin > 0));
+  
   const snap = inst.snapshot();
-  assert.ok(snap.players.find(p => p.id === "p0").fx.wide > 0);
+  assert.ok(snap.players.find(p => p.id === "p0").fx.twin > 0);
   assert.deepEqual(snap.players.find(p => p.id === "p1").fx, {});
   // A shared effect (SLOW-MO, kind 8) is global.
   S.pups = [{ x: p0.c, y: 520, k: 8, c: 0, r: 0, owner: "p0" }];
@@ -299,14 +300,13 @@ test("Versus power-ups that belong to one player change only the player who caug
 });
 
 test("the solo-only timer power-ups become SLOW-MO in the room", () => {
-  const room = makeRoom(server, "coop", 2, "vintage"), S = room.sim;
+  const room = makeRoom(server, "coop", 2), S = room.sim;
   assert.equal(E.puDef(S.set, 10, S.mode).id, "slow");
-  assert.equal(E.puDef("vapor", 10, S.mode).id, "slow");
-  assert.equal(E.puDef("vapor", 10, "solo").id, "freeze");
+  assert.equal(E.puDef("vintage", 10, "solo").id, "time");
 });
 
 test("a room stored mid-round reloads and carries on", async () => {
-  const room = makeRoom(server, "coop", 3, "vapor"), inst = roomInstance(server, room);
+  const room = makeRoom(server, "coop", 3), inst = roomInstance(server, room);
   run(inst, 2);
   const clock = room.sim.clock;
   const stored = structuredClone(room);
@@ -335,7 +335,7 @@ test("a room stored mid-round reloads and carries on", async () => {
 });
 
 test("broadcasts stay compact: the full board once, then changed cells, with 40 balls in play", () => {
-  const room = makeRoom(server, "coop", 4, "vapor"), S = room.sim, packets = [];
+  const room = makeRoom(server, "coop", 4), S = room.sim, packets = [];
   const sockets = [{ readyState: 1, deserializeAttachment: () => ({ id: "p0" }), send: d => packets.push(JSON.parse(d)) }];
   const inst = roomInstance(server, room, { sockets });
   S.balls = Array.from({ length: 40 }, (_, i) => ({ x: 40 + i * 7.123456, y: 300 + (i % 5) * 11.987, vx: 123.456 - i * 9, vy: -250.5 + i * 4, owner: "p" + (i % 4), source: "p" + (i % 4) }));
@@ -358,7 +358,7 @@ test("broadcasts stay compact: the full board once, then changed cells, with 40 
   assert.deepEqual(s.fx, { slow: 4.4 });
   assert.equal(s.crush.length, 4);
   assert.equal(s.mode, "coop");
-  assert.equal(s.set, "vapor");
+  assert.equal(s.set, "vintage");
   assert.equal(s.seed, room.seed);
   // Breaking bricks sends only those cells and the events that went with them.
   const i = S.hp.indexOf(1);
@@ -373,7 +373,7 @@ test("broadcasts stay compact: the full board once, then changed cells, with 40 
   inst.broadcast();
   assert.equal(packets[3].state.events, undefined, "events go out once");
   // A new round sends the whole board again.
-  startRound(room, "clean");
+  startRound(room);
   inst.sent = null;
   inst.broadcast();
   assert.equal(packets[4].state.board.hp.length, S.hp.length);
