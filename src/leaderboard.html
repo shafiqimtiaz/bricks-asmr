@@ -142,8 +142,9 @@ h1 span{color:var(--txt)}
 }
 @media(max-width:380px){.art{width:84px}.art span{height:10px}.stat{padding:2px 6px}.stat dd{font-size:13px}}
 @media(prefers-reduced-motion:reduce){body,.smallbtn,.action{transition:none}}
-.clears{display:block;font-size:9px;line-height:1.8;color:var(--second);font-weight:400;margin-top:6px}
-.steps{flex-wrap:wrap}
+.board-seed{display:block;font-size:9px;line-height:1.7;color:var(--second);font-weight:400;margin-top:6px}
+.loadFooter{display:flex;justify-content:center;padding:15px 0}
+.loadFooter [hidden]{display:none}
 </style></head>
 <body data-theme="vintage">
 <div class="noise" aria-hidden="true"></div>
@@ -152,7 +153,7 @@ h1 span{color:var(--txt)}
 <header class="top"><a class="back" href="/" aria-label="Back to the game">← GAME</a><div class="logo pixel">BRICK <span>ASMR</span></div><div class="system">● <b>GLOBAL</b> // 01</div></header>
 <div class="pixel-stripe" aria-hidden="true"></div>
 <section class="marquee">
-<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">Same bricks. Same rules. Fastest clear wins. Your best time enters the world board.</p></div>
+<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">All saved scores from every player, on every board. The fastest times appear first.</p></div>
 <div class="art" id="bricks" aria-hidden="true"></div>
 </section>
 <dl class="stats">
@@ -160,18 +161,16 @@ h1 span{color:var(--txt)}
 <div class="stat"><dt>PLAYERS</dt><dd id="players">--</dd></div>
 <div class="stat"><dt>YOUR BEST</dt><dd id="mine">--:--</dd></div>
 </dl>
-<div class="config">
-<div><p class="control-title">RANKINGS</p><div class="steps"><button id="world" class="smallbtn" type="button" aria-pressed="true">WORLD</button><button id="board" class="smallbtn" type="button" aria-pressed="false">THIS BOARD</button><button id="today" class="smallbtn" type="button" aria-pressed="false">TODAY</button></div></div>
-</div>
 <section aria-label="Leaderboard">
 <div class="board-top">
-<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">DAILY</h2><p class="board-description" id="description">UTC DAILY CHALLENGE · CRT MODE</p></div>
+<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">WORLD RANKINGS</h2><p class="board-description" id="description">ALL PLAYERS · ALL SAVED SCORES</p></div>
 <div class="board-actions"><button class="action secondary" type="button" id="refresh">↻ REFRESH</button><a class="action" id="play" href="/">▶ PLAY</a></div>
 </div>
 <div class="podium" id="podium" hidden></div>
-<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER</span><span id="timeHeading" style="text-align:right">BEST</span></div><div id="rows" aria-live="polite"></div></div>
+<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER / BOARD</span><span style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
+<div class="loadFooter"><button id="more" class="smallbtn" type="button" hidden>LOAD MORE</button></div>
 </section>
-<div class="foot"><span>01 · World rankings count cleared boards; individual boards rank by fastest time. Results are community-submitted.</span><span class="state" id="updated">● READY</span></div>
+<div class="foot"><span>01 · Every saved score appears globally. Different board layouts may have different difficulty. Scores are community-submitted.</span><span class="state" id="updated">● READY</span></div>
 </div>
 <div class="outside">BRICK ASMR / INSERT SKILL, NOT COINS</div>
 </main>
@@ -179,23 +178,28 @@ h1 span{color:var(--txt)}
 (()=>{
 const P=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
-const utcSeed=()=>'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
-let seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):utcSeed();
-let scope=params.get('scope')==='world'||!params.has('seed')?'world':'board';
-let playerId='';
-let localBest={};
-try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
-const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
+const seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
 const arenaParam=params.get('arena')||'';
 const arenaWidth=/^\d{3,4}$/.test(arenaParam)?Number(arenaParam):360;
-const challengeKey=()=>seed+'-vintage'+(arenaWidth===360?'':'-a'+arenaWidth);
-let currentFetch=0;
+const game=new URL('/?arena='+arenaWidth,location.origin);game.hash=seed;
+document.querySelector('.back').href=game.pathname+game.search+game.hash;
+P('play').href=game.pathname+game.search+game.hash;
+const playerId=localStorage.getItem('brick-asmr-player-id')||'';
+let localBest={};
+try{localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
+const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
+const best=Math.min(Infinity,...Object.values(localBest).filter(Number.isFinite));
+P('mine').textContent=Number.isFinite(best)?fmt(best):'--:--';
 const brickBox=P('bricks');
-for(let i=0;i<40;i++){brickBox.append(document.createElement('span'));}
-function cell(cls,text){const n=document.createElement('div');n.className=cls;n.textContent=text;return n;}
-function clearRows(){P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=true;}
+for(let i=0;i<40;i++)brickBox.append(document.createElement('span'));
+const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
+function boardLabel(key){
+ const m=/^([a-z0-9]+?)(?:-\d+)?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
+ if(!m)return 'BOARD '+String(key||'').toUpperCase();
+ const label=m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
+ return label+' · '+(m[2]==='vintage'?'CRT':m[2].toUpperCase());
+}
 function empty(title,message){
- clearRows();
  const shell=cell('empty',''),art=cell('empty-art','');
  for(let i=0;i<24;i++)art.append(document.createElement('span'));
  const heading=document.createElement('h3');heading.className='pixel';heading.textContent=title;
@@ -204,62 +208,63 @@ function empty(title,message){
  if(title==='NO TIMES YET'){const a=document.createElement('a');a.className='action';a.href=P('play').href;a.textContent='▶ SET THE RECORD';shell.append(a);}
  P('rows').append(shell);
 }
-function updateView(){
- const world=scope==='world';
- P('world').setAttribute('aria-pressed',String(world));
- P('board').setAttribute('aria-pressed',String(!world&&seed!==utcSeed()));
- P('today').setAttribute('aria-pressed',String(!world&&seed===utcSeed()));
- const isDaily=/^d\d{8}$/.test(seed),daily=seed===utcSeed();
- P('challenge').textContent=world?'WORLD RANKINGS':daily?'DAILY':(isDaily?'DAILY ARCHIVE':'SEED // '+seed.toUpperCase());
- P('description').textContent=world?'MOST BOARDS CLEARED · BEST TIME BREAKS TIES':(isDaily?seed.slice(1,5)+'-'+seed.slice(5,7)+'-'+seed.slice(7):'SEED '+seed.toUpperCase())+' · CRT MODE';
- document.querySelector('.board-kicker').textContent=world?'★ WORLD LEADERS':'★ TOP RUNS';
- P('timeHeading').textContent=world?'BEST':'TIME';
- const game=new URL('/?arena='+arenaWidth,location.origin);game.hash=world?utcSeed():seed;
- document.querySelector('.back').href=game.pathname+game.search+game.hash;
- P('play').href=game.pathname+game.search+game.hash;
- history.replaceState(null,'','/leaderboard?'+new URLSearchParams(world?{scope:'world',arena:String(arenaWidth)}:{seed,arena:String(arenaWidth)}));
- const best=world?Math.min(Infinity,...Object.entries(localBest).filter(([key,value])=>/^[a-z0-9]{1,16}-vintage(?:-a\d{3,4})?$/.test(key)&&Number.isFinite(value)).map(([,value])=>value)):localBest[challengeKey()];
- P('mine').textContent=Number.isFinite(best)?fmt(best):'--:--';
-}
-function render(rows,total){
- P('players').textContent=(total||0).toLocaleString();
- P('fastest').textContent=rows.length?fmt(Math.min(...rows.map(r=>r.timeMs))):'--:--';
- clearRows();
- if(!rows.length){empty('NO TIMES YET',scope==='world'?'No completed boards have been recorded yet.':'No player has cleared this exact board yet. Your next run could be #1.');return;}
- const podium=P('podium');podium.hidden=false;
- for(const [i,r] of rows.slice(0,3).entries()){
-   const c=cell('podium-card','');
-   const name=cell('podium-name',r.playerId===playerId?'YOU':r.name);if(scope==='world')name.append(cell('clears',r.clears+' BOARDS'));c.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',fmt(r.timeMs)));
-   podium.append(c);
+let offset=0,hasMore=false,loading=false,run=0;
+function renderRows(entries,first){
+ if(first){
+  P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=!entries.length;
+  P('fastest').textContent=entries.length?fmt(entries[0].timeMs):'--:--';
+  if(!entries.length){empty('NO TIMES YET','No game scores have been saved yet. Be the first.');return;}
+  for(const [i,r] of entries.slice(0,3).entries()){
+   const item=cell('podium-card',''),name=cell('podium-name',r.playerId===playerId?'YOU':r.name);
+   name.append(cell('board-seed',boardLabel(r.boardKey)));
+   item.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',fmt(r.timeMs)));
+   P('podium').append(item);
+  }
  }
- for(const [i,r] of rows.entries()){
-  const item=cell('entry'+(i===0?' first':'')+(r.playerId===playerId?' mine':''),'');
-  const rank=cell('rank','#'+String(i+1).padStart(2,'0'));
-  const user=cell('name',r.name);if(scope==='world')user.append(cell('clears',r.clears+' BOARDS CLEARED'));
+ for(const [i,r] of entries.entries()){
+  const rank=offset+i+1;
+  const item=cell('entry'+(rank===1?' first':'')+(r.playerId===playerId?' mine':''),'');
+  const user=cell('name',r.name);
+  user.append(cell('board-seed',boardLabel(r.boardKey)));
   if(r.playerId===playerId)user.append(cell('me-tag','YOU'));
-  item.append(rank,user,cell('value',fmt(r.timeMs)));
+  item.append(cell('rank','#'+String(rank).padStart(2,'0')),user,cell('value',fmt(r.timeMs)));
   P('rows').append(item);
  }
 }
-async function load(){
- const run=++currentFetch;
- updateView();P('refresh').disabled=true;P('updated').textContent='◌ SYNCING';
- empty('LOADING','Retrieving world records…');
+async function load(reset=false){
+ if(loading)return;
+ const call=++run;
+ loading=true;
+ if(reset){
+  offset=0;
+  P('rows').replaceChildren();P('podium').hidden=true;
+  empty('LOADING','Retrieving all world scores…');
+ }
+ P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNCING';
  try{
-  const r=await fetch(scope==='world'?'/api/leaderboard?scope=world':'/api/leaderboard?key='+encodeURIComponent(challengeKey()),{cache:'no-store'});
-  if(!r.ok)throw Error('Network error');
-  const data=await r.json();
-  if(run!==currentFetch)return;
-  render(Array.isArray(data.entries)?data.entries:[],data.totalPlayers||0);
+  const res=await fetch('/api/leaderboard?scope=world&offset='+offset,{cache:'no-store'});
+  if(!res.ok)throw Error('Network error');
+  const data=await res.json();
+  if(call!==run)return;
+  const entries=Array.isArray(data.entries)?data.entries:[];
+  renderRows(entries,offset===0);
+  P('players').textContent=Number(data.totalPlayers||0).toLocaleString();
+  offset+=entries.length;
+  hasMore=Boolean(data.hasMore);
+  P('more').hidden=!hasMore;
   P('updated').textContent='● UPDATED '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
- }catch(e){if(run===currentFetch){empty('OFFLINE','Rankings could not load. Your game is unaffected. Retry to refresh.');P('updated').textContent='○ OFFLINE';}}
- finally{if(run===currentFetch)P('refresh').disabled=false;}
+ }catch(e){
+  if(call===run){
+   if(offset===0){P('rows').replaceChildren();empty('OFFLINE','World rankings could not load. Retry to refresh.');}
+   P('updated').textContent='○ OFFLINE';
+  }
+ }finally{
+  if(call===run){loading=false;P('refresh').disabled=false;P('more').disabled=false;}
+ }
 }
-P('refresh').onclick=load;
-P('world').onclick=()=>{scope='world';load();};
-P('board').onclick=()=>{scope='board';load();};
-P('today').onclick=()=>{seed=utcSeed();scope='board';load();};
-load();
+P('refresh').onclick=()=>load(true);
+P('more').onclick=()=>load();
+load(true);
 })();
 </script>
 </body>
