@@ -252,12 +252,13 @@ function drawBrickTile(context,x,y,size,life,color,palette,walls){
  context.fillStyle="rgba(0,0,0,.18)";
  context.fillRect(x+1.5,y+1.5,size-3,size-3);
 }
-function drawAimGuide(context, preview, color="#e5f4eb", time=0, dragging=false){
+function aimDragAngle(start, pixelDelta, width){return start+pixelDelta/Math.max(1,width)*2.3;}
+function drawAimGuide(context, preview, color="#e5f4eb", time=0, dragging=false, ball=null){
  const points=preview?.pts;
  if(!points||points.length<4)return;
- const path=[{x:points[0],y:points[1],d:0}];
+ const path=[{x:ball?.x??points[0],y:ball?.y??points[1],d:0}];
  const limit=390;
- for(let i=2;i<points.length;i+=2){
+ for(let i=ball?0:2;i<points.length;i+=2){
   const prev=path[path.length-1],x=points[i],y=points[i+1],segment=Math.hypot(x-prev.x,y-prev.y);
   if(segment<.01)continue;
   if(prev.d+segment>=limit){
@@ -299,7 +300,7 @@ function drawAimGuide(context, preview, color="#e5f4eb", time=0, dragging=false)
  context.lineTo(tip.x-ux*9+uy*4.5,tip.y-uy*9-ux*4.5);
  context.closePath();
  context.fill();
- context.globalAlpha=dragging?.82:.45;
+ context.globalAlpha=dragging ? .82 : .45;
  context.lineWidth=dragging?1.6:1.1;
  context.beginPath();
  context.arc(origin.x,origin.y,dragging?10+Math.sin(time/130)*1.5:8,0,Math.PI*2);
@@ -385,7 +386,7 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
  return {dock,edge,gap,sidebar,width,height,hudOver:Math.max(0,hudHeight-36*height/stageH),
   stageLeft:(vw-width-(dock?sidebar+gap:0))/2,unit:Math.min(14,Math.max(3,Math.min(width/100,height/150)))};
 }
-export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
+export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
-export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
