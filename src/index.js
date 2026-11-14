@@ -9,6 +9,17 @@ function json(v,status=200){return new Response(JSON.stringify(v),{status,header
 const KEY=/^[a-z0-9]{1,16}-(clean|vintage|vapor)(?:-a\d{3,4})?$/,ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,NAME=/^[\p{L}\p{N} _.-]{2,24}$/u;
 async function api(req,env,url){
  if(req.method==='GET'){
+  if(url.searchParams.get('scope')==='world'){
+   try{
+    const offsetRaw=Number(url.searchParams.get('offset')||0);
+    if(!Number.isSafeInteger(offsetRaw)||offsetRaw<0||offsetRaw>1000000)return json({error:'Invalid offset'},400);
+    const db=env.DB.withSession('first-unconstrained');
+    const list=await db.prepare('SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?').bind(offsetRaw).all();
+    const count=await db.prepare('SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times').first();
+    const entries=list.results||[];
+    return json({entries:entries.slice(0,50),totalPlayers:count?.n||0,hasMore:entries.length>50,nextOffset:offsetRaw+50});
+   }catch(e){console.error('world leaderboard GET',e);return json({error:'Leaderboard unavailable'},503);}
+  }
   const key=url.searchParams.get('key')||'';if(!KEY.test(key))return json({error:'Invalid challenge'},400);
   try{const db=env.DB.withSession('first-unconstrained');
    const list=await db.prepare('SELECT player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times WHERE board_key=? ORDER BY best_ms ASC, updated_at ASC, player_id ASC LIMIT 50').bind(key).all();
@@ -24,6 +35,7 @@ async function api(req,env,url){
   if(!KEY.test(input?.key||'')||!ID.test(input?.playerId||'')||!NAME.test(name)||!Number.isSafeInteger(input?.timeMs)||input.timeMs<1||input.timeMs>86400000)return json({error:'Invalid result'},400);
   try{
    await env.DB.prepare('INSERT INTO leaderboard_times(board_key,player_id,player_name,best_ms) VALUES(?,?,?,?) ON CONFLICT(board_key,player_id) DO UPDATE SET player_name=excluded.player_name,best_ms=MIN(leaderboard_times.best_ms,excluded.best_ms),updated_at=CASE WHEN excluded.best_ms < leaderboard_times.best_ms THEN unixepoch() ELSE leaderboard_times.updated_at END').bind(input.key,input.playerId,name,input.timeMs).run();
+   await env.DB.prepare('UPDATE leaderboard_times SET player_name=? WHERE player_id=? AND player_name<>?').bind(name,input.playerId,name).run();
    return json({saved:true},201);
   }catch(e){console.error('leaderboard POST',e);return json({error:'Save failed'},503);}
  }

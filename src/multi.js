@@ -25,7 +25,7 @@ function assignSides(players){
 
 // The room runs the same engine as Solo: one authoritative state (room.sim) for the whole round.
 const E=brickEngine(Math.random);
-const MODES=["coop","versus"],SETS=["clean","vintage","vapor"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.15;
+const MODES=["coop","versus"],HOLD_SECONDS=5,COUNTDOWN=3,OFFLINE_GRACE=30000,MAX_AIM=1.15;
 const num=(v,k=10)=>Math.round(v*k)/k;
 const simPlayer=(r,id)=>r.sim?.players.find(p=>p.id===id)||null;
 // Whether a player can no longer take part: explicitly out, or (Versus) without lives, or (Coop) the pool is empty.
@@ -33,9 +33,9 @@ const outOf=(S,p)=>p.out||(S.mode==="versus"?p.lives<=0:S.pool<=0);
 // Two players share the room's tall board; three or four play on the square one.
 function arenaFor(count,current){return count>=3?squareArena():current&&!current.square?current:arenaLayout();}
 function randomSeed(){return Math.random().toString(36).slice(2,8);}
-function startRound(r,set="vintage"){
+function startRound(r){
  r.status="playing";r.round=(r.round||0)+1;r.seed=randomSeed();
- r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set=SETS.includes(set)?set:"vintage";
+ r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set="vintage";
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
  r.arena=arenaFor(r.players.length,r.arena);
  r.board=bricks(r.seed,r.players.length,r.arena);
@@ -167,10 +167,10 @@ export class BrickRoom extends DurableObject{
     if(!MODES.includes(body.mode))return reply({error:"Unknown mode"},400);
     r.mode=body.mode;await this.save();this.broadcast();return reply({ok:true});
    }
-   if(body.set!==undefined&&!SETS.includes(body.set))return reply({error:"Unknown power-up set"},400);
+   if(body.set!==undefined&&body.set!=="vintage")return reply({error:"Only CRT is supported"},400);
    const online=this.liveIds();if(r.players.filter(p=>online.has(p.id)).length<2)return reply({error:"At least two connected players are required"},409);
    for(const p of r.players)p.online=online.has(p.id);
-   startRound(r,body.set);this.sent=null;this.pending=[];await this.save();this.broadcast();this.ensureLoop();return reply({ok:true});
+   startRound(r);this.sent=null;this.pending=[];await this.save();this.broadcast();this.ensureLoop();return reply({ok:true});
   }
   if(action==="leave"&&req.method==="POST"){
    if(r.status==="playing"){

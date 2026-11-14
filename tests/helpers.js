@@ -22,12 +22,12 @@ return {assignedSides,assignSides,startRound,eliminate,E,BrickRoom};`
 }
 
 // A started room (coop or versus) on the shared engine, with every player online.
-export function makeRoom(server, mode = "coop", count = 2, set = "clean") {
+export function makeRoom(server, mode = "coop", count = 2) {
   const players = Array.from({ length: count }, (_, i) =>
     ({ id: "p" + i, token: "token-" + i, name: "Player" + i, seat: -1, pos: .5, online: true, lastSeq: -1, lastInputAt: 0 }));
   server.assignSides(players);
   const room = { code: "BRICKS", players, status: "waiting", round: 0, mode, hostId: "p0", arena: core.arenaLayout(9 / 16), lastActivity: Date.now() };
-  server.startRound(room, set);
+  server.startRound(room);
   return room;
 }
 

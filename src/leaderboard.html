@@ -13,16 +13,12 @@
 *{box-sizing:border-box}
 html{min-width:320px}
 body{--bg:#030403;--panel:#111316;--cell:#13171b;--line:#46515a;--txt:#f7f6f4;--muted:#a5adb5;--accent:#ff8f80;--second:#6cd8ff;--third:#ffd166;--brick1:#49c9fc;--brick2:#be72eb;--brick3:#ff8b80;--glow:rgba(255,127,106,.19);margin:0;background:var(--bg);color:var(--txt);min-height:100vh;transition:background .18s,color .18s}
-body[data-theme="clean"]{--bg:#0c0d0e;--panel:#17191b;--cell:#1e2023;--line:#4a4c50;--txt:#f5f5f2;--muted:#aaaeb4;--accent:#f4f4ee;--second:#a8beca;--third:#d5d6d7;--brick1:#929ca4;--brick2:#727b84;--brick3:#a7b2b7;--glow:transparent}
-body[data-theme="vapor"]{--bg:#090113;--panel:#180a29;--cell:#1e1234;--line:#653b80;--txt:#ffeaff;--muted:#bba3d2;--accent:#ff71ce;--second:#01cdfe;--third:#05ffa1;--brick1:#01cdfe;--brick2:#b967ff;--brick3:#ff71ce;--glow:rgba(255,113,206,.22)}
 a{color:inherit;text-decoration:none}
 button{font:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--second);outline-offset:3px}
 button:disabled{opacity:.45;cursor:default}
 .pixel{font-family:"Press Start 2P",ui-monospace,monospace}
 .noise{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:.23;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.55) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 47%,#0008 100%);mix-blend-mode:multiply}
-body[data-theme="clean"] .noise{display:none}
-body[data-theme="vapor"] .noise{opacity:.16}
 main{position:relative;z-index:1;max-width:770px;margin:0 auto;padding:20px 20px 34px}
 .cabinet{background:var(--panel);border:1px solid var(--line);box-shadow:0 0 0 6px #0006,0 0 52px var(--glow);padding:0 23px 20px;position:relative}
 .cabinet:before,.cabinet:after{position:absolute;content:"";width:9px;height:9px;border:2px solid var(--second);opacity:.65}
@@ -57,11 +53,8 @@ h1 span{color:var(--txt)}
 .stat:last-child dd{color:var(--accent)}
 .config{padding:20px 0 17px;display:flex;justify-content:space-between;align-items:end;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
 .control-title{font-size:9px;color:var(--muted);letter-spacing:.12em;margin:0 0 9px}
-.mode{display:flex;gap:6px}
-.mode button,.smallbtn,.action{min-height:42px;border:1px solid var(--line);background:var(--cell);color:var(--muted);padding:0 12px;font-size:10px;border-radius:4px;transition:border-color .15s,background .15s,color .15s}
-.mode button[aria-pressed="true"]{color:var(--bg);background:var(--accent);border-color:var(--accent);font-weight:900;text-shadow:none;box-shadow:0 0 16px var(--glow)}
-.mode button:hover,.smallbtn:hover{color:var(--txt);border-color:var(--second)}
-.mode button[aria-pressed="true"]:hover{color:var(--bg)}
+.smallbtn,.action{min-height:42px;border:1px solid var(--line);background:var(--cell);color:var(--muted);padding:0 12px;font-size:10px;border-radius:4px;transition:border-color .15s,background .15s,color .15s}
+.smallbtn:hover{color:var(--txt);border-color:var(--second)}
 .steps{display:flex;align-items:center;gap:6px}
 .smallbtn{padding:0 13px}
 .smallbtn[aria-pressed="true"]{border-color:var(--second);color:var(--second)}
@@ -108,13 +101,6 @@ h1 span{color:var(--txt)}
 .foot span{max-width:410px}
 .state{white-space:nowrap;color:var(--second)}
 .outside{font-size:10px;color:var(--muted);text-align:center;line-height:1.6;padding:20px 4px}
-body[data-theme="clean"] .cabinet{box-shadow:0 0 0 5px #0004}
-body[data-theme="clean"] .pixel-stripe{opacity:.55;box-shadow:none}
-body[data-theme="clean"] .pixel{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:900;letter-spacing:-.06em}
-body[data-theme="clean"] h1{text-shadow:none}
-body[data-theme="vapor"] h1{color:var(--accent);text-shadow:2px 0 var(--second),0 0 19px var(--glow)}
-body[data-theme="vapor"] .cabinet{box-shadow:0 0 0 6px #0007,0 0 58px #ff71ce21}
-body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
 @media(max-width:670px){
  main{padding:9px 8px 22px}
  .cabinet{padding:0 12px 12px}
@@ -133,7 +119,7 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
  .stat dd{font-size:clamp(13px,4vw,18px)}
  .config{padding:17px 0 14px;gap:15px}
  .config>div{min-width:0}
- .mode button{padding:0 10px;font-size:9px}
+ 
  .steps{gap:5px}
  .board-top{padding:18px 0 13px;flex-wrap:wrap}
  .board-title{font-size:11px}
@@ -154,8 +140,11 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
  .foot{font-size:8px}
  .outside{font-size:9px}
 }
-@media(max-width:380px){.art{width:84px}.art span{height:10px}.mode button{padding:0 8px}.stat{padding:2px 6px}.stat dd{font-size:13px}}
-@media(prefers-reduced-motion:reduce){body,.mode button,.smallbtn,.action{transition:none}}
+@media(max-width:380px){.art{width:84px}.art span{height:10px}.stat{padding:2px 6px}.stat dd{font-size:13px}}
+@media(prefers-reduced-motion:reduce){body,.smallbtn,.action{transition:none}}
+.board-seed{display:block;font-size:9px;line-height:1.7;color:var(--second);font-weight:400;margin-top:6px}
+.loadFooter{display:flex;justify-content:center;padding:15px 0}
+.loadFooter [hidden]{display:none}
 </style></head>
 <body data-theme="vintage">
 <div class="noise" aria-hidden="true"></div>
@@ -164,7 +153,7 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
 <header class="top"><a class="back" href="/" aria-label="Back to the game">← GAME</a><div class="logo pixel">BRICK <span>ASMR</span></div><div class="system">● <b>GLOBAL</b> // 01</div></header>
 <div class="pixel-stripe" aria-hidden="true"></div>
 <section class="marquee">
-<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">Same bricks. Same rules. Fastest clear wins. Your best time enters the world board.</p></div>
+<div><p class="kicker pixel">ARCADE / WORLD RANKINGS</p><h1 class="pixel">HIGH<br><span>SCORES</span></h1><p class="subcopy">All saved scores from every player, on every board. The fastest times appear first.</p></div>
 <div class="art" id="bricks" aria-hidden="true"></div>
 </section>
 <dl class="stats">
@@ -172,19 +161,16 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
 <div class="stat"><dt>PLAYERS</dt><dd id="players">--</dd></div>
 <div class="stat"><dt>YOUR BEST</dt><dd id="mine">--:--</dd></div>
 </dl>
-<div class="config">
-<div><p class="control-title">VISUAL MODE</p><div class="mode" aria-label="Visual mode"><button type="button" data-theme-btn="clean" aria-pressed="false">CLEAN</button><button type="button" data-theme-btn="vintage" aria-pressed="true">CRT</button><button type="button" data-theme-btn="vapor" aria-pressed="false">VAPOR</button></div></div>
-<div><p class="control-title">CHALLENGE</p><div class="steps"><button id="today" class="smallbtn" type="button" aria-pressed="true">TODAY</button></div></div>
-</div>
 <section aria-label="Leaderboard">
 <div class="board-top">
-<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">DAILY</h2><p class="board-description" id="description">UTC DAILY CHALLENGE · CRT MODE</p></div>
+<div><p class="board-kicker pixel">★ TOP RUNS</p><h2 class="board-title pixel" id="challenge">WORLD RANKINGS</h2><p class="board-description" id="description">ALL PLAYERS · ALL SAVED SCORES</p></div>
 <div class="board-actions"><button class="action secondary" type="button" id="refresh">↻ REFRESH</button><a class="action" id="play" href="/">▶ PLAY</a></div>
 </div>
 <div class="podium" id="podium" hidden></div>
-<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER</span><span style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
+<div class="board"><div class="board-head"><span>RANK</span><span>PLAYER / BOARD</span><span style="text-align:right">TIME</span></div><div id="rows" aria-live="polite"></div></div>
+<div class="loadFooter"><button id="more" class="smallbtn" type="button" hidden>LOAD MORE</button></div>
 </section>
-<div class="foot"><span>01 · One best clear per player, board and visual mode. Times are community-submitted and not independently verified.</span><span class="state" id="updated">● READY</span></div>
+<div class="foot"><span>01 · Every saved score appears globally. Different board layouts may have different difficulty. Scores are community-submitted.</span><span class="state" id="updated">● READY</span></div>
 </div>
 <div class="outside">BRICK ASMR / INSERT SKILL, NOT COINS</div>
 </main>
@@ -192,25 +178,27 @@ body[data-theme="vapor"] .art{filter:drop-shadow(0 0 17px #ff71ce50)}
 (()=>{
 const P=id=>document.getElementById(id);
 const params=new URLSearchParams(location.search);
-const utcSeed=()=>'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
-let seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):utcSeed();
-let preferred='vintage';
-try{preferred=localStorage.getItem('brick-asmr-style')||'vintage';}catch{}
-let theme=['clean','vintage','vapor'].includes(params.get('style'))?params.get('style'):(['clean','vintage','vapor'].includes(preferred)?preferred:'vintage');
-let playerId='';
-let localBest={};
-try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
-const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
+const seed=/^[a-z0-9]{1,16}$/.test(params.get('seed')||'')?params.get('seed'):'d'+new Date().toISOString().slice(0,10).replace(/-/g,'');
 const arenaParam=params.get('arena')||'';
 const arenaWidth=/^\d{3,4}$/.test(arenaParam)?Number(arenaParam):360;
-const challengeKey=()=>seed+'-'+theme+(arenaWidth===360?'':'-a'+arenaWidth);
-let currentFetch=0;
+const game=new URL('/?arena='+arenaWidth,location.origin);game.hash=seed;
+document.querySelector('.back').href=game.pathname+game.search+game.hash;
+P('play').href=game.pathname+game.search+game.hash;
+let playerId='',localBest={};
+try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
+const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
+const best=Math.min(Infinity,...Object.values(localBest).filter(Number.isFinite));
+P('mine').textContent=Number.isFinite(best)?fmt(best):'--:--';
 const brickBox=P('bricks');
-for(let i=0;i<40;i++){brickBox.append(document.createElement('span'));}
-function cell(cls,text){const n=document.createElement('div');n.className=cls;n.textContent=text;return n;}
-function clearRows(){P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=true;}
+for(let i=0;i<40;i++)brickBox.append(document.createElement('span'));
+const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
+function boardLabel(key){
+ const m=/^([a-z0-9]+?)(?:-\d+)?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
+ if(!m)return 'BOARD '+String(key||'').toUpperCase();
+ const label=m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
+ return label+' · '+(m[2]==='vintage'?'CRT':m[2].toUpperCase());
+}
 function empty(title,message){
- clearRows();
  const shell=cell('empty',''),art=cell('empty-art','');
  for(let i=0;i<24;i++)art.append(document.createElement('span'));
  const heading=document.createElement('h3');heading.className='pixel';heading.textContent=title;
@@ -219,60 +207,63 @@ function empty(title,message){
  if(title==='NO TIMES YET'){const a=document.createElement('a');a.className='action';a.href=P('play').href;a.textContent='▶ SET THE RECORD';shell.append(a);}
  P('rows').append(shell);
 }
-function updateTheme(){
- document.body.dataset.theme=theme;
- try{localStorage.setItem('brick-asmr-style',theme);}catch{}
- const game=new URL('/?style='+encodeURIComponent(theme),location.origin);game.hash=seed;document.querySelector('.back').href=game.pathname+game.search+game.hash;
- for(const b of document.querySelectorAll('[data-theme-btn]'))b.setAttribute('aria-pressed',String(b.dataset.themeBtn===theme));
- P('today').setAttribute('aria-pressed',String(seed===utcSeed()));
- const isDaily=/^d\d{8}$/.test(seed);
- const daily=seed===utcSeed();
- P('challenge').textContent=daily?'DAILY':(isDaily?'DAILY ARCHIVE':'SEED // '+seed.toUpperCase());
- P('description').textContent=(isDaily?seed.slice(1,5)+'-'+seed.slice(5,7)+'-'+seed.slice(7):'SEED '+seed.toUpperCase())+' · '+({clean:'CLEAN',vintage:'CRT',vapor:'VAPOR'}[theme])+' MODE';
- const u=new URL('/?style='+encodeURIComponent(theme)+'&arena='+arenaWidth,location.origin);u.hash=seed;
- P('play').href=u.pathname+u.search+u.hash;
- history.replaceState(null,'','/leaderboard?'+new URLSearchParams({seed,style:theme,arena:String(arenaWidth)}));
- const mine=localBest[challengeKey()];
- P('mine').textContent=Number.isFinite(mine)?fmt(mine):'--:--';
-}
-function render(rows,total){
- P('players').textContent=(total||0).toLocaleString();
- P('fastest').textContent=rows.length?fmt(rows[0].timeMs):'--:--';
- clearRows();
- if(!rows.length){empty('NO TIMES YET','No player has cleared this exact board yet. Your next run could be #1.');return;}
- const podium=P('podium');podium.hidden=false;
- for(const [i,r] of rows.slice(0,3).entries()){
-   const c=cell('podium-card','');
-   c.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),cell('podium-name',r.playerId===playerId?'YOU':r.name),cell('podium-time',fmt(r.timeMs)));
-   podium.append(c);
+let offset=0,hasMore=false,loading=false,run=0;
+function renderRows(entries,first){
+ if(first){
+  P('rows').replaceChildren();P('podium').replaceChildren();P('podium').hidden=!entries.length;
+  P('fastest').textContent=entries.length?fmt(entries[0].timeMs):'--:--';
+  if(!entries.length){empty('NO TIMES YET','No game scores have been saved yet. Be the first.');return;}
+  for(const [i,r] of entries.slice(0,3).entries()){
+   const item=cell('podium-card',''),name=cell('podium-name',r.playerId===playerId?'YOU':r.name);
+   name.append(cell('board-seed',boardLabel(r.boardKey)));
+   item.append(cell('podium-place','#'+String(i+1).padStart(2,'0')),name,cell('podium-time',fmt(r.timeMs)));
+   P('podium').append(item);
+  }
  }
- for(const [i,r] of rows.entries()){
-  const item=cell('entry'+(i===0?' first':'')+(r.playerId===playerId?' mine':''),'');
-  const rank=cell('rank','#'+String(i+1).padStart(2,'0'));
+ for(const [i,r] of entries.entries()){
+  const rank=offset+i+1;
+  const item=cell('entry'+(rank===1?' first':'')+(r.playerId===playerId?' mine':''),'');
   const user=cell('name',r.name);
+  user.append(cell('board-seed',boardLabel(r.boardKey)));
   if(r.playerId===playerId)user.append(cell('me-tag','YOU'));
-  item.append(rank,user,cell('value',fmt(r.timeMs)));
+  item.append(cell('rank','#'+String(rank).padStart(2,'0')),user,cell('value',fmt(r.timeMs)));
   P('rows').append(item);
  }
 }
-async function load(){
- const run=++currentFetch;
- updateTheme();P('refresh').disabled=true;P('updated').textContent='◌ SYNCING';
- empty('LOADING','Retrieving world records…');
+async function load(reset=false){
+ if(loading)return;
+ const call=++run;
+ loading=true;
+ if(reset){
+  offset=0;
+  P('rows').replaceChildren();P('podium').hidden=true;
+  empty('LOADING','Retrieving all world scores…');
+ }
+ P('refresh').disabled=true;P('more').disabled=true;P('updated').textContent='◌ SYNCING';
  try{
-  const r=await fetch('/api/leaderboard?key='+encodeURIComponent(challengeKey()),{cache:'no-store'});
-  if(!r.ok)throw Error('Network error');
-  const data=await r.json();
-  if(run!==currentFetch)return;
-  render(Array.isArray(data.entries)?data.entries:[],data.totalPlayers||0);
+  const res=await fetch('/api/leaderboard?scope=world&offset='+offset,{cache:'no-store'});
+  if(!res.ok)throw Error('Network error');
+  const data=await res.json();
+  if(call!==run)return;
+  const entries=Array.isArray(data.entries)?data.entries:[];
+  renderRows(entries,offset===0);
+  P('players').textContent=Number(data.totalPlayers||0).toLocaleString();
+  offset+=entries.length;
+  hasMore=Boolean(data.hasMore);
+  P('more').hidden=!hasMore;
   P('updated').textContent='● UPDATED '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
- }catch(e){if(run===currentFetch){empty('OFFLINE','Rankings could not load. Your game is unaffected. Retry to refresh.');P('updated').textContent='○ OFFLINE';}}
- finally{if(run===currentFetch)P('refresh').disabled=false;}
+ }catch(e){
+  if(call===run){
+   if(offset===0){P('rows').replaceChildren();empty('OFFLINE','World rankings could not load. Retry to refresh.');}
+   P('updated').textContent='○ OFFLINE';
+  }
+ }finally{
+  if(call===run){loading=false;P('refresh').disabled=false;P('more').disabled=false;}
+ }
 }
-P('refresh').onclick=load;
-P('today').onclick=()=>{seed=utcSeed();load();};
-for(const btn of document.querySelectorAll('[data-theme-btn]'))btn.onclick=()=>{theme=btn.dataset.themeBtn;try{localStorage.setItem('brick-asmr-style',theme);}catch{}load();};
-load();
+P('refresh').onclick=()=>load(true);
+P('more').onclick=()=>load();
+load(true);
 })();
 </script>
 </body>
