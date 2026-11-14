@@ -14,7 +14,7 @@ async function api(req,env,url){
     const offsetRaw=Number(url.searchParams.get('offset')||0);
     if(!Number.isSafeInteger(offsetRaw)||offsetRaw<0||offsetRaw>1000000)return json({error:'Invalid offset'},400);
     const db=env.DB.withSession('first-unconstrained');
-    const list=await db.prepare('SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times ORDER BY best_ms ASC, updated_at ASC, player_id ASC LIMIT 51 OFFSET ?').bind(offsetRaw).all();
+    const list=await db.prepare('SELECT board_key AS boardKey, player_id AS playerId, player_name AS name, best_ms AS timeMs FROM leaderboard_times ORDER BY best_ms ASC, updated_at ASC, player_id ASC, board_key ASC LIMIT 51 OFFSET ?').bind(offsetRaw).all();
     const count=await db.prepare('SELECT COUNT(DISTINCT player_id) AS n FROM leaderboard_times').first();
     const entries=list.results||[];
     return json({entries:entries.slice(0,50),totalPlayers:count?.n||0,hasMore:entries.length>50,nextOffset:offsetRaw+50});
