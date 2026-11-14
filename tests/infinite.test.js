@@ -81,6 +81,69 @@ test("Infinite Solo slides smoothly between incoming rows", () => {
   assert.ok(Math.abs(nextY - lastY) < S.CS / 8, "the transition to the next row is seamless");
 });
 
+test("new rows extend the exact original V4 seed geometry, colours and power-ups", () => {
+  const { E, S, board } = infiniteSolo("face00");
+  const cols = S.COLS, rows = [];
+  for (let r = 0; r < S.ROWS; r++) {
+    if (board.hp.slice(r * cols, (r + 1) * cols).replace(/0/g, "").length) rows.push(r);
+  }
+  assert.ok(rows.length > 8);
+  const source = rows[1];
+  S.descent.t = S.descent.interval;
+  E.step(S, 1 / 60);
+  const expected = (value, radix) => Array.from(value.slice(source * cols, (source + 1) * cols), x => parseInt(x, radix));
+  assert.deepEqual(Array.from(S.hp.slice(0, cols)), expected(board.hp, 10), "new HP follows the seed rather than synthetic bricks");
+  assert.deepEqual(Array.from(S.col.slice(0, cols)), expected(board.colors, 16), "new colours follow the seed's regions and walls");
+  assert.deepEqual(Array.from(S.pu.slice(0, cols)), expected(board.powerups, 16), "power-ups keep the same seed's placement");
+});
+
+test("the infinite stream reflects the source motif at each end without a seam or random rows", () => {
+  const seed = "9K7YBR", board = infiniteOpeningBoard(seed, soloArena), cols = soloArena.cols, motif = [];
+  for (let r = 0; r < soloArena.rows; r++) {
+    if ([...board.hp.slice(r * cols, (r + 1) * cols)].some(x => x !== "0")) motif.push(r);
+  }
+  const period = (motif.length - 1) * 2;
+  for (const tick of [1, 2, motif.length - 1, motif.length, period, period + 1]) {
+    const E = brickEngine(() => 0), S = E.create({arena:soloArena,board,players:[{id:"me",seat:0}],mode:"solo",set:"vintage",lives:5,infinite:true});
+    S.descent.rows = tick - 1;
+    S.descent.t = S.descent.interval;
+    E.step(S, 1 / 60);
+    const phase = tick % period, row = motif[phase < motif.length ? phase : period - phase];
+    assert.deepEqual(Array.from(S.hp.slice(0, cols)),
+      Array.from(board.hp.slice(row * cols, (row + 1) * cols), Number), "descent " + tick + " must use the original V4 pattern");
+    assert.ok(S.rowCount[0] > 0, "the ceiling never becomes empty");
+  }
+});
+
+test("incoming rows depend on the board seed, not the engine's random source", () => {
+  const board = infiniteOpeningBoard("abcdef", soloArena), rows = [];
+  for (const randomValue of [0, .5, .99]) {
+    const E = brickEngine(() => randomValue), S = E.create({arena:soloArena,board,players:[{id:"me",seat:0}],mode:"solo",set:"vintage",lives:5,infinite:true});
+    S.descent.t = S.descent.interval;
+    E.step(S, 1 / 60);
+    rows.push({hp:[...S.hp.slice(0,S.COLS)],colors:[...S.col.slice(0,S.COLS)],powerups:[...S.pu.slice(0,S.COLS)]});
+  }
+  assert.deepEqual(rows[0], rows[1]);
+  assert.deepEqual(rows[1], rows[2]);
+});
+
+test("seed-based streaming works on portrait, square and landscape stages", () => {
+  for (const aspect of [9 / 16, 1, 16 / 9, 32 / 9]) {
+    const base = arenaLayout(aspect);
+    const stage = {...base,rows:Math.max(base.rows,Math.ceil((536-10-base.gridY)/base.cell))};
+    const board = infiniteOpeningBoard("face00", stage), E = brickEngine(() => .99);
+    const S = E.create({arena:stage,board,players:[{id:"me",seat:0}],mode:"solo",set:"vintage",lives:5,infinite:true});
+    assert.ok(S.rowCount[0] > 0, "opening is ceiling-anchored");
+    const sourceRow = S.stream.rows[1];
+    S.descent.t = S.descent.interval;
+    E.step(S, 1 / 60);
+    assert.deepEqual(Array.from(S.hp.slice(0, S.COLS)),
+      Array.from(board.hp.slice(sourceRow*S.COLS, (sourceRow+1)*S.COLS), Number),
+      "incoming row matches the V4 seed on aspect " + aspect);
+    assert.equal(S.status, "play", "no early crush on aspect " + aspect);
+  }
+});
+
 test("the continuous feed stays symmetric and never runs out of spawn rows", () => {
   const { E, S } = infiniteSolo();
   for (let tick = 0; tick < 28; tick++) {
