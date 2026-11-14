@@ -320,6 +320,12 @@ test("Solo opens straight into the game; multiplayer lobby keeps shared branding
  assert.doesNotMatch(game,/id="playSolo"/);
  assert.doesNotMatch(game,/id="home"/);
  assert.match(game,/<title>Bricks ASMR · Single Player<\/title>/);
+ // No mid-board instruction notice, at start or after losing a ball:
+ // aiming must never be covered by 'slide below / drag board / tap to launch'.
+ assert.doesNotMatch(game,/AIM_MSG/);
+ assert.doesNotMatch(game,/slide below to move/);
+ assert.doesNotMatch(game,/drag board to fine-aim/);
+ assert.doesNotMatch(game,/tap to launch/);
  assert.match(game,/id="hudMenuToggle"/);
  assert.match(game,/id="hudMenu" hidden/);
  assert.match(game,/id="multi" href="\/multiplayer"/);

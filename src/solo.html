@@ -350,7 +350,6 @@ const isDaily = () => /^d\d{8}$/.test(seed);
 function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e) {} }
 let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim';
 let msgText = '';
-const AIM_MSG = 'slide below to move\ndrag board to fine-aim\ntap to launch';
 
 const MAX_LIVES = 5;
 let lives = MAX_LIVES, runTime = 0, timerOn = false;
@@ -381,7 +380,7 @@ function startBoard(){
   flashes = []; debris = []; floats = []; beams = []; rings = [];
   runTime = 0; timerOn = false;
   introT = 1.8; conf = []; crushed = false; danger = 0;
-  hidePanel(); sync(); showMsg(AIM_MSG);
+  hidePanel(); sync(); showMsg('');
 }
 function launch(){
   if (state !== 'aim') return;
@@ -422,7 +421,7 @@ function react(e){
       seq.forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(base * Math.pow(2, s / 12), 0.18, 0.15, d.bad ? 'square' : 'triangle'); }, j * 45));
       break;
     }
-    case 'life': vib(60); if (S.pool > 0) showMsg(AIM_MSG); break;
+    case 'life': vib(60); break;
     case 'end':
       timerOn = false;
       if (e.reason === 'cleared') {
