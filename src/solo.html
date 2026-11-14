@@ -329,7 +329,7 @@ function genBoard(){
 
 function drawCell(i){
  const c=i%COLS,r=(i/COLS)|0;
- drawBrickTile(bctx,GX+c*CS,GY+r*CS,CS,hp[i],col[i],style==='vapor'?vPal:palette,style==='vapor'?vWall:wallCols);
+ drawBrickTile(bctx,GX+c*CS,GY+r*CS,CS,hp[i],col[i],style==='vapor'?vPal:palette,style==='vapor'?vWall:wallCols,pu[i]);
 }
 function redrawAll(){
   bctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
