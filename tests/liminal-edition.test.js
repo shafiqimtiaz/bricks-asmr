@@ -10,21 +10,24 @@ const source=soloWorker.slice(soloWorker.indexOf("function json("),soloWorker.in
 const api=new Function(source+"\nreturn api;")();
 const uuid="123e4567-e89b-12d3-a456-426614174000";
 
-test("Infinite opens high and centred without changing brick dimensions",()=>{
+test("Infinite preserves every cell of the complete V4 pattern at its original brick size",()=>{
  for(const [players,arena] of [[1,arenaLayout()],[2,arenaLayout()],[3,squareArena()],[4,squareArena()]]){
   for(let i=0;i<100;i++){
-   const seed="lim"+i,b=infiniteOpeningBoard(seed,arena,4,players);
-   assert.equal(b.hp.length,arena.cols*arena.rows);
-   assert.equal(b.colors.length,b.hp.length);
-   assert.equal(b.powerups.length,b.hp.length);
-   assert.equal(b.total,[...b.hp].filter(x=>x!=="0"&&x!=="4").length);
-   assert.deepEqual(b,infiniteOpeningBoard(seed,arena,4,players));
-   let maxRow=-1;
-   for(let k=0;k<b.hp.length;k++)if(b.hp[k]!=="0")maxRow=Math.max(maxRow,Math.floor(k/arena.cols));
-   const bottom=arena.gridY+(maxRow+1)*arena.cell;
-   assert.ok(bottom<=(players===1?220:410),"Infinite opening leaves a meaningful gap");
-   if(players===1)assert.ok(bottom<=225,"Solo starts well above the paddle");
-   assert.equal(b.generatorVersion,4);
+   const seed="lim"+i,full=bricks(seed,players,arena,4);
+   const opening=infiniteOpeningBoard(seed,arena,4,players);
+   assert.deepEqual(opening,full,"Infinite must not crop, shift, or regenerate the level");
+   assert.equal(opening.hp.length,arena.cols*arena.rows);
+   assert.equal(opening.total,[...opening.hp].filter(x=>x!=="0"&&x!=="4").length);
+   assert.equal(opening.generatorVersion,4);
+   assert.ok(opening.hp.includes("1")||opening.hp.includes("3"));
+   if(players===1){
+    let top=arena.rows,bottom=-1;
+    for(let k=0;k<opening.hp.length;k++)if(opening.hp[k]!=="0"){
+     const row=Math.floor(k/arena.cols);top=Math.min(top,row);bottom=Math.max(bottom,row);
+    }
+    assert.ok(top<arena.rows*.2,"keep the upper portion of the original formation");
+    assert.ok(bottom>arena.rows*.8,"keep the lower portion of the original formation");
+   }
   }
  }
 });
