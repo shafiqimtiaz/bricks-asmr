@@ -271,6 +271,28 @@ body{--hud-life:#ff7a6b}
 #hud #hudMenu button{display:block;width:100%;box-sizing:border-box;margin:0;padding:calc(var(--u)*2.3);min-height:0;border:0!important;border-radius:4px;background:transparent!important;text-align:left;color:var(--l-ink);font:inherit;line-height:1.5}
 #hud #hudMenu button:hover{background:#ffffff12!important;color:var(--l-accent)}
 #toast{background:#05080add;color:#ced5ce;border-radius:2px;letter-spacing:.1em;font-size:calc(var(--u)*2.1)}
+
+/* Quiet menu and lobby; preserve CRT scanlines and board proportions. */
+#hud #hudMenu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:min(86vw,calc(var(--u)*75));min-width:0;gap:calc(var(--u)*1);padding:calc(var(--u)*2);background:#060a09f7;border:1px solid #5d766755;border-radius:2px;box-shadow:0 24px 60px #000c}
+#hud #hudMenu[hidden]{display:none!important}
+#hud #menuStatus{grid-column:1/-1;border-bottom:1px solid #ffffff15;padding:calc(var(--u)*2) calc(var(--u)*1.2) calc(var(--u)*3);font-size:.75em;color:#7c9289;line-height:1.7;letter-spacing:.03em}
+#hud #hudMenu a,#hud #hudMenu button{display:flex!important;align-items:center;justify-content:center;text-align:center;min-width:0;min-height:calc(var(--u)*11);padding:calc(var(--u)*1.5)!important;background:#ffffff05!important;border:1px solid #ffffff15!important;border-radius:1px;color:#a5b7ad!important;font-size:.8em!important;line-height:1.4;letter-spacing:.03em;white-space:normal}
+#hud #hudMenu a:hover,#hud #hudMenu button:hover{background:#b8d9c90c!important;border-color:#91b2a050!important;color:#dce7df!important}
+#hud #hudMenu button[aria-pressed="true"],#hud #hudMenu a[aria-current="page"]{color:#c8e2d4!important;border-color:#91b2a04d!important}
+#hud #hudMenuToggle{border-radius:2px;background:#080e0cdd!important;border-color:#ffffff26!important;color:#c0d0c6!important;box-shadow:0 10px 30px #0008}
+#panel{background:#070b0aec!important;border-color:#52665977!important;border-radius:2px!important;box-shadow:0 22px 70px #000e!important}
+#panel::before{display:none!important}
+#panel .brickMark{display:none}
+#panel .lobbyIntro p,#panel .roomOption p{display:none}
+#panel .lobbyHero h1{color:#d7e0dc;text-shadow:0 0 24px #d8eee51b}
+#panel .lobbyHero .byline,#panel .lobbyIntro h2{color:#a9c6b6}
+#panel .modeSwitch{background:transparent;border:0;border-bottom:1px solid #33423c;border-radius:0;padding:0;gap:0}
+#panel .modeSwitch a,#panel .modeSwitch span{border:0!important;border-bottom:1px solid transparent!important;border-radius:0;background:transparent!important;color:#879e91;letter-spacing:.05em}
+#panel .modeSwitch [aria-current="page"]{border-bottom-color:#9ab8a5!important;color:#d7e0dc}
+#panel .lobbyOptions{background:transparent;border-color:#52665966;border-radius:2px}
+#panel .roomOption+.roomOption{border-color:#52665966}
+#panel .optionIcon{color:#90b2a0}
+#panel .lobbyFooter{border-top:0;color:#657a6e}
 </style>
 </head>
 <body class="vintage">
@@ -282,9 +304,9 @@ body{--hud-life:#ff7a6b}
   <div id="hudStats" hidden><span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span></div>
   <span class="sp"></span>
   <span id="netStatus" role="status" aria-live="polite" hidden></span>
-  <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
+  <button id="hudMenuToggle" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
   <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
-  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND · ON</button><a href="/">SINGLE PLAYER</a><a href="/multiplayer" aria-current="page">MULTIPLAYER LOBBY</a><a href="/leaderboard">WORLD RANKINGS</a>
+  <div id="hudMenu" hidden><div id="menuStatus" role="status"></div><button id="sound" type="button" aria-pressed="true">SOUND ON</button><a href="/">SOLO</a><a href="/multiplayer" aria-current="page">LOBBY</a><a href="/leaderboard">SCORES</a>
   </div>
  </div>
  <div id="panel">
@@ -294,23 +316,22 @@ body{--hud-life:#ff7a6b}
     <h1>BRICKS ASMR</h1>
     <p class="byline"><em>by Shafiq 😉</em></p>
    </header>
-   <div class="lobbyIntro"><h2>LOBBY</h2><p>One board. Your paddle. Play with friends.</p></div>
+   <div class="lobbyIntro"><h2>LOBBY</h2></div>
    <nav class="modeSwitch" aria-label="Choose game mode">
-    <a href="/">SINGLE PLAYER</a><span aria-current="page">MULTIPLAYER</span>
+    <a href="/">SOLO</a><span aria-current="page">MULTI</span>
    </nav>
-   <label for="playerName" class="label">YOUR GAMER NAME</label>
-   <input id="playerName" maxlength="18" autocomplete="nickname" placeholder="Enter your name" required>
+   <label for="playerName" class="label">NAME</label>
+   <input id="playerName" maxlength="18" autocomplete="nickname" placeholder="NAME" required>
    <div id="inviteDetails" hidden>
     <p>INVITED TO ROOM <strong id="inviteCode"></strong></p>
-    <p>Enter your name to join the lobby.</p>
-    <button id="acceptInvite" class="primary" type="button">JOIN LOBBY</button>
+        <button id="acceptInvite" class="primary" type="button">JOIN LOBBY</button>
    </div>
    <div id="roomActions" class="lobbyOptions">
-    <div class="roomOption"><span class="optionIcon" aria-hidden="true">◎</span><h3>HOST A ROOM</h3><p>Invite up to 3 friends.</p><button id="create" class="primary" type="button">CREATE ROOM</button></div>
-    <div class="roomOption"><span class="optionIcon" aria-hidden="true">↳</span><h3>JOIN A ROOM</h3><p>Have a room code?</p><input id="joinCode" maxlength="6" placeholder="CODE" aria-label="Six-character room code" autocomplete="off" spellcheck="false"><button id="join" type="button">JOIN ROOM</button></div>
+    <div class="roomOption"><span class="optionIcon" aria-hidden="true">◎</span><h3>HOST</h3><button id="create" class="primary" type="button">CREATE</button></div>
+    <div class="roomOption"><span class="optionIcon" aria-hidden="true">↳</span><h3>JOIN</h3><input id="joinCode" maxlength="6" placeholder="CODE" aria-label="Six-character room code" autocomplete="off" spellcheck="false"><button id="join" type="button">JOIN</button></div>
    </div>
    <div id="introError" class="error" role="alert" aria-live="polite"></div>
-   <p class="lobbyFooter">ONE BOARD · ONE PADDLE EACH · 2–4 PLAYERS</p>
+   <p class="lobbyFooter">2–4 PLAYERS</p>
   </section>
   <section id="room" hidden>
    <header class="lobbyHero compact"><h2>BRICKS ASMR</h2><p class="byline"><em>by Shafiq 😉</em></p></header>
@@ -672,7 +693,7 @@ function render(){
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
  $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
  $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.remaining/s.board.total).toFixed(3):0)+")";
- $("menuStatus").textContent="ROOM "+s.code+" · "+mode.toUpperCase()+" · "+me.lives+" LIVES · "+s.players.map(p=>p.name+" "+p.score).join(" / ");
+ $("menuStatus").textContent="ROOM "+s.code+" · "+mode.toUpperCase()+" · "+me.lives+" LIVES";
  $("hudStats").hidden=s.status!=="playing";
  $("hudMode").hidden=s.status==="playing";
  $("hudMode").textContent=s.status==="finished"?"RESULTS":"LOBBY";
@@ -1025,16 +1046,16 @@ $("copy").addEventListener("click",async()=>{
  try{await navigator.clipboard.writeText(url);$("copy").textContent="COPIED";setTimeout(()=>$("copy").textContent="COPY LINK",1800);}
  catch{window.prompt("Copy this invite:",url);}
 });
-$("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent="SOUND · "+(soundOn?"ON":"OFF");$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
+$("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent="SOUND "+(soundOn?"ON":"OFF");$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
  socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
 });
-function closeMenu(restoreFocus=false){const open=!$("hudMenu").hidden;$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");if(open&&restoreFocus===true)$("hudMenuToggle").focus();}
+function closeMenu(restoreFocus=false){const open=!$("hudMenu").hidden;$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");$("hudMenuToggle").textContent="☰";$("hudMenuToggle").setAttribute("aria-label","Open menu");if(open&&restoreFocus===true)$("hudMenuToggle").focus();}
 $("hudMenuToggle").addEventListener("click",()=>{
  const expanded=$("hudMenu").hidden;
  $("hudMenu").hidden=!expanded;
- $("hudMenuToggle").setAttribute("aria-expanded",String(expanded));
+ $("hudMenuToggle").setAttribute("aria-expanded",String(expanded));$("hudMenuToggle").textContent=expanded?"×":"☰";$("hudMenuToggle").setAttribute("aria-label",expanded?"Close menu":"Open menu");
  if(expanded){for(const key of MOVE_KEYS)held[key]=false;$("hudMenu").querySelector("a,button")?.focus();}
 });
 document.addEventListener("pointerdown",event=>{if(!event.target.closest("#hudMenu,#hudMenuToggle"))closeMenu();});
