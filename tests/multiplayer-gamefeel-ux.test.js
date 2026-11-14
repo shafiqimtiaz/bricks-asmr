@@ -3,9 +3,10 @@ import test from "node:test";
 import { arenaLayout, boardView, viewPoint } from "../src/game-core.js";
 import { multiHtml } from "./helpers.js";
 
-const relativeCode=multiHtml.match(/const relativeSeat=[^\n]+/)[0];
-const worldCode=multiHtml.match(/const worldSeat=[^\n]+/)[0];
-const { relativeSeat, worldSeat }=new Function(relativeCode+"\n"+worldCode+"\nreturn {relativeSeat,worldSeat};")();
+const rosterExpression=multiHtml.match(/const worldSide=([^;]+);const p=s\.players/)[1];
+const labelExpression=multiHtml.match(/const side=([^;]+);/)[1];
+const worldSeat=new Function("me","relativeSide","return "+rosterExpression);
+const relativeSeat=new Function("p","view","return "+labelExpression);
 
 test("roster and in-world opponent labels align with all four rotated cameras",()=>{
  const arena=arenaLayout(9/16),W=arena.width;
@@ -15,17 +16,17 @@ test("roster and in-world opponent labels align with all four rotated cameras",(
  for(let viewer=0;viewer<4;viewer++){
   const camera=boardView(arena,viewer);
   for(let seat=0;seat<4;seat++){
-   const relative=relativeSeat(seat,viewer);
+   const relative=relativeSeat({seat},{seat:viewer});
    assert.ok(relative>=0&&relative<4);
-   assert.equal(worldSeat(relative,viewer),seat);
+   assert.equal(worldSeat({seat:viewer},relative),seat);
    const [x,y]=positions[seat],point=viewPoint(camera,x,y);
    const dx=point.x-camera.cx,dy=point.y-camera.cy;
    const side=Math.abs(dx)>Math.abs(dy)?(dx<0?1:3):(dy>0?0:2);
    assert.equal(relative,side,"viewer "+viewer+" seat "+seat);
   }
  }
- assert.match(multiHtml,/worldSeat\(relativeSide,me\.seat\)/);
- assert.match(multiHtml,/relativeSeat\(p\.seat,view\.seat\)/);
+ assert.match(multiHtml,/worldSide=\(me\.seat\+relativeSide\)%4/);
+ assert.match(multiHtml,/side=\(p\.seat-view\.seat\+4\)%4/);
 });
 
 test("network loss is visible during play and input remains socket-gated",()=>{
