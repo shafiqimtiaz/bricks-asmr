@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runInNewContext } from "node:vm";
-import { aimDragAngle, drawAimGuide, browserCoreSource, soloCoreSource } from "../src/game-core.js";
+import { aimDragAngle, aimPointerAngle, drawAimGuide, boardView, viewPoint, arenaLayout, browserCoreSource, soloCoreSource } from "../src/game-core.js";
 import { soloHtml, multiHtml } from "./helpers.js";
 
 function mockCanvas(){
@@ -26,6 +26,18 @@ test("aim drag sensitivity depends on relative gesture length, not screen width"
  }
  assert.ok(aimDragAngle(0,-80,320)<0);
  assert.ok(aimDragAngle(0,80,320)>0);
+});
+
+test("dragging the arrow points toward the finger in every player POV",()=>{
+ const arena=arenaLayout(9/16);
+ for(const seat of [0,1,2,3]){
+  const view=boardView(arena,seat),origin=viewPoint(view,arena.width/2,500);
+  assert.equal(aimPointerAngle(origin.x,origin.y,origin.x,origin.y-80),0);
+  assert.ok(aimPointerAngle(origin.x,origin.y,origin.x+40,origin.y-80)>0);
+  assert.ok(aimPointerAngle(origin.x,origin.y,origin.x-40,origin.y-80)<0);
+  assert.equal(aimPointerAngle(origin.x,origin.y,origin.x+200,origin.y),1.15);
+  assert.equal(aimPointerAngle(origin.x,origin.y,origin.x-200,origin.y),-1.15);
+ }
 });
 
 test("the guide is anchored to the ball, fits a short preview and marks nearby bounces",()=>{
