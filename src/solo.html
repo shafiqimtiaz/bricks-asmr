@@ -155,6 +155,7 @@ body{--hud-life:#ff7a6b}
 .nameActions button{flex:1;min-height:40px;border:1px solid #759f9d;background:#11191c;color:#f1f4f5;font:9px 'Press Start 2P',monospace;cursor:pointer}
 .nameActions button[type="submit"]{border-color:#ff8f80;color:#ff8f80}
 
+#wrap.aiming canvas{cursor:crosshair}
 </style>
 </head>
 <body class="vintage">
@@ -491,7 +492,8 @@ function render(fs = 1){
   ctx.globalAlpha = 1;
 
   // trajectory previews
-  if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 900), '#e4f4ec', performance.now(), onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
+  wrap.classList.toggle('aiming', state === 'aim');
+  if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 260), '#e4f4ec', performance.now(), onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);
