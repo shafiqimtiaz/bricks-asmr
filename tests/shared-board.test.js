@@ -24,7 +24,7 @@ test("there is one board and each occupied player gets a unique side", () => {
 
 test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",()=>{
  assert.match(soloWorker,/import \{ soloCoreSource \} from "\.\/game-core\.js"/);
- assert.match(soloHtml,/bricks\(seed,1,arena\)/);
+ assert.match(soloHtml,/bricks\(seed,1,arena(,generatorVersion)?\)/);
  assert.match(soloHtml,/drawBrickTile\(bctx/);
  assert.match(html,/drawBrickTile\(tileCtx/);
  assert.match(soloWorker,/GAME\.replace\('<script>'/);

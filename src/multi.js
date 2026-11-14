@@ -73,7 +73,7 @@ export class BrickRoom extends DurableObject{
  // The board as bricks currently stand: the engine's cells during and after a round, the lobby preview before one.
  hpNow(){const r=this.room;return r.sim?r.sim.hp:Uint8Array.from(r.board.hp,c=>c.charCodeAt(0)-48);}
  // Everything that never changes within a round.
- boardInfo(){const b=this.room.board;return {colors:b.colors,powerups:b.powerups,palette:b.palette,wallColors:b.wallColors,vaporPalette:b.vaporPalette,vaporWalls:b.vaporWalls,rootSemi:b.rootSemi,scale:b.scale,wave:b.wave,decay:b.decay,archetype:b.archetype,quad:b.quad,total:b.total};}
+ boardInfo(){const b=this.room.board;return {colors:b.colors,palette:b.palette,wallColors:b.wallColors,vaporPalette:b.vaporPalette,vaporWalls:b.vaporWalls,rootSemi:b.rootSemi,scale:b.scale,wave:b.wave,decay:b.decay,archetype:b.archetype,quad:b.quad,total:b.total};}
  // Compact live state. Balls are [x,y,vx,vy,server,held], capsules [x,y,kind,catcher], lasers [x,y,seat]; players are referred to by index.
  snapshot(withBoard=true){
   const r=this.room,S=r.sim,live=this.liveIds(),idx=new Map(r.players.map((p,i)=>[p.id,i])),at=id=>idx.get(id)??-1;
