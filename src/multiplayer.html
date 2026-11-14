@@ -1001,12 +1001,19 @@ for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointercancel",()=>{drag=null;});
 }
 const MOVE_KEYS=["arrowleft","arrowright","a","d","arrowup","arrowdown","w","s"];
+const KEY_NUDGE=0.035;
 window.addEventListener("keydown",event=>{
  const key=event.key.toLowerCase();
  if(key==="escape")closeMenu();
  if(key===" "&&!document.activeElement?.matches("input")&&$("panel").hidden){event.preventDefault();launch();}
  if(!MOVE_KEYS.includes(key)||document.activeElement?.matches("input")||!$("panel").hidden)return;
  held[key]=true;
+ // A tap moves the paddle at once; holding keeps gliding it via the frame loop.
+ // Only the first press nudges, so auto-repeat does not stack on top of the glide.
+ if(!event.repeat&&state?.status==="playing"&&$("hudMenu").hidden){
+  const nudge=(key==="arrowright"||key==="d"?1:key==="arrowleft"||key==="a"?-1:0);
+  if(nudge)send(localPos+nudge*KEY_NUDGE);
+ }
  if(state?.status==="playing")event.preventDefault();
 });
 window.addEventListener("keyup",event=>{held[event.key.toLowerCase()]=false;});

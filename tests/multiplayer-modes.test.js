@@ -24,8 +24,8 @@ test("starting a round builds one engine state with the room's mode, set, lives 
   assert.equal(S.set, "vintage");
   assert.equal(S.maxBalls, 40);
   assert.equal(S.holdSeconds, 5);
-  assert.deepEqual(S.players.map(p => [p.id, p.seat, p.lives]), [["p0", 0, 4], ["p1", 2, 4], ["p2", 1, 4]]);
-  assert.equal(S.maxLives, 6);
+  assert.deepEqual(S.players.map(p => [p.id, p.seat, p.lives]), [["p0", 0, 6], ["p1", 2, 6], ["p2", 1, 6]]);
+  assert.equal(S.maxLives, 8);
   assert.equal(S.balls.length, 3, "versus serves a ball to every player");
   assert.ok(S.balls.every(b => b.held && b.hold === 5 + 3), "serves wait out the 3 second countdown, then 5 more");
   assert.ok(S.hp instanceof Uint8Array && S.remaining > 0);
@@ -126,19 +126,29 @@ test("versus: whoever misses loses a life and serves, even when the ball was som
   const room = makeRoom(server, "versus", 2), S = room.sim, inst = roomInstance(server, room);
   S.balls = [topMiss("p0"), farBall("p1")];
   run(inst, .4);
-  assert.equal(player(room, "p1").lives, 3, "the player whose edge it left through pays");
-  assert.equal(player(room, "p0").lives, 4);
+  assert.equal(player(room, "p1").lives, 5, "the player whose edge it left through pays");
+  assert.equal(player(room, "p0").lives, 6);
   const held = S.balls.filter(b => b.held);
   assert.equal(held.length, 1);
   assert.equal(held[0].source, "p1");
   assert.equal(S.balls.length, 2, "one ball per player is kept");
 });
 
+test("versus: a miss lowers the crusher only toward the misser's edge", () => {
+  const room = makeRoom(server, "versus", 4), S = room.sim, inst = roomInstance(server, room);
+  assert.equal(player(room, "p1").seat, 2, "p1 holds the top edge");
+  S.balls = [topMiss("p0"), farBall("p1"), farBall("p2"), farBall("p3")];
+  run(inst, .4);
+  assert.equal(player(room, "p1").lives, 5, "the misser loses one life");
+  assert.equal(S.crush.target[2], S.CS, "the court descends one row toward the top edge");
+  assert.deepEqual([0, 1, 3].map(seat => S.crush.target[seat]), [0, 0, 0], "the other edges stay put");
+});
+
 test("a multiball extra that is lost never costs a life", () => {
   const room = makeRoom(server, "versus", 2), S = room.sim, inst = roomInstance(server, room);
   S.balls = [topMiss("p0"), farBall("p0"), farBall("p1")];
   run(inst, .4);
-  assert.deepEqual(S.players.map(p => p.lives), [4, 4]);
+  assert.deepEqual(S.players.map(p => p.lives), [6, 6]);
   assert.equal(S.balls.length, 2);
   assert.ok(S.balls.every(b => !b.held));
   const coop = makeRoom(server, "coop", 2);

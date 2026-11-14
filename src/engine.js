@@ -312,7 +312,10 @@ function brickEngine(rng=Math.random){
   const target=()=>S.mode==='versus'?S.players.filter(p=>active(S,p)).length:1;
   while(S.misses.length&&S.balls.length<target()){
    const p=player(S,S.misses.shift());
-   for(const seat of S.seats)S.crush.target[seat]+=S.CS;
+   // Versus: the court closes in only on the edge that missed, so one player's
+   // miss does not squeeze everyone else. Coop and Solo keep the shared descent.
+   if(S.mode==="versus")S.crush.target[p.seat]+=S.CS;
+   else for(const seat of S.seats)S.crush.target[seat]+=S.CS;
    ev.push({t:'crush'});
    if(S.mode==='versus'){
     p.lives=Math.max(0,p.lives-1);ev.push({t:'life',owner:p.id,lives:p.lives});

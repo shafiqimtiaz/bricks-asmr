@@ -55,6 +55,12 @@ test("paddle rotations use Solo's exact angular response and ball speed",()=>{
  assert.ok(Math.abs(ball.vy)>=330*.22);
 });
 
+test("a key tap nudges the paddle at once, not only while the key is held", () => {
+  assert.match(html, /const KEY_NUDGE=0\.035;/);
+  assert.match(html, /if\(!event\.repeat&&state\?\.status==="playing"&&\$\("hudMenu"\)\.hidden\)\{\s*const nudge=/);
+  assert.match(html, /if\(nudge\)send\(localPos\+nudge\*KEY_NUDGE\);/);
+});
+
 test("the room advances one row per lost life, toward every occupied edge, and clients draw its transform",()=>{
  const room=makeRoom(server,"coop",4),S=room.sim,inst=roomInstance(server,room);
  S.balls=[{x:258,y:130,vx:0,vy:0,owner:"p0",source:"p0"}];
@@ -129,7 +135,7 @@ test("multiplayer renderer parses and Solo/leaderboard routes remain intact", ()
   const soloJs = soloHtml.slice(soloHtml.indexOf("<script>") + 8, soloHtml.lastIndexOf("</script>"));
   assert.doesNotThrow(() => new Function(soloJs));
   assert.match(js, /paintTiles\(s\?\.board\)/);
-  assert.match(js, /E\.predict\(sim,you,900\)/);
+  assert.match(js, /E\.predict\(sim,you,260\)/);
   assert.match(js, /E\.puDef\(s\.set,pup\[2\],s\.mode\)/);
   assert.match(js, /seq:\+\+inputSeq/);
   assert.match(soloWorker, /path==='\/api\/leaderboard'/);
@@ -153,7 +159,7 @@ test("CRT and Vapor canvases both receive direct pointer input", () => {
   assert.match(html, /for\(const canvas of \[cv,gcv\]\)/);
   assert.match(html, /#c,#g\{touch-action:none\}/);
   assert.match(html, /event\.currentTarget\.getBoundingClientRect\(\)/);
-  assert.match(html, /send\(sliderPos\(view,u\*viewW\)\)/);
+  assert.match(html, /send\(sliderPos\(view,boardPointer\(event\)\.x\)\)/);
 });
 
 test("Solo HUD exposes multiplayer without a second homepage", () => {

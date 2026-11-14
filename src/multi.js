@@ -41,10 +41,10 @@ function startRound(r){
  r.arena=arenaFor(r.players.length,r.arena);
  r.board=bricks(r.seed,r.players.length,r.arena);
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
- // Coop shares one pool of lives (3 per player); Versus gives everyone 4.
- const coop=r.mode==="coop",lives=coop?3*r.players.length:4,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
+ // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
+ const coop=r.mode==="coop",lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
  const S=r.sim=E.create({arena:r.arena,board:r.board,players:r.players.map(p=>({id:p.id,seat:p.seat,online:p.online!==false})),mode:r.mode,set:r.set,
-  lives,maxLives:coop?lives+3:6,holdSeconds:HOLD_SECONDS,maxBalls:MAX_BALLS,server:host?.id});
+  lives,maxLives:coop?lives+3:8,holdSeconds:HOLD_SECONDS,maxBalls:MAX_BALLS,server:host?.id});
  // Nobody serves for a player who is not connected; the engine hands them a ball when they return.
  S.balls=S.balls.filter(b=>r.players.find(p=>p.id===b.source)?.online!==false);
  // The first serves wait out the countdown as well.
