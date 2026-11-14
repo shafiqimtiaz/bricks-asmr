@@ -19,7 +19,7 @@ function brickEngine(rng=Math.random){
    {id:'shrink',ic:'-',nm:'SHRINK',c:'#8a2030',t:8,bad:1,own:1},
    {id:'life',ic:'♥',nm:'+1 LIFE',c:'#ff6fa3'}],
   vintage:[
-   {id:'mitosis',ic:'M',nm:'MITOSIS',c:'#7be07b',t:10,own:1},
+   {id:'mitosis',ic:'M',nm:'MITOSIS',c:'#7be07b',t:5,own:1},
    {id:'nuke',ic:'N',nm:'NUKE',c:'#ffb000'},
    {id:'column',ic:'|',nm:'COLUMN BEAM',c:'#ff7a50'},
    {id:'rows',ic:'≡',nm:'ROW SWEEP',c:'#50c8ff'},
@@ -27,7 +27,7 @@ function brickEngine(rng=Math.random){
    {id:'twin',ic:'T',nm:'TWIN PADDLE',c:'#e0904a',t:10,own:1},
    {id:'hyper',ic:'»',nm:'HYPER',c:'#ff3df0',t:6},
    {id:'slow',ic:'S',nm:'SLOW-MO',c:'#6a8cff',t:8},
-   {id:'soften',ic:'○',nm:'SOFTEN',c:'#a0a0a0'},
+   {id:'life',ic:'♥',nm:'+1 LIFE',c:'#ff6fa3'},
    {id:'time',ic:'-3',nm:'-3 SECONDS',c:'#ffe066',solo:1}],
   vapor:[
    {id:'prism',ic:'P',nm:'PRISM',c:'#b388ff'},
@@ -205,14 +205,13 @@ function brickEngine(rng=Math.random){
    case 'plus3':fromPaddle(p,[-.35,0,.35]);break;
    case 'x3':multiply();break;
    case 'life':if(S.mode==='versus')p.lives=Math.min(S.maxLives,p.lives+1);else S.pool=Math.min(S.maxLives,S.pool+1);break;
-   case 'nuke':blast(pup.c,pup.r,5,p.id);ev.push({t:'ring',x:pup.x,y:rowY(S,pup.r),R:40,c:'#ffb000'});break;
+   case 'nuke':blast(pup.c,pup.r,2,p.id);ev.push({t:'ring',x:pup.x,y:rowY(S,pup.r),R:18,c:'#ffb000'});break;
    case 'column':{const h=S.CS*1.5;wipeBand(hz?'x':'y',p.c-h,p.c+h,p.id);ev.push(hz?{t:'beam',x:p.c-h,w:h*2,c:'#ff7a50'}:{t:'beam',y:p.c-h,h:h*2,c:'#ff7a50'});break;}
    case 'rows':{
     const axis=hz?'row':'col',lines=[];
     for(let k=0;k<(hz?S.ROWS:S.COLS);k++)if(hz?S.rowCount[k]>0:S.colCount[k]>0)lines.push(k);
-    for(let j=0;j<3&&lines.length;j++)wipeLine(axis,lines.splice(Math.floor(rng()*lines.length),1)[0],p.id);
+    for(let j=0;j<1&&lines.length;j++)wipeLine(axis,lines.splice(Math.floor(rng()*lines.length),1)[0],p.id);
     break;}
-   case 'soften':for(let i=0;i<S.N;i++)if(S.hp[i]>1){S.hp[i]=1;ev.push({t:'cell',i});}break;
    case 'time':ev.push({t:'time',ms:-3000});break;
    case 'prism':for(let j=0;j<snap&&S.balls.length<S.maxBalls;j++){const b=S.balls[j];if(b.held)continue;const a=Math.atan2(b.vx,-b.vy);
     for(const dd of [-.6,-.3,.3,.6]){if(S.balls.length>=S.maxBalls)break;const nb={x:b.x,y:b.y,vx:0,vy:0,owner:b.owner,source:b.source};setVel(S,nb,a+dd);fixVel(S,nb);S.balls.push(nb);}}break;
