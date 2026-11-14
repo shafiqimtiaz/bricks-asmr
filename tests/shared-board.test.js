@@ -94,7 +94,7 @@ test("opening the Solo menu or panel pauses the run; closing it resumes", () => 
 test("a key tap nudges the paddle at once, not only while the key is held", () => {
   assert.match(html, /const KEY_NUDGE=0\.035;/);
   assert.match(html, /if\(!event\.repeat&&state\?\.status==="playing"&&\$\("hudMenu"\)\.hidden\)\{\s*const nudge=/);
-  assert.match(html, /if\(nudge\)send\(localPos\+nudge\*KEY_NUDGE\);/);
+  assert.match(html, /if\(nudge\)send\(localPos\+nudge\*KEY_NUDGE\*sensitivity\(\)\);/);
 });
 
 test("the room advances one row per lost life, toward every occupied edge, and clients draw its transform",()=>{
@@ -191,11 +191,13 @@ test("unknown WebSocket protocol versions and stale moves do not change paddles"
 });
 
 
-test("CRT and Vapor canvases both receive direct pointer input", () => {
+test("both render canvases use relative control input rather than a slider", () => {
   assert.match(html, /for\(const canvas of \[cv,gcv\]\)/);
   assert.match(html, /#c,#g\{touch-action:none\}/);
   assert.match(html, /event\.currentTarget\.getBoundingClientRect\(\)/);
-  assert.match(html, /send\(sliderPos\(view,boardPointer\(event\)\.x\)\)/);
+  assert.match(html, /if\(y>=viewH-90\)\{controlDrag=/);
+  assert.match(html, /const dx=\(event\.clientX-previousX\)\/width\*sensitivity\(\)/);
+  assert.doesNotMatch(html, /trackStart=|send\(sliderPos/);
 });
 
 test("infinite mode is offered in the multiplayer lobby and Solo", () => {
