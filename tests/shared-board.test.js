@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { arenaLayout, bricks, aimVelocity, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource, crusherInterval } from "../src/game-core.js";
+import { arenaLayout, bricks, aimVelocity, normalizeBallVelocity, drawBrickTile, browserCoreSource, soloCoreSource } from "../src/game-core.js";
 
 import { loadServer, makeRoom, roomInstance, multiHtml as html, serverSource, soloHtml, soloWorker } from "./helpers.js";
 
@@ -55,15 +55,19 @@ test("paddle rotations use Solo's exact angular response and ball speed",()=>{
  assert.ok(Math.abs(ball.vy)>=330*.22);
 });
 
-test("the room crushes on Solo's cadence, toward every occupied edge, and the client draws the engine's transform",()=>{
- assert.equal(crusherInterval(),8);
- assert.equal(crusherInterval(true),5);
+test("the room advances one row per lost life, toward every occupied edge, and clients draw its transform",()=>{
  const room=makeRoom(server,"coop",4),S=room.sim,inst=roomInstance(server,room);
- S.balls=[{x:20,y:300,vx:0,vy:10,owner:"p0",source:"p0"}];
- S.crush.clock=crusherInterval()-.01;
+ S.balls=[{x:258,y:130,vx:0,vy:0,owner:"p0",source:"p0"}];
+ for(let i=0;i<100;i++){
+  Object.assign(S.balls[0],{x:258,y:130,vx:0,vy:0});
+  inst.step(.1,Date.now());
+ }
+ assert.deepEqual(S.seats.map(seat=>S.crush.target[seat]),[0,0,0,0],"elapsed time alone cannot lower the court");
+ assert.equal(inst.pending.filter(e=>e.t==="crush").length,0);
+ S.balls=[{x:258,y:660,vx:0,vy:300,owner:"p0",source:"p0"}];
  inst.step(.05,Date.now());
  assert.deepEqual(S.seats.map(seat=>S.crush.target[seat]),[S.CS,S.CS,S.CS,S.CS]);
- assert.deepEqual(inst.pending.filter(e=>e.t==="crush"),[{t:"crush"}]);
+ assert.equal(inst.pending.filter(e=>e.t==="crush").length,1);
  for(let i=0;i<30;i++)inst.step(.05,Date.now());
  const snap=inst.snapshot();
  assert.ok(snap.crush[0]>1&&snap.crush[2]>1,"the formation stretches toward all four edges");
