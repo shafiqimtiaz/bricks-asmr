@@ -226,7 +226,7 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
    <div id="hudMenu" hidden>
     <div id="hudStatus" role="status"></div>
     <button id="soundToggle" type="button" aria-pressed="true">SOUND ON</button>
-    <button id="sensitivityToggle" type="button" aria-label="Change paddle sensitivity">SENS LOW</button>
+    <button id="sensitivityToggle" type="button">SENS LOW</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTI</a>
     <button id="top" type="button">SCORES</button><button id="daily" type="button">DAILY</button>
     <button id="share" type="button">SHARE</button><button id="newb" type="button">NEW RUN</button>
@@ -581,7 +581,6 @@ function render(fs = 1){
   // trajectory previews
   wrap.classList.toggle('aiming', state === 'aim');
   if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 260), '#e4f4ec', onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
-  if (state === 'aim') { ctx.font = style === 'clean' ? 'bold 11px ui-monospace,monospace' : "8px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#eee'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DRAG AIM · TAP LAUNCH', W / 2, SY - 34); }
 
   ctx.fillStyle='#121a18';ctx.fillRect(0,SZONE,W,H-SZONE);
   ctx.save();ctx.beginPath();ctx.rect(0,SZONE,W,H-SZONE);ctx.clip();
@@ -590,6 +589,7 @@ function render(fs = 1){
   ctx.stroke();ctx.restore();
   ctx.fillStyle=sliding?'#d9a596':'#7d9a8b';
   for(let x=px-pw/2+1;x<px+pw/2-1;x+=6)ctx.fillRect(x,SZONE+7,2,2);
+  if (state === 'aim') { ctx.font = style === 'clean' ? 'bold 11px ui-monospace,monospace' : "8px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#eee'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DRAG AIM · TAP LAUNCH', W / 2, SY - 34); }
   ctx.save();
   if (style !== 'clean') { ctx.shadowColor = V ? '#01cdfe' : '#ff8a70'; ctx.shadowBlur = 10; }
   if (V) { const pg = ctx.createLinearGradient(px - pw / 2, 0, px + pw / 2, 0); pg.addColorStop(0, '#ff71ce'); pg.addColorStop(1, '#01cdfe'); ctx.fillStyle = pg; }
