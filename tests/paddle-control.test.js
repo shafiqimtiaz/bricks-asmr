@@ -20,9 +20,9 @@ test("solo touch surface moves the paddle by finger delta without jumping", () =
     setAim() {},
   };
   new Function("wrap", "audioInit", "toLogical", "paused", "aimAng", "E", "S", "me", "px", "pw",
-    "W", "fx", "sensitivity", "state", "launch", "newBoard", "aimDragAngle",
+    "W", "SZONE", "fx", "sensitivity", "state", "launch", "newBoard", "aimDragAngle",
     soloHtml.slice(start, end)
-  )(wrap, () => {}, e => [e.clientX, e.clientY], false, 0, engine, {}, me, 180, 64, 360,
+  )(wrap, () => {}, e => [e.clientX, e.clientY], false, 0, engine, {}, me, 180, 64, 360, 550,
     { invert: 0 }, () => .65, "aim", () => launched++, () => {}, () => 0);
   const event = (x, y = 580) => ({ pointerId: 1, target: { tagName: "CANVAS" }, clientX: x, clientY: y });
   listeners.pointerdown(event(100));
@@ -54,7 +54,7 @@ test("multiplayer lower surface uses the same no-jump delta, separate from serve
   let launched = 0;
   const getPos = new Function("cv", "gcv", "state", "audioInit", "boardPointer", "viewH",
     "holdingServe", "sensitivity", "onMove", "setAim", "aimDragAngle", "launch",
-    "let localPos=.5,drag=null;const send=pos=>{localPos=pos;onMove(pos);};" +
+    "let localPos=.5,drag=null,aimAng=0;const send=pos=>{localPos=pos;onMove(pos);};" +
     multiHtml.slice(start, end) + "return () => localPos;"
   )(canvas, canvas, { status: "playing" }, () => {}, e => ({ y: e.clientY }), 640,
     () => true, () => .65, pos => positions.push(pos), () => {}, () => 0, () => launched++);
