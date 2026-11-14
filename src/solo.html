@@ -389,7 +389,7 @@ let msgText = '';
 const AIM_MSG = 'slide below to move\ndrag board to fine-aim\ntap to launch';
 
 const MAX_LIVES = 5;
-let lives = MAX_LIVES, runTime = 0, timerOn = false, styleRun = null;
+let lives = MAX_LIVES, runTime = 0, timerOn = false;
 function syncArena(){
   const next = lockedArena||arenaLayout(window.innerWidth / window.innerHeight);
   if(next.width === W)return;
@@ -414,14 +414,14 @@ function startBoard(){
   me.c = me.target = Math.max(me.pw / 2, Math.min(W - me.pw / 2, px));
   redrawAll(); syncURL();
   flashes = []; debris = []; floats = []; beams = []; rings = [];
-  runTime = 0; timerOn = false; styleRun = null;
+  runTime = 0; timerOn = false;
   introT = 1.8; conf = []; crushed = false; danger = 0;
   hidePanel(); sync(); showMsg(AIM_MSG);
 }
 function launch(){
   if (state !== 'aim') return;
   E.launch(S, 'me');
-  if (!timerOn) styleRun = style;
+  
   showMsg(''); timerOn = true; sync();
 }
 function showMsg(s){ msgText = s; }
@@ -745,7 +745,7 @@ function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+'
 const boardId=()=>seed+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
 const SNAME={vintage:'CRT'};
-let panelMode=null,panelTab='board',lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
+let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
 try{
  myId=localStorage.getItem('brick-asmr-player-id')||'';
  if(!/^[0-9a-f-]{36}$/i.test(myId)){myId=crypto.randomUUID();localStorage.setItem('brick-asmr-player-id',myId);}
@@ -779,7 +779,7 @@ async function onClear(ms){
   if(key===boardId()){lastNote+=' · saved worldwide';await loadBoard();}
  }catch(e){if(key===boardId()){lastNote+=' · saved on device';boardStatus='error';renderPanel();}}
 }
-function showPanel(mode){panelMode=mode;if(mode==='clear')panelTab='board';P('panel').hidden=false;setLinks();renderPanel();loadBoard();}
+function showPanel(mode){panelMode=mode;P('panel').hidden=false;setLinks();renderPanel();loadBoard();}
 function hidePanel(){panelMode=null;P('panel').hidden=true;}
 function emptyBoard(note){const li=document.createElement('li');li.className='empty';li.textContent=note;P('plist').append(li);}
 function renderPanel(){
