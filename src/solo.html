@@ -19,22 +19,12 @@
     background:#2a2a2a;color:#ddd;border:1px solid #444;border-radius:calc(var(--u)*1.4);
     padding:calc(var(--u)*1) calc(var(--u)*1.2);font:inherit;text-decoration:none;white-space:nowrap}
   #hud a#multi:focus-visible{outline:2px solid #7cd9ef;outline-offset:2px}
-  body.vapor #hud a#multi{background:#260b41;color:#ff71ce;border-color:#ff71ce}
-  body.clean #hud a#multi{background:#282c2e;color:#eee;border-color:#777}
   #crt{position:fixed;inset:0;z-index:5;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(0,0,0,.22) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%);animation:flick 4s steps(60) infinite;mix-blend-mode:multiply}
   #crt::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.035) 50%,transparent);background-size:100% 18%;background-repeat:no-repeat;animation:roll 7s linear infinite}
   @keyframes flick{0%,100%{opacity:1}50%{opacity:.93}}
   @keyframes roll{from{background-position:0 -20%}to{background-position:0 120%}}
-  body.clean{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-  body.clean #hud{font-size:calc(var(--u)*2.6);text-shadow:none}
-  body.clean #crt{display:none}
-  body.vintage{background:#030403}
-  body.vintage #wrap{border-radius:3.5% / 2%;overflow:hidden;box-shadow:0 0 60px rgba(150,255,190,.07)}
-  body.vapor{background:#07010f}
-  body.vapor #wrap{box-shadow:0 0 50px rgba(255,113,206,.25)}
-  body.vapor #crt{background:repeating-linear-gradient(to bottom,rgba(20,0,40,.14) 0 1px,transparent 1px 3px),radial-gradient(ellipse at center,transparent 60%,rgba(40,0,70,.5) 100%)}
-  body.vapor #hud{color:#ffd6f5;text-shadow:0 0 6px #ff71ce}
-  body.vapor #hud button{background:#2a0b45;color:#9ff3ff;border-color:#ff71ce}
+  body{background:#030403}
+  #wrap{border-radius:3.5% / 2%;overflow:hidden;box-shadow:0 0 60px rgba(150,255,190,.07)}
   #panel{position:absolute;left:7%;right:7%;top:18%;z-index:4;background:rgba(8,8,12,.93);border:1px solid #555;border-radius:10px;padding:14px 12px;color:#eee;text-align:center;font-size:calc(var(--u)*2.5);line-height:1.6;box-shadow:0 0 24px #000a;max-height:70%;overflow:hidden;box-sizing:border-box}
   #panel[hidden]{display:none}
   #ptitle{font-size:1.25em;margin-bottom:6px;letter-spacing:.05em}
@@ -52,10 +42,6 @@
   #plist .empty{color:#888;justify-content:center}
   #panel .pb{display:flex;gap:8px;justify-content:center;margin-top:6px}
   #panel button{font:inherit;background:#2a2a2a;color:#ddd;border:1px solid #555;border-radius:6px;padding:calc(var(--u)*1.8) calc(var(--u)*3);cursor:pointer}
-  body.vapor #panel{background:rgba(26,5,51,.93);border-color:#ff71ce;box-shadow:0 0 24px #ff71ce55}
-  body.vapor #panel button{background:#2a0b45;color:#9ff3ff;border-color:#ff71ce}
-  body.vapor #ptime{color:#9ff3ff;text-shadow:0 0 10px #01cdfe}
-  body.vapor #pnote,body.vapor #plist li.me{color:#ff9de0}
   #toast{z-index:6;position:absolute;left:50%;top:calc(var(--u)*11);transform:translateX(-50%);background:#000c;color:#fff;padding:6px 10px;border-radius:6px;font-size:calc(var(--u)*3);opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;word-break:break-all;text-align:center}
 
 #panel{display:flex;flex-direction:column;gap:calc(var(--u)*1);max-height:78%;overflow:hidden}
@@ -71,35 +57,25 @@
 #panel .tabs button,#panel .pb button{min-height:calc(var(--u)*8)}
 
 body{--lb-accent:#ff8f80;--lb-secondary:#6cd8ff;--lb-line:#416171;--lb-panel:rgba(7,10,13,.97);--lb-soft:#b2bfcc}
-body.clean{--lb-accent:#f5f5f2;--lb-secondary:#cad8e0;--lb-line:#596169;--lb-panel:rgba(16,18,20,.97);--lb-soft:#b8bdc2}
-body.vintage{--lb-accent:#ff8f80;--lb-secondary:#6cd8ff;--lb-line:#4d6973;--lb-panel:rgba(8,11,15,.97);--lb-soft:#a9bdc9}
-body.vapor{--lb-accent:#ff71ce;--lb-secondary:#01cdfe;--lb-line:#794692;--lb-panel:rgba(19,6,35,.97);--lb-soft:#c8a9db}
-body.clean #panel,body.vintage #panel,body.vapor #panel{
+#panel{
  top:15%;left:6%;right:6%;max-height:77%;padding:calc(var(--u)*3.2) calc(var(--u)*2.6);
  background:var(--lb-panel);border:1px solid var(--lb-line);border-radius:4px;
  box-shadow:0 0 0 2px #000a,0 0 24px #000a;
  color:#f6f7fa;overflow:hidden
 }
-body.vintage #panel{box-shadow:0 0 0 2px #000a,0 0 27px #58c9fa22}
-body.vapor #panel{box-shadow:0 0 0 2px #000a,0 0 27px #ff71ce33}
+#panel{box-shadow:0 0 0 2px #000a,0 0 27px #58c9fa22}
 #panel::before{content:"";height:3px;display:block;margin:calc(var(--u)*-3.2) calc(var(--u)*-2.6) calc(var(--u)*2.7);background:repeating-linear-gradient(90deg,var(--lb-secondary) 0 11px,transparent 11px 15px,var(--lb-accent) 15px 25px,transparent 25px 30px)}
 #ptitle{color:var(--lb-accent);font-size:.9em;line-height:1.8;letter-spacing:.02em;text-shadow:none;margin-bottom:calc(var(--u)*1.5)}
 #panel .tabs{padding-bottom:calc(var(--u)*2);border-bottom:1px solid var(--lb-line);margin-bottom:calc(var(--u)*2)}
 #panel .tabs button{min-height:calc(var(--u)*7.8);border-radius:2px;opacity:.9;color:var(--lb-soft)}
 #panel .tabs button.on{opacity:1;background:var(--lb-accent);border-color:var(--lb-accent);color:#0d0c11}
-body.clean #panel .tabs button.on{color:#111}
-body.vapor #panel .tabs button{background:#28113d}
-body.vapor #panel .tabs button.on{background:var(--lb-accent);border-color:var(--lb-accent);color:#16051c}
-body.vapor #panel .tabs button:not(.on){color:var(--lb-secondary)}
 #lbidentity{border-bottom:1px solid var(--lb-line);padding-bottom:calc(var(--u)*2);margin-bottom:calc(var(--u)*1.1)}
 #lbidentity button,#lbidentity a{background:transparent;border:1px solid var(--lb-line);color:var(--lb-soft);border-radius:2px;min-height:calc(var(--u)*7.8);padding:0 calc(var(--u)*2);font-size:.75em}
 #lbidentity a{color:var(--lb-secondary)}
 #lbidentity button:hover,#lbidentity a:hover{border-color:var(--lb-secondary)}
-body.vapor #lbidentity button,body.vapor #lbidentity a{background:transparent}
 #ptime{font-size:1.85em;margin:calc(var(--u)*1.5) 0;color:var(--lb-secondary);text-shadow:none}
-body.vintage #ptime{color:var(--lb-secondary);text-shadow:0 0 8px #53caff40}
-body.vapor #ptime{color:var(--lb-secondary);text-shadow:0 0 8px #01cdfe55}
-#pnote,body.vapor #pnote{font-size:.89em;line-height:1.65;color:var(--lb-accent);min-height:1.5em}
+#ptime{color:var(--lb-secondary);text-shadow:0 0 8px #53caff40}
+#pnote{font-size:.89em;line-height:1.65;color:var(--lb-accent);min-height:1.5em}
 #plist{padding:0;margin:calc(var(--u)*2) 0;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin}
 #plist li{min-height:calc(var(--u)*7);border:0;border-bottom:1px solid var(--lb-line);padding:calc(var(--u)*1.6) calc(var(--u)*1.2);border-radius:0;gap:calc(var(--u)*2);line-height:1.6}
 #plist li:last-child{border-bottom:0}
@@ -109,15 +85,11 @@ body.vapor #ptime{color:var(--lb-secondary);text-shadow:0 0 8px #01cdfe55}
 #plist li.empty{color:var(--lb-soft);justify-content:center}
 #panel .pb{border-top:1px solid var(--lb-line);padding-top:calc(var(--u)*2);gap:calc(var(--u)*1.3);margin-top:0}
 #panel .pb button{border-radius:2px;border-color:var(--lb-line);background:transparent;color:var(--lb-soft);min-height:calc(var(--u)*7.8)}
-body.vapor #panel .pb button{background:transparent;border-color:var(--lb-line);color:var(--lb-soft)}
 #panel .pb button:hover{border-color:var(--lb-secondary);color:var(--lb-secondary)}
 #panel .pb #pnext{border-color:var(--lb-accent);color:var(--lb-accent)}
-body.vapor #panel .pb #pnext{border-color:var(--lb-accent);color:var(--lb-accent)}
 
 
 body{--l-accent:#b8eadb;--l-border:#759f9d;--l-surface:#11191c;--l-ink:#f1f4f5}
-body.clean{--l-accent:#dfedeb;--l-border:#859da1;--l-surface:#14191c;--l-ink:#f2f2f2}
-body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8efff}
 #hud{z-index:7;gap:calc(var(--u)*1.4);padding:calc(var(--u)*2);min-height:calc(var(--u)*11);background:linear-gradient(#090d10e8,#090d1070);border-bottom:1px solid #ffffff17;white-space:nowrap;text-shadow:none!important;font-size:calc(var(--u)*2.3)!important}
 #hud #hudMode{color:var(--l-accent);font-weight:bold;letter-spacing:.06em;flex:0 0 auto}
 #hud>span:not(.sp):not(#hudMode){flex:0 0 auto;overflow:visible}
@@ -172,7 +144,7 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
  #panel button,#panel input,#homeLobby button,#homeLobby a.lobbyMode{min-height:44px}
 }
 /* The HUD owns the top 36 logical pixels of the stage; when it needs more it hangs above the stage instead of covering play. */
-#wrap,body.vintage #wrap{overflow:visible}
+#wrap,#wrap{overflow:visible}
 #wrap canvas{border-radius:inherit}
 #hud{top:calc(var(--hud-over,0px)*-1)}
 
@@ -180,7 +152,7 @@ body.vapor{--l-accent:#88eaf1;--l-border:#9472b4;--l-surface:#1d102a;--l-ink:#f8
 #hud{gap:calc(var(--u)*2);padding:calc(var(--u)*1.5) calc(var(--u)*2.2);min-height:calc(var(--u)*10);
  background:linear-gradient(180deg,#080c10f5,#0b1116d9);border:1px solid #ffffff16;border-top:0;
  border-radius:0 0 calc(var(--u)*2.6) calc(var(--u)*2.6);box-shadow:0 6px 18px #0008;color:var(--l-ink)}
-body{--hud-life:#ff7a6b}body.clean{--hud-life:#e9ecec}body.vapor{--hud-life:#ff71ce}
+body{--hud-life:#ff7a6b}
 #hud .chip{flex:0 0 auto;padding:.6em .85em .5em;border-radius:999px;line-height:1;letter-spacing:.06em;color:var(--l-accent);
  background:color-mix(in srgb,var(--l-accent) 14%,transparent);border:1px solid color-mix(in srgb,var(--l-accent) 42%,transparent)}
 #hud .pips{display:flex;flex:0 0 auto;align-items:center;gap:calc(var(--u)*.8);overflow:visible}
@@ -194,17 +166,25 @@ body{--hud-life:#ff7a6b}body.clean{--hud-life:#e9ecec}body.vapor{--hud-life:#ff7
 #hudBar{position:absolute;left:calc(var(--u)*2.6);right:calc(var(--u)*2.6);bottom:0;height:2px;border-radius:2px;background:#ffffff14;overflow:hidden;pointer-events:none}
 #hudFill{display:block;width:100%;height:100%;transform-origin:left;transform:scaleX(0);transition:transform .3s ease-out;
  background:linear-gradient(90deg,var(--lb-secondary),var(--l-accent))}
-body.clean #hud .pips i{box-shadow:none}
 @media(prefers-reduced-motion:reduce){#hudFill,#hud button{transition:none}}
+#nameModal[hidden]{display:none}
+#nameModal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:16px;box-sizing:border-box;background:#000c;backdrop-filter:blur(5px);color:#f1f4f5;font-family:'Press Start 2P',ui-monospace,monospace}
+#nameForm{width:min(360px,100%);padding:24px 18px;box-sizing:border-box;border:1px solid #4d6973;background:#080b0f;box-shadow:0 0 0 3px #000a,0 0 35px #58c9fa22;display:flex;flex-direction:column;gap:16px}
+#nameForm h2{font-size:13px;line-height:1.7;color:#ff8f80;margin:0}
+#nameForm label{font-size:9px;line-height:1.6;color:#b2bfcc}
+#nameInput{width:100%;min-height:45px;box-sizing:border-box;background:#11191c;border:1px solid #759f9d;color:#f1f4f5;padding:12px;font:11px ui-monospace,monospace;outline-offset:3px}
+#nameError{min-height:13px;color:#ff8f80;margin:0;font:11px ui-monospace,monospace}
+.nameActions{display:flex;gap:8px}
+.nameActions button{flex:1;min-height:40px;border:1px solid #759f9d;background:#11191c;color:#f1f4f5;font:9px 'Press Start 2P',monospace;cursor:pointer}
+.nameActions button[type="submit"]{border-color:#ff8f80;color:#ff8f80}
 </style>
 </head>
-<body>
+<body class="vintage">
 <div id="wrap">
   <canvas id="c"></canvas>
   <canvas id="g"></canvas>
   <div id="hud">
    <span id="lvl" class="chip">SEED</span><span id="lives" class="pips" role="img" aria-label="Lives"></span><span id="tmr" class="clock">0:00</span><span class="sp"></span>
-   <button id="sty" type="button" title="Visual style">crt</button>
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
    <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
    <div id="hudMenu" hidden>
@@ -221,7 +201,6 @@ body.clean #hud .pips i{box-shadow:none}
     <button id="playSolo" type="button" class="lobbyMode"><span class="optionIcon">◎</span><strong>SINGLE PLAYER</strong><small>Break bricks at your own pace.</small><span class="modeCTA">PLAY SOLO</span></button>
     <a class="lobbyMode" href="/multiplayer"><span class="optionIcon">↳</span><strong>MULTIPLAYER</strong><small>One board, up to four paddles.</small><span class="modeCTA">OPEN LOBBY</span></a>
    </div>
-   <p class="lobbyFooter">CLEAN · CRT · VAPOR</p>
   </div>
   <div id="toast"></div>
   <div id="panel" hidden="">
@@ -234,6 +213,15 @@ body.clean #hud .pips i{box-shadow:none}
   </div>
 </div>
 <div id="crt"></div>
+<div id="nameModal" role="dialog" aria-modal="true" aria-labelledby="nameTitle" hidden>
+ <form id="nameForm">
+  <h2 id="nameTitle">LEADERBOARD NAME</h2>
+  <label for="nameInput">PUBLIC PLAYER NAME</label>
+  <input id="nameInput" name="name" type="text" maxlength="24" autocomplete="nickname" required>
+  <p id="nameError" role="alert" aria-live="polite"></p>
+  <div class="nameActions"><button type="button" id="nameCancel">CANCEL</button><button type="submit">SAVE NAME</button></div>
+ </form>
+</div>
 <script>
 (() => {
 // ---------- constants (logical 360x640) ----------
@@ -259,10 +247,8 @@ window.addEventListener('hashchange',()=>{const m=/^#([a-z0-9]+)(?:-\d+)?$/i.exe
 const wrap = document.getElementById('wrap'), cv = document.getElementById('c'), ctx = cv.getContext('2d');
 let scaleX = 1, scaleY = 1, bcv = document.createElement('canvas'), bctx = bcv.getContext('2d');
 const gcv = document.getElementById('g');
-const STYLES = ['clean', 'vintage', 'vapor'], STY_LABEL = {clean: 'clean', vintage: 'crt', vapor: 'vapor'};
-let style = 'vintage';
-try { const v = new URLSearchParams(location.search).get('style') || localStorage.getItem('brick-asmr-style'); if (STYLES.includes(v)) style = v; } catch(e) {}
-const FX = {clean: {k: 0, ch: 0, vg: 0, br: 1}, vintage: {k: 0.07, ch: 0.0018, vg: 0.45, br: 1.3}, vapor: {k: 0.035, ch: 0.0015, vg: 0.3, br: 1.05}};
+const style = 'vintage';
+const FX = {vintage: {k: 0.07, ch: 0.0018, vg: 0.45, br: 1.3}};
 let gl = null, glTex, glU = {};
 try {
   gl = gcv.getContext('webgl', {antialias: false, alpha: false});
@@ -286,15 +272,9 @@ gl_FragColor=vec4(col,1.);}`));
   for (const [a, b] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, a, b);
   for (const n of ['k', 'ch', 'vg', 'br', 'tm']) glU[n] = gl.getUniformLocation(pr, n);
 } catch(e) { gl = null; }
-const useGL = () => gl && style !== 'clean';
-function applyStyle(){
-  document.body.className = style;
-  document.getElementById('sty').textContent = STY_LABEL[style];
-  cv.style.visibility = useGL() ? 'hidden' : 'visible';
-  gcv.style.visibility = useGL() ? 'visible' : 'hidden';
-  if (S) S.set = style;
-  if (hp) redrawAll();
-}
+const useGL = () => Boolean(gl);
+cv.style.visibility = useGL() ? 'hidden' : 'visible';
+gcv.style.visibility = useGL() ? 'visible' : 'hidden';
 function postFX(now){
   if (!useGL()) return;
   const f = FX[style];
@@ -748,7 +728,7 @@ setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arr
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
 const SHARE_BASE = location.origin + location.pathname;
-const shareURL = () => SHARE_BASE + '?style=' + encodeURIComponent(style) + '&arena=' + W + '#' + seed;
+const shareURL = () => SHARE_BASE + '?arena=' + W + '#' + seed;
 async function copyText(t, ok){
   try { await navigator.clipboard.writeText(t); showToast(ok); }
   catch(e) { showToast(t, 8000); toast.style.pointerEvents = 'auto'; toast.style.userSelect = 'text'; }
@@ -764,7 +744,7 @@ document.getElementById('newb').onclick = () => { newBoard(); showToast('new see
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
 const boardId=()=>seed+'-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
-const SNAME={clean:'CLEAN',vintage:'CRT',vapor:'VAPOR'};
+const SNAME={vintage:'CRT'};
 let panelMode=null,panelTab='board',lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},myId='',myName='';
 try{
  myId=localStorage.getItem('brick-asmr-player-id')||'';
@@ -774,7 +754,7 @@ try{
 }catch(e){myId=crypto.randomUUID();}
 if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName))myName='Brick-'+myId.slice(0,6).toUpperCase();
 function myBest(key){return Number.isFinite(localBest[key])?localBest[key]:undefined;}
-function setLinks(){P('pfull').href='/leaderboard?seed='+encodeURIComponent(seed)+'&style='+style+'&arena='+W;P('pname').textContent='Player: '+myName+' ✎';}
+function setLinks(){P('pfull').href='/leaderboard?seed='+encodeURIComponent(seed)+'&arena='+W;P('pname').textContent='Player: '+myName+' ✎';}
 async function loadBoard(){
  const key=boardId(),seq=++boardSeq;boardKey=key;boardStatus='loading';boardRows=[];renderPanel();
  try{
@@ -789,7 +769,6 @@ async function loadBoard(){
 async function onClear(ms){
  const key=boardId(),old=myBest(key);
  lastTime=ms;
- if(styleRun!==style){lastNote='style changed mid-run · not ranked';showPanel('clear');return;}
  const improved=old===undefined||ms<old;
  lastNote=improved?(old===undefined?'first clear!':'new best! · was '+fmtTime(old)):'best '+fmtTime(old);
  if(improved){localBest[key]=ms;try{localStorage.setItem('brick-asmr-best',JSON.stringify(localBest));}catch(e){}}
@@ -810,18 +789,18 @@ function renderPanel(){
  P('ptime').textContent=panelMode==='clear'?fmtTime(lastTime):(mine!==undefined?fmtTime(mine):'--:--');
  P('pnote').textContent=(panelMode==='clear'?lastNote:(mine!==undefined?'your best time':'clear this board to set a record'))+(boardStatus==='error'?' · global board offline':'');
  P('pnext').hidden=panelMode!=='clear';P('pclose').hidden=panelMode==='clear';
- P('pbrag').hidden=panelMode!=='clear'||styleRun!==style;
+ P('pbrag').hidden=panelMode!=='clear';
  P('ptabB').classList.toggle('on',panelTab==='board');P('ptabM').classList.toggle('on',panelTab==='mine');setLinks();
  const ol=P('plist');ol.replaceChildren();
  if(panelTab==='mine'){
   const suffix=W===360?'':'-a'+W,own=k=>suffix?k.endsWith(suffix)?k.slice(0,-suffix.length):'':k;
-  const entries=Object.entries(localBest).filter(([k,v])=>/^[a-z0-9]+-(clean|vintage|vapor)$/.test(own(k))&&Number.isFinite(v)).reverse().slice(0,75);
+  const entries=Object.entries(localBest).filter(([k,v])=>/^[a-z0-9]+-vintage$/.test(own(k))&&Number.isFinite(v)).reverse().slice(0,75);
   if(!entries.length){emptyBoard('Clear a board to see your times here');return;}
   for(const [k,time] of entries){
-   const m=/^([a-z0-9]+)-(clean|vintage|vapor)$/.exec(own(k)),li=document.createElement('li');li.className='go'+(k===key?' me':'');
+   const m=/^([a-z0-9]+)-(vintage)$/.exec(own(k)),li=document.createElement('li');li.className='go'+(k===key?' me':'');
    const name=document.createElement('span');name.className='nm';name.textContent=(m[1].startsWith('d20')?'Daily '+m[1].slice(5):m[1])+' · '+SNAME[m[2]];
    const t=document.createElement('span');t.textContent=fmtTime(time);li.append(name,t);ol.append(li);
-   li.onclick=()=>{seed=m[1];if(style!==m[2]){style=m[2];try{localStorage.setItem('brick-asmr-style',style)}catch(e){}applyStyle();}startBoard();};
+   li.onclick=()=>{seed=m[1];startBoard();};
   }
   return;
  }
@@ -839,15 +818,21 @@ function renderPanel(){
 }
 P('ptabB').onclick=()=>{panelTab='board';loadBoard();};
 P('ptabM').onclick=()=>{panelTab='mine';renderPanel();};
-P('pname').onclick=async()=>{
- const raw=prompt('Public leaderboard name (2–24 characters)',myName);if(raw===null)return;
- const name=raw.trim().normalize('NFKC');
- if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){showToast('Invalid name: use 2–24 letters or numbers');return;}
- myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
- setLinks();showToast('Leaderboard name saved');
- const best=myBest(boardId());
- if(best!==undefined){try{await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:boardId(),playerId:myId,name:myName,timeMs:best})});loadBoard();}catch(e){}}
+P('pname').onclick=()=>{
+ P('nameInput').value=myName;P('nameError').textContent='';P('nameModal').hidden=false;P('nameInput').focus();
 };
+function closeNameModal(){P('nameModal').hidden=true;P('pname').focus();}
+P('nameCancel').onclick=closeNameModal;
+P('nameModal').addEventListener('pointerdown',e=>{if(e.target===P('nameModal'))closeNameModal();});
+P('nameForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const name=P('nameInput').value.trim().normalize('NFKC');
+ if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){P('nameError').textContent='Use 2–24 letters, numbers, spaces, _ . or -';return;}
+ myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
+ closeNameModal();setLinks();showToast('Leaderboard name saved');
+ const best=myBest(boardId());
+ if(best!==undefined){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:boardId(),playerId:myId,name:myName,timeMs:best})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world board unavailable');}}
+});
 P('pnext').onclick=()=>newBoard();
 P('pretry').onclick=()=>startBoard();
 P('pclose').onclick=()=>hidePanel();
@@ -862,17 +847,12 @@ P('home').onclick=()=>{hidePanel();P('homeLobby').hidden=false;};
 function closeMenu(){P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');}
 P('hudMenu').addEventListener('click',closeMenu);
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
-window.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu();});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();if(!P('nameModal').hidden)closeNameModal();}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
 P('hud').addEventListener('click',e=>{if(e.detail>0)e.target.closest('button')?.blur();});
 P('playSolo').onclick=()=>{P('homeLobby').hidden=true;audioInit();};
 if(hm)P('homeLobby').hidden=true;
-P('sty').onclick=()=>{
- style=STYLES[(STYLES.indexOf(style)+1)%STYLES.length];
- try{localStorage.setItem('brick-asmr-style',style)}catch(e){}
- applyStyle();if(panelMode)loadBoard();showToast(style==='vintage'?'vintage CRT':style);
-};
-resize();applyStyle();startBoard();requestAnimationFrame(frame);
+resize();startBoard();requestAnimationFrame(frame);
 })();
 </script>
 
