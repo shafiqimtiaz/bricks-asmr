@@ -367,7 +367,7 @@ let fx = {}, luckyLeft = 0, lasers = [], beams = [], rings = [], fxClock = 0;
 const FLOOR_Y = PY + 22, CRUSH_Y = PY - 10;
 let maxBalls = MAX_BALLS, perfEma = 16, perfWarned = false;
 let drop = 0, combo = 0, comboPop = 0;
-let introT = 0, conf = [], flashW = 0, hbT = 0, danger = 0, squash = 0, crushed = false;
+let introT = 0, conf = [], flashW = 0, squash = 0, crushed = false;
 const isDaily = () => /^d\d{8}$/.test(seed);
 function vib(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e) {} }
 let aimAng = 0, debris = [], floats = [], shake = 0, balls = [], pups = [], flashes = [], px = W / 2, pw = 64, state = 'aim';
@@ -391,6 +391,7 @@ function syncArena(){
 function sync(){
   balls = S.balls; pups = S.pups; lasers = S.lasers; fx = {...S.fx, ...me.fx}; luckyLeft = S.luckyLeft; fxClock = S.clock;
   px = me.c; pw = me.pw; aimAng = me.aim; drop = S.crush.by; combo = me.combo; lives = S.pool; remaining = S.remaining;
+  brickMusic.setLives(lives, MAX_LIVES);
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
 const newBoard = () => { generatorVersion=4;seed = randomSeed(); startBoard(); };
@@ -404,7 +405,7 @@ function startBoard(){
   redrawAll(); syncURL();
   flashes = []; debris = []; floats = []; beams = []; rings = [];
   runTime = 0; timerOn = false;
-  introT = 1.8; conf = []; crushed = false; danger = 0;
+  introT = 1.8; conf = []; crushed = false;
   hidePanel(); sync(); showMsg('');
 }
 function launch(){
@@ -486,11 +487,9 @@ function render(fs = 1){
     ctx.fillStyle = style === 'clean' ? '#1b1b1b' : '#151715'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#232323'; ctx.fillRect(GX - 2, GY - 2 + drop, COLS * CS + 4, ROWS * CS + 4);
   }
-  // danger line
-  const gapRows = E.crushGap(S, 0) / CS;
-  danger = state === 'play' ? Math.max(0, Math.min(1, (6 - gapRows) / 5), balls.length === 1 ? .55 : 0) : 0;
-  ctx.globalAlpha = .25 + danger * .6 * (.6 + .4 * Math.sin(performance.now() / 90));
-  ctx.strokeStyle = '#ff3355'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(0, CRUSH_Y + .5); ctx.lineTo(W, CRUSH_Y + .5); ctx.stroke(); ctx.setLineDash([]);
+  // Static court boundary, without warning pulses.
+  ctx.globalAlpha = .35;
+  ctx.strokeStyle = '#67756f'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(0, CRUSH_Y + .5); ctx.lineTo(W, CRUSH_Y + .5); ctx.stroke(); ctx.setLineDash([]);
   ctx.globalAlpha = 1;
   ctx.setTransform(1, 0, 0, 1, sx * scaleX, (sy + drop) * scaleY);
   ctx.imageSmoothingEnabled = false;
@@ -611,13 +610,7 @@ function render(fs = 1){
     ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + (soloMode === 'infinite' ? ' · BRICKS KEEP COMING' : ' · LOST LIFE = ONE ROW DOWN'), W / 2 - off, 262);
     ctx.globalAlpha = 1;
   }
-  // danger vignette + flash
-  if (danger > 0) {
-    const g = ctx.createRadialGradient(W / 2, H / 2, H * .3, W / 2, H / 2, H * .75);
-    g.addColorStop(0, 'rgba(255,0,40,0)'); g.addColorStop(1, 'rgba(255,0,40,' + (danger * .45 * (.6 + .4 * Math.sin(performance.now() / 120))) + ')');
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  }
-  if (flashW > 0) { if (motion) { ctx.fillStyle = crushed ? 'rgba(255,30,60,' + Math.min(.38,flashW) + ')' : 'rgba(255,255,255,' + Math.min(.2,flashW) + ')'; ctx.fillRect(0, 0, W, H); } flashW *= Math.pow(.9, fs); if (flashW < .01) flashW = 0; }
+  if (flashW > 0) { if (motion) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(.2,flashW) + ')'; ctx.fillRect(0, 0, W, H); } flashW *= Math.pow(.9, fs); if (flashW < .01) flashW = 0; }
 
   if (msgText) {
     const nl = msgText.split('\n').length, bh = crushed ? 52 : nl * 15 + 14;
@@ -645,7 +638,6 @@ function frame(now){
     if (timerOn && !(fx.freeze > 0) && (state === 'play' || state === 'aim')) runTime += dt * 1000;
     notesThisFrame = 0;
     update(dt);
-    if (danger > .2) { hbT -= dt; if (hbT <= 0) { hbT = danger > .7 ? .45 : .75; blip(55, .4, .13, 'sine'); setTimeout(() => { notesThisFrame = 0; blip(48, .3, .12, 'sine'); }, 110); } }
   }
   render(paused ? 0 : dt * 60); postFX(now);
   perfEma += ((now - (frame.prev || now)) - perfEma) * .05; frame.prev = now;

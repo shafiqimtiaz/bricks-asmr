@@ -19,6 +19,27 @@ test("ten built-in public-domain tunes play without files or selection", () => {
   }
 });
 
+test("MIDI notes deepen as lives decrease without changing melodies or timing", () => {
+  const music = createBrickMusic();
+  const noteAt = lives => {
+    music.reset("life-pitch");
+    music.setLives(lives, 5);
+    return music.next();
+  };
+  const notes = [5, 4, 3, 2, 1, 0].map(noteAt);
+  for (let i = 1; i < notes.length; i++) {
+    assert.ok(notes[i].frequency < notes[i - 1].frequency);
+    assert.equal(notes[i].wave, notes[0].wave);
+    assert.equal(notes[i].duration, notes[0].duration);
+    assert.equal(notes[i].volume, notes[0].volume);
+  }
+  assert.ok(Math.abs(notes[0].frequency / notes.at(-1).frequency - 2) < .001);
+  assert.deepEqual(noteAt(5), notes[0]);
+  music.setLives(0, 5);
+  music.reset("life-pitch");
+  assert.deepEqual(music.next(), notes[0]);
+});
+
 test("same board or multiplayer round chooses the same tune, with varied seeds", () => {
   const a = createBrickMusic(), b = createBrickMusic();
   const choices = new Set();
@@ -70,6 +91,9 @@ test("solo and multiplayer use the same automatic music source", () => {
     assert.match(html, /brickMusic\.reset\(/);
   }
   assert.match(soloHtml, /brickMusic\.reset\(seed\)/);
+  assert.match(soloHtml, /brickMusic\.setLives\(lives, MAX_LIVES\)/);
+  assert.match(multiHtml, /brickMusic\.setLives\(mine\.lives,s\.mode===\"versus\"\?6:3\*s\.players\.length\)/);
+  assert.doesNotMatch(soloHtml, /hbT|danger vignette|rgba\(255,0,40/);
   assert.match(multiHtml, /brickMusic\.reset\(s\.seed/);
   for (const bundle of [soloCoreSource, browserCoreSource]) {
     assert.equal(runInNewContext(bundle + "\ntypeof createBrickMusic"), "function");

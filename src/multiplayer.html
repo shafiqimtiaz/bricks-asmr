@@ -615,6 +615,8 @@ function accept(s){
   for(const id of Object.keys(shownC))delete shownC[id];
   brickMusic.reset(s.seed+":"+s.round);
  }
+ const mine = s.players.find(p=>p.id===you);
+ if(mine)brickMusic.setLives(mine.lives,s.mode==="versus"?6:3*s.players.length);
  for(const p of s.players){
   const prev=previous?.players.find(old=>old.id===p.id);
   if(!prev||prev.seat!==p.seat||(!prev.online&&p.online))shownC[p.id]=p.c;
