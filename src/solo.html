@@ -773,7 +773,10 @@ try{
  localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};
  localHighScores=JSON.parse(localStorage.getItem('brick-asmr-high-scores')||'{}')||{};
 }catch(e){myId=crypto.randomUUID();}
-if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName))myName='Brick-'+myId.slice(0,6).toUpperCase();
+if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName)){
+ myName=randomPlayerName();
+ try{localStorage.setItem('brick-asmr-player-name',myName);}catch(e){}
+}
 function myBest(key){return Number.isFinite(localBest[key])?localBest[key]:undefined;}
 function setLinks(){P('pfull').href='/leaderboard?metric='+(panelMode==='over'?'score':'time');P('pname').textContent='Player: '+myName+' ✎';}
 async function loadBoard(){
