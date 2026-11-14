@@ -140,7 +140,9 @@ export function buildLevelV3(base, seed, players, arena, hashSeed, randomSeed) {
     const cx=l+Math.round(w*(.12+f*.76)),cy=t+Math.round(h*(.5+flip*(k%2?-.23:.23)));
     patch(cx,cy,Math.max(3,w/n*.57),Math.max(4,h*.16),k%3,.93,14);
     if(k%2===0)cascade(cx,cy);
-    bar(cx-Math.round(w/n*.35),cy+integer(3,5),cx+Math.round(w/n*.35),cy+integer(3,5),.5);
+    const fin=Math.max(3,Math.round(w/n*.25));
+    bar(cx-fin,cy-6,cx-fin,cy+6,.22);
+    bar(cx+fin,cy-6,cx+fin,cy+6,.78);
    }
    targets.push([Math.floor((l+r)/2),Math.floor((t+b)/2)]);
   }else if(kind===3){ // Serpent: alternating long reflective fins produce an open zig-zag course.
