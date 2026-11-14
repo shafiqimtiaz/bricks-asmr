@@ -1,4 +1,5 @@
 import { createBrickMusic } from "./brick-music.js";
+import { buildLevelV2 } from "./level-v2.js";
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
 function arenaLayout(aspect=9/16){
@@ -11,7 +12,7 @@ function arenaLayout(aspect=9/16){
 }
 // Rooms of three or four play on a square court: the paddle lines are 488 apart both ways, so every seat's view is the same.
 function squareArena(){return {width:516,height:640,cell:8,cols:62,rows:62,gridX:10,gridY:44,square:true};}
-function bricks(seed,playerCount=2,arena=arenaLayout()){
+function bricks(seed,playerCount=2,arena=arenaLayout(),version=1){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
  // Multiplayer runs Solo's board generator on a smaller field that leaves a lane in front of every paddle.
  const crowd=playerCount>=4?[13,28,54]:playerCount===3?[11,26,56]:playerCount===2?[7,24,58]:[0,0,63];
@@ -214,7 +215,7 @@ function genLevel(){
   minC=Math.min(minC,c);maxC=Math.max(maxC,c);
   minR=Math.min(minR,r);maxR=Math.max(maxR,r);
  }
- return {
+ const legacy={
   hp:Array.from(hp,x=>String(x)).join(""),
   colors:Array.from(col,x=>x.toString(16)).join(""),
   powerups:Array.from(pu,x=>x.toString(16)).join(""),
@@ -224,6 +225,7 @@ function genLevel(){
   centerY:GRID_Y+(minR+maxR+1)*GRID_SIZE/2,
   total,remaining,arena
  };
+ return version===2?buildLevelV2(legacy,seed,playerCount,arena,hash,random):legacy;
 }
 
 // One ball speed for Solo and Multiplayer; wider arenas are a little faster so crossing them takes similar time.
@@ -251,6 +253,10 @@ function drawBrickTile(context,x,y,size,life,color,palette,walls){
  context.fillRect(x+.5,y+.5,size-1,size-1);
  context.fillStyle="rgba(0,0,0,.18)";
  context.fillRect(x+1.5,y+1.5,size-3,size-3);
+ if(life===4){
+  context.fillStyle="rgba(220,245,248,.26)";
+  context.fillRect(x+1,y+1,size-2,Math.max(.8,size*.14));
+ }
 }
 function aimDragAngle(start, pixelDelta, width){return start+pixelDelta/Math.max(1,width)*2.3;}
 function drawAimGuide(context,preview,color="#e5f4eb",dragging=false,ball=null){
@@ -354,4 +360,4 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
 export {arenaLayout,squareArena,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,buildLevelV2,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
