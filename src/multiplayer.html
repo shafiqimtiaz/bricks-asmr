@@ -338,7 +338,7 @@ let aimAng=0,heldBefore=false,drag=null;
 let roomCode="",you="",state=null,socket=null,closed=false,retry=null,frame=0,lastStateAt=0,localPos=.5,inputSeq=0;
 let arena=arenaLayout(),view=boardView(arena,0),clock=0,lastFrame=0;
 const serverNow=()=>Date.now()+clock,shownC={},held={};
-const relativeSeat=(worldSeat,viewerSeat)=>(viewerSeat%2?viewerSeat-worldSeat:worldSeat-viewerSeat+4)%4;
+const relativeSeat=(worldSeat,viewerSeat)=>(viewerSeat%2?viewerSeat-worldSeat+4:worldSeat-viewerSeat+4)%4;
 const worldSeat=(relative,viewer)=>(viewer+(viewer%2?-relative:relative)+4)%4;
 // The room's rules are Solo's: the same engine runs here for the aim path, paddle geometry and power-up tables.
 const E=brickEngine();
