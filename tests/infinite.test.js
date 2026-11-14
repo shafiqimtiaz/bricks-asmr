@@ -53,6 +53,20 @@ test("stepping ~8s descends exactly one row and refills the top row", () => {
   assert.ok(S.remaining > before, "the refill adds more bricks than the ball broke");
 });
 
+test("the descent keeps ticking while the ball is still held (aiming/serving)", () => {
+  const { E, S } = infiniteSolo();
+  assert.ok(E.holding(S, "me"), "the ball starts held on the paddle");
+  let events = [];
+  for (let i = 0; i < 479; i++) events = E.step(S, 1 / 60);
+  assert.equal(S.descent.rows, 0, "no descent before the 8s interval");
+  assert.ok(!events.some(e => e.t === "descent"));
+  const fired = [];
+  for (let i = 0; i < 3; i++) fired.push(...E.step(S, 1 / 60));
+  assert.equal(S.descent.rows, 1, "one row down after ~8s even without launching");
+  assert.ok(fired.some(e => e.t === "descent"));
+  assert.ok(E.holding(S, "me"), "the ball is still held; descent never waits on a launch");
+});
+
 test("the descent interval ramps down but never below 2.5s", () => {
   const { E, S } = infiniteSolo();
   E.launch(S, "me");

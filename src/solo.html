@@ -618,7 +618,7 @@ function render(fs = 1){
     ctx.font = style === 'clean' ? 'bold 22px ui-monospace,monospace' : "16px 'Press Start 2P',monospace";
     ctx.fillText(isDaily() ? 'DAILY CHALLENGE' : 'SEED ' + seed.toUpperCase(), W / 2 + off, 236);
     ctx.font = style === 'clean' ? '11px ui-monospace,monospace' : "7px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#ccc';
-    ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + ' · LOST LIFE = ONE ROW DOWN', W / 2 - off, 262);
+    ctx.fillText(ARCH_NAMES[archetype].toUpperCase() + (quad ? ' · QUAD' : '') + (soloMode === 'infinite' ? ' · BRICKS KEEP COMING' : ' · LOST LIFE = ONE ROW DOWN'), W / 2 - off, 262);
     ctx.globalAlpha = 1;
   }
   // danger vignette + flash

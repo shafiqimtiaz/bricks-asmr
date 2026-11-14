@@ -410,9 +410,9 @@ function brickEngine(rng=Math.random){
   const c=S.crush;
   for(const s of S.seats)c.off[s]+=(c.target[s]-c.off[s])*Math.min(1,dt*14);
   updateTransform(S);
+  if(S.infinite)descentTick(dt);
   if(!S.balls.some(b=>!b.held)){settleMisses();checkEnd();return ev;}
   S.clock+=dt;
-  if(S.infinite)descentTick(dt);
   for(const k in S.fx)if(S.fx[k]>0)S.fx[k]-=dt;
   for(const p of S.players)for(const k in p.fx)if(p.fx[k]>0)p.fx[k]-=dt;
   for(const p of S.players){p.comboT+=dt;if(p.comboT>COMBO_WINDOW){p.combo=0;p.milestone=0;}}
