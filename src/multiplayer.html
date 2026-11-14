@@ -803,7 +803,7 @@ function draw(now){
   simMe.c=centres[you];simMe.aim=aimAng;
   spot=E.point(sim,me.seat,simMe.c,sim.BR+1);
   sim.balls=sim.balls.filter(b=>!(b.held&&b.source===you));sim.balls.push({...spot,vx:0,vy:0,source:you,held:true});
-  drawAimGuide(ctx,E.predict(sim,you,260),"#e4f4ec",now,!!drag?.moved,spot);
+  drawAimGuide(ctx,E.predict(sim,you,260),"#e4f4ec",!!drag?.moved,spot);
  }
  const radius=Math.max(2.7,GRID_SIZE*.45),cruise=ballSpeed(arena);
  if(s?.balls){
@@ -981,20 +981,12 @@ for(const canvas of [cv,gcv]){
  canvas.addEventListener("pointerdown",event=>{
   audioInit();canvas.setPointerCapture(event.pointerId);
   const rect=canvas.getBoundingClientRect();
-  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe()){
-    let origin=null;
-    const me=state?.players.find(p=>p.id===you);
-    if(sim&&me){
-     const centre=E.paddleAt(sim,you,amInverted()?1-localPos:localPos);
-     const spot=E.point(sim,me.seat,centre,sim.BR+1),start=viewPoint(view,spot.x,spot.y),touch=boardPointer(event);
-     if(Math.hypot(touch.x-start.x,touch.y-start.y)<=52)origin=start;
-    }
-    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false,origin};
-   }
+  if((event.clientY-rect.top)/rect.height*viewH<viewH-96&&holdingServe())
+    drag={x:event.clientX,width:rect.width,aim:aimAng,moved:false};
   else{drag=null;pointer(event);}
  });
  canvas.addEventListener("pointermove",event=>{
-  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved){const target=drag.origin?boardPointer(event):null;setAim(target?aimPointerAngle(drag.origin.x,drag.origin.y,target.x,target.y):aimDragAngle(drag.aim,dx,drag.width));}}
+  if(drag){const dx=event.clientX-drag.x;if(Math.abs(dx)>8)drag.moved=true;if(drag.moved)setAim(aimDragAngle(drag.aim,dx,drag.width));}
   else if(event.buttons||event.pointerType==="touch")pointer(event);
  });
  canvas.addEventListener("pointerup",()=>{if(drag&&!drag.moved)launch();drag=null;});
