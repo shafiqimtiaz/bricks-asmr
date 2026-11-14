@@ -39,6 +39,6 @@ test("service worker caches only the solo shell, leaving API and live rooms onli
 test("offline fallback remains a pixel CRT screen",()=>{
  assert.match(serviceWorker,/Press Start 2P/);
  assert.match(serviceWorker,/CONNECTION LOST/);
- assert.match(serviceWorker,/id="crt" aria-hidden="true"/);
+ assert.ok(serviceWorker.includes(String.raw`id=\"crt\" aria-hidden=\"true\"`));
  assert.match(serviceWorker,/bricks-asmr-shell-v2/);
 });
