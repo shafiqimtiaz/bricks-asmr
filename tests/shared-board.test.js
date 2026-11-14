@@ -320,7 +320,7 @@ test("connecting players update online counts immediately without waiting for th
   const incoming={...initial,players:[{id:"p0",online:true}]};
   let renders=0;
   const fn=new Function("performance","render","oldState","newState",
-    "let state=oldState,you='p0',lastUiRender=100,lastStateAt=0,tilesFull=false,localPos=.5,popAt=null,W=360,clock=0,board=null,hpArr=null,colArr=null,dirty=[],sim=null,floats=[],style='clean',heldBefore=false,shownC={},paddlePulse=0;"
+    "let state=oldState,you='p0',lastUiRender=100,lastStateAt=0,tilesFull=false,localPos=.5,popAt=null,W=360,clock=0,board=null,hpArr=null,colArr=null,dirty=[],sim=null,floats=[],style='clean',heldBefore=false,shownC={},paddlePulse=0,brickMusic={reset(){},setLives(){},setDepth(){}};"
     +"function clearFx(){}function react(){}function buildSim(){}function holdingServe(){return false;}function queueInput(){}function adoptArena(){}function resize(){}"
     +client.slice(from,to)+"accept(newState);");
   fn({now:()=>101},()=>{renders++},initial,incoming);
@@ -533,8 +533,8 @@ test("rapid repeated join or create clicks cannot reserve duplicate players", as
 
 test("a board is identified by its seed: leaderboard keys carry no level and old keys are rejected", () => {
  const KEY = new Function("return " + /const KEY=(\/.*?\/),ID=/.exec(soloWorker)[1])();
- for (const ok of ["abc123-clean", "d20261112-vapor-a480", "zz9q-vintage", "abc123-v2-vintage", "d20261112-v2-vintage-a480", "abc123-v3-vintage", "d20261112-v3-vintage-a480", "abc123-v4-vintage", "d20261112-v4-vintage-a480"]) assert.ok(KEY.test(ok), ok);
- for (const bad of ["abc123-1-clean", "abc123-12-vintage-a480", "abc123", "abc123-crt"]) assert.ok(!KEY.test(bad), bad);
+ for (const ok of ["abc123-v4-clean", "d20261112-v4-vapor-a480", "zz9q-v4-vintage", "abc123-v4-vintage", "d20261112-v4-vintage-a480"]) assert.ok(KEY.test(ok), ok);
+ for (const bad of ["abc123-1-clean", "abc123-12-vintage-a480", "abc123", "abc123-crt", "abc123-clean", "abc123-v2-vintage", "d20261112-v3-vintage-a480", "abc123-v4-crt"]) assert.ok(!KEY.test(bad), bad);
  assert.doesNotMatch(soloHtml, /level\+\+|&level=|\blevel\b\s*=/);
- assert.match(soloHtml, /const boardId=\(\)=>seed\+\(generatorVersion>1\?'-v'\+generatorVersion:''\)\+'-'\+style/);
+ assert.match(soloHtml, /const boardId=\(\)=>seed\+'-v4-'\+style\+\(W===360\?''\:'-a'\+W\)/);
 });

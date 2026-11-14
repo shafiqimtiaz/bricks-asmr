@@ -15,12 +15,23 @@ test("Infinite preserves every cell of the complete V4 pattern at its original b
   for(let i=0;i<100;i++){
    const seed="lim"+i,full=bricks(seed,players,arena);
    const opening=infiniteOpeningBoard(seed,arena,players);
-   assert.deepEqual(opening,full,"Infinite must not crop, shift, or regenerate the level");
    assert.equal(opening.hp.length,arena.cols*arena.rows);
    assert.equal(opening.total,[...opening.hp].filter(x=>x!=="0"&&x!=="4").length);
    assert.equal(opening.generatorVersion,4);
    assert.ok(opening.hp.includes("1")||opening.hp.includes("3"));
    if(players===1){
+    // Solo opens with a V4 face near the ceiling and leaves room below for
+    // the incoming rows to advance, so it is a shorter V4 board generated
+    // from the same seed, not the full Classic level.
+    const openingRows=Math.min(arena.rows-4,Math.max(12,Math.floor(arena.rows*.48)));
+    const short=bricks(seed,1,{...arena,rows:openingRows});
+    const first=short.hp.search(/[1-4]/),offset=first<0?0:Math.floor(first/arena.cols)*arena.cols;
+    assert.equal(opening.hp,short.hp.slice(offset).padEnd(arena.cols*arena.rows,"0"),"Solo opening is the ceiling-anchored V4 pattern from the same seed");
+    const occupied=[...opening.hp].map((c,i)=>/[1-4]/.test(c)?i:-1).filter(i=>i>=0);
+    assert.ok(Math.floor(occupied.at(-1)/arena.cols)<arena.rows-1,"room below for incoming rows");
+    assert.deepEqual(infiniteOpeningBoard(seed,arena,players),opening,"same seed, same opening");
+   }else{
+    assert.deepEqual(opening,full,"Infinite must not crop, shift, or regenerate the level");
     const originalCells=[...full.hp].filter(cell=>cell!=="0").length;
     const infiniteCells=[...opening.hp].filter(cell=>cell!=="0").length;
     assert.equal(infiniteCells,originalCells,"retain every occupied row, including V4 reflectors");
@@ -33,9 +44,11 @@ test("Infinite still descends on the timer while a held ball waits",()=>{
  const arena=arenaLayout(),board=infiniteOpeningBoard("held",arena,1);
  const E=brickEngine(()=>.5),S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",infinite:true,lives:5});
  assert.deepEqual(S.descent,{t:0,rows:0,interval:8});
+ const before=S.hp.slice();
  for(let k=0;k<483;k++)E.step(S,1/60);
  assert.equal(S.descent.rows,1);
- assert.equal(S.crush.target[0],S.CS);
+ assert.deepEqual(S.hp.slice(S.COLS),before.slice(0,-S.COLS),"Infinite Solo scrolls the grid down one row on the timer");
+ assert.equal(S.crush.target[0],0,"Solo Infinite never advances the crusher");
  assert.equal(S.pool,5);
 });
 
@@ -65,8 +78,8 @@ test("Best Time and Best Score use separate world-ranked tables",async()=>{
   assert.equal(response.status,200);
   const data=await response.json();assert.deepEqual(data.entries,[]);
  }
- assert.ok(sqls.some(s=>s.includes("FROM leaderboard_times WHERE board_key GLOB best_ms ASC")));
- assert.ok(sqls.some(s=>s.includes("FROM leaderboard_scores WHERE board_key GLOB best_score DESC")));
+ assert.ok(sqls.some(s=>s.includes("FROM leaderboard_times WHERE board_key GLOB '*-v4-*' ORDER BY best_ms ASC")));
+ assert.ok(sqls.some(s=>s.includes("FROM leaderboard_scores WHERE board_key GLOB '*-v4-*' ORDER BY best_score DESC")));
 });
 
 test("score saving records bricks and combo separately without a time",async()=>{

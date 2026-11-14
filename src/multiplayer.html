@@ -666,7 +666,7 @@ function accept(s){
  if(typeof s.now==="number")clock=s.now-Date.now();
  const previous=state,sameRound=!!previous&&previous.code===s.code&&previous.round===s.round;
  if(!sameRound){
-  clearFx();tilesFull=true;localPos=.5;paddlePulse=0;
+  clearFx();tilesFull=true;localPos=.5;paddlePulse=0;clearTimeout(toastTimeout);$("toast").classList.remove("visible");
   for(const id of Object.keys(shownC))delete shownC[id];
   brickMusic.reset(s.seed+":"+s.round);
  }
@@ -703,14 +703,14 @@ function renderSeat(side,p,mine){
  const root=$("slot"+side);
  if(!p){root.hidden=true;root.dataset.signature="";return;}
  root.hidden=false;
- const signature=[p.id,p.name,p.online,p.score,p.lives,mine,state.status].join("|");
+ const signature=[p.id,p.name,p.online,p.out,p.score,p.lives,mine,state.status].join("|");
  if(root.dataset.signature===signature)return;
  root.dataset.signature=signature;
  root.replaceChildren();root.classList.toggle("me",!!mine);root.classList.toggle("offline",!p.online);
  const wrap=document.createElement("div");wrap.className="seatcontents";
  const label=document.createElement("span");label.className="name";
  label.textContent=({0:"BOTTOM",1:"LEFT",2:"TOP",3:"RIGHT"}[side])+" · "+p.name+(mine?" · YOU":"");
- const status=document.createElement("span");status.className="small";status.textContent=p.online?"● LIVE":"○ OFFLINE";
+ const status=document.createElement("span");status.className="small";status.textContent=!p.online?"○ OFFLINE":p.out?"○ OUT":"● LIVE";
  wrap.append(label,status);
  if(state.status!=="waiting"){const score=document.createElement("span");score.className="life";score.textContent=p.score+" pts · "+p.lives+" ♥";wrap.append(score);}
  root.append(wrap);
@@ -728,7 +728,7 @@ function render(){
  if($("lives").shown!==pips){$("lives").shown=pips;$("lives").innerHTML=pips;}
  $("tmr").textContent=$("timer").textContent;$("tmr").className="clock";
  $("hudFill").style.transform="scaleX("+(s.status==="playing"&&s.board?.total?(1-s.remaining/s.board.total).toFixed(3):0)+")";
- $("menuStatus").textContent="ROOM "+s.code+" · "+mode.toUpperCase()+" · "+me.lives+" LIVES";
+ $("menuStatus").textContent="ROOM "+s.code+" · "+mode.toUpperCase()+(s.status==="playing"?" · "+me.lives+" LIVES":"");
  $("hudStats").hidden=s.status!=="playing";
  $("hudMode").hidden=s.status==="playing";
  $("hudMode").textContent=s.status==="finished"?"RESULTS":"LOBBY";
@@ -748,7 +748,8 @@ function render(){
    $("glassText").textContent="TEAM SCORE "+s.players.reduce((t,p)=>t+p.score,0)+" · "+Math.floor(secs/60)+":"+String(secs%60).padStart(2,"0");
   }else if(winner){
    $("glassTitle").textContent=winner.name+" WINS";
-   $("glassText").textContent="LAST PLAYER STANDING · "+winner.score+" POINTS";
+   $("glassText").textContent="LAST PLAYER STANDING · SURVIVED WITH "+winner.lives+" ♥";
+   $("roomTitle").textContent=winner.id===you?"You win — last player standing.":"You're out — "+winner.name+" survived.";
   }else{
    $("glassTitle").textContent=result.reason==="cleared"?"BOARD CLEARED":"ROUND COMPLETE";
    $("glassText").textContent=s.players.filter(p=>p.score===top).map(p=>p.name).join(" & ")+" · "+top+" POINTS";
@@ -963,6 +964,8 @@ function draw(now){
  ctx.fillStyle=V?"#ff71ce":"#c96a5a";ctx.beginPath();ctx.roundRect(handle-24,controlY-11,48,22,11);ctx.fill();
  ctx.fillStyle="#0003";for(const o of [-6,0,6])ctx.fillRect(handle+o-.75,controlY-5,1.5,10);
  ctx.font=small;
+ if(live&&serve){ctx.fillStyle=V?"#9ff3ff":"#eee";ctx.fillText("DRAG AIM · TAP LAUNCH",viewW/2,viewH-72);}
+ else if(!moved){ctx.fillStyle=V?"#9ff3ff":"#888";ctx.fillText("SLIDE OR A / D",viewW/2,viewH-72);}
 
  if(live&&me&&me.out){
   const left=s.players.filter(p=>!p.out).length,half=Math.min(150,viewW/2-12);
@@ -1084,7 +1087,7 @@ $("copy").addEventListener("click",async()=>{
 $("sound").addEventListener("click",()=>{soundOn=!soundOn;$("sound").textContent="SOUND "+(soundOn?"ON":"OFF");$("sound").setAttribute("aria-pressed",String(soundOn));if(soundOn)audioInit();});
 $("leave").addEventListener("click",async()=>{
  closed=true;clearTimeout(retry);clearTimeout(pendingInput);pendingInput=null;$("panel").hidden=false;try{await request("/"+roomCode+"/leave",{});}catch{}
- socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
+ socket?.close();socket=null;roomCode="";you="";state=null;hpArr=null;tilesFull=true;clearFx();setConnection("Offline");localStorage.removeItem("bricksLastRoom");$("menuStatus").textContent="";$("nicknameForm").hidden=true;$("room").hidden=true;$("intro").hidden=false;history.replaceState(null,"","/multiplayer");
 });
 function closeMenu(restoreFocus=false){const open=!$("hudMenu").hidden;$("hudMenu").hidden=true;$("hudMenuToggle").setAttribute("aria-expanded","false");$("hudMenuToggle").textContent="☰";$("hudMenuToggle").setAttribute("aria-label","Open menu");if(open&&restoreFocus===true)$("hudMenuToggle").focus();}
 $("hudMenuToggle").addEventListener("click",()=>{

@@ -4,9 +4,11 @@ import { arenaLayout, boardView, viewPoint } from "../src/game-core.js";
 import { multiHtml } from "./helpers.js";
 
 const rosterExpression=multiHtml.match(/const worldSide=([^;]+);const p=s\.players/)[1];
-const labelExpression=multiHtml.match(/const side=([^;]+);/)[1];
 const worldSeat=new Function("me","relativeSide","return "+rosterExpression);
-const relativeSeat=new Function("p","view","return "+labelExpression);
+// The lobby roster walks relative sides 0..3 out from the viewer, so a world
+// seat's relative side is the inverse of that walk (the canvas no longer
+// carries its own `side` variable).
+const relativeSeat=(seat,viewer)=>(seat-viewer+4)%4;
 
 test("roster and in-world opponent labels align with all four rotated cameras",()=>{
  const arena=arenaLayout(9/16),W=arena.width;
@@ -16,7 +18,7 @@ test("roster and in-world opponent labels align with all four rotated cameras",(
  for(let viewer=0;viewer<4;viewer++){
   const camera=boardView(arena,viewer);
   for(let seat=0;seat<4;seat++){
-   const relative=relativeSeat({seat},{seat:viewer});
+   const relative=relativeSeat(seat,viewer);
    assert.ok(relative>=0&&relative<4);
    assert.equal(worldSeat({seat:viewer},relative),seat);
    const [x,y]=positions[seat],point=viewPoint(camera,x,y);
@@ -26,7 +28,7 @@ test("roster and in-world opponent labels align with all four rotated cameras",(
   }
  }
  assert.match(multiHtml,/worldSide=\(me\.seat\+relativeSide\)%4/);
- assert.match(multiHtml,/side=\(p\.seat-view\.seat\+4\)%4/);
+ assert.match(multiHtml,/0:"BOTTOM",1:"LEFT",2:"TOP",3:"RIGHT"/);
 });
 
 test("network loss is visible during play and input remains socket-gated",()=>{
@@ -54,4 +56,15 @@ test("local paddle feedback is brief, isolated from physics, and respects reduce
 
 test("missed balls travel past the paddle instead of being visually pinned to the court boundary",()=>{
  assert.match(multiHtml,/const x=mineHeld\?spot\.x:b\[0\]\+b\[2\]\*ahead,y=mineHeld\?spot\.y:b\[1\]\+b\[3\]\*ahead;/);
+});
+
+test("serve prompt, live menu status and results wording",()=>{
+ assert.match(multiHtml,/DRAG AIM · TAP LAUNCH/);
+ assert.match(multiHtml,/SLIDE OR A \/ D/);
+ assert.match(multiHtml,/s\.status==="playing"\?" · "\+me\.lives\+" LIVES":""/);
+ assert.match(multiHtml,/p\.out\?"○ OUT":"● LIVE"/);
+ assert.match(multiHtml,/LAST PLAYER STANDING · SURVIVED WITH/);
+ assert.match(multiHtml,/You win — last player standing\./);
+ assert.match(multiHtml,/You're out — /);
+ assert.match(multiHtml,/\$\("menuStatus"\)\.textContent=""/);
 });

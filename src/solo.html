@@ -578,6 +578,7 @@ function render(fs = 1){
   // trajectory previews
   wrap.classList.toggle('aiming', state === 'aim');
   if (state === 'aim') drawAimGuide(ctx, E.predict(S, 'me', 260), '#e4f4ec', onBoard && moved, S.balls.find(b => b.held && b.source === 'me'));
+  if (state === 'aim') { ctx.font = style === 'clean' ? 'bold 11px ui-monospace,monospace' : "8px 'Press Start 2P',monospace"; ctx.fillStyle = V ? '#9ff3ff' : '#eee'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('DRAG AIM · TAP LAUNCH', W / 2, SY - 34); }
 
   // slider
   const hx = SX0 + (px - pw / 2) / (W - pw) * (SX1 - SX0);

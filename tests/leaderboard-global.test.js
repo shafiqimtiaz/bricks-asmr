@@ -57,7 +57,8 @@ test("the global leaderboard returns every saved score across board keys and pag
     assert.equal(body.totalPlayers, 51);
     assert.equal(body.hasMore, more);
   }
-  assert.ok(queries.every(sql => /FROM leaderboard_times WHERE board_key GLOB best_ms ASC/.test(sql)));
+  assert.ok(queries.every(sql => /FROM leaderboard_times WHERE board_key GLOB '\*-v4-\*'/.test(sql)));
+  assert.ok(queries.some(sql => /ORDER BY best_ms ASC/.test(sql)));
   assert.ok(queries.every(sql => !/WHERE board_key=/.test(sql)));
 });
 

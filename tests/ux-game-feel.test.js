@@ -81,3 +81,8 @@ test("all game screens use pixel type and the same curved CRT glass",()=>{
  assert.match(soloHtml,/#nameInput\{font-size:10px;line-height:1.7/);
  assert.match(multiHtml,/#panel \.lobbyHero \.byline\{font-size:calc\(var\(--u\)\*2.35\);font-style:italic/);
 });
+
+test("serve prompt tells the player how to aim and launch",()=>{
+ assert.match(soloHtml,/DRAG AIM · TAP LAUNCH/);
+ assert.match(multiHtml,/DRAG AIM · TAP LAUNCH/);
+});

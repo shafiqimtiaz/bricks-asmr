@@ -122,7 +122,7 @@ test("rapid combos schedule distinct notes instead of simultaneous noise", () =>
 test("solo and multiplayer use the same automatic music source", () => {
   for (const html of [soloHtml, multiHtml]) {
     assert.doesNotMatch(html, /id="musicTrack"|id="midiFile"|id="loadMidi"|midiPick|LOAD LICENSED MIDI/);
-    assert.match(html, /brickMusic\.hit\((?:soundKit|soundOn\?soundKit:null)\)/);
+    assert.match(html, /brickMusic\.hit\((?:soundKit|soundOn\?soundKit:null)(?:,pan)?\)/);
     assert.match(html, /brickMusic\.reset\(/);
   }
   assert.match(soloHtml, /brickMusic\.reset\(seed\)/);
