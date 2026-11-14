@@ -184,7 +184,7 @@ body{--hud-life:#ff7a6b}
 html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
 #crt{
  display:block;position:fixed;inset:0;z-index:60;pointer-events:none;
- border-radius:4% / 3%;
+ border-radius:4% / 3%;opacity:1;
  background:
   repeating-linear-gradient(0deg,rgba(0,0,0,.27) 0 1px,transparent 1px 4px),
   repeating-linear-gradient(90deg,rgba(255,92,82,.016) 0 1px,rgba(86,255,168,.014) 1px 2px,rgba(88,138,255,.016) 2px 3px),
@@ -202,6 +202,7 @@ html,body,body *{font-family:'Press Start 2P',ui-monospace,monospace!important}
  content:'';position:absolute;inset:0;border-radius:inherit;
  background:linear-gradient(to bottom,transparent 42%,#d2f9e30b 50%,transparent 58%);
  background-size:100% 19%;background-repeat:no-repeat;
+ transform:skewY(-.18deg);filter:blur(.35px);
  animation:crtGlassRoll 13s linear infinite;
 }
 @keyframes crtGlassFlicker{0%,19%,22%,100%{opacity:1}20%{opacity:.94}21%{opacity:.98}}
