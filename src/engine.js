@@ -26,7 +26,7 @@ function brickEngine(rng=Math.random){
    {id:'ghost',ic:'G',nm:'GHOST',c:'#b8b8d8',t:8},
    {id:'twin',ic:'T',nm:'TWIN PADDLE',c:'#e0904a',t:10,own:1},
    {id:'hyper',ic:'»',nm:'HYPER',c:'#ff3df0',t:6},
-   {id:'rain',ic:'R',nm:'BALL RAIN',c:'#7ad0ff'},
+   {id:'slow',ic:'S',nm:'SLOW-MO',c:'#6a8cff',t:8},
    {id:'soften',ic:'○',nm:'SOFTEN',c:'#a0a0a0'},
    {id:'time',ic:'-3',nm:'-3 SECONDS',c:'#ffe066',solo:1}],
   vapor:[
@@ -41,7 +41,7 @@ function brickEngine(rng=Math.random){
    {id:'invert',ic:'⇄',nm:'INVERTED',c:'#7a1f5a',t:6,bad:1,own:1},
    {id:'freeze',ic:'❄',nm:'TIME FREEZE',c:'#bdf5ff',t:5,solo:1}]
  };
- const STARTER={clean:'x3',vintage:'rain',vapor:'prism'};
+ const STARTER={clean:'x3',vintage:'slow',vapor:'prism'};
  const PU_BY_ID={};for(const k in PU_SETS)for(const d of PU_SETS[k])PU_BY_ID[d.id]=d;
  // Capsule kind 1–10 is the set's entry; 11 is the set's starter. Solo-only timer power-ups become SLOW-MO elsewhere.
  function puDef(set,k,mode='solo'){
@@ -211,14 +211,6 @@ function brickEngine(rng=Math.random){
     const axis=hz?'row':'col',lines=[];
     for(let k=0;k<(hz?S.ROWS:S.COLS);k++)if(hz?S.rowCount[k]>0:S.colCount[k]>0)lines.push(k);
     for(let j=0;j<3&&lines.length;j++)wipeLine(axis,lines.splice(Math.floor(rng()*lines.length),1)[0],p.id);
-    break;}
-   case 'rain':{
-    // Balls pour from the far side toward the catcher.
-    const [lo,hi]=edgeSpan(S,p.seat),far=p.seat===0?S.GY+3:p.seat===2?540:p.seat===1?S.W-3:3;
-    for(let j=0;j<20&&S.balls.length<S.maxBalls;j++){
-     const a=lo+10+rng()*(hi-lo-20),nb=hz?{x:a,y:far}:{x:far,y:a};
-     Object.assign(nb,{owner:p.id,source:p.id,...aimVelocity(p.seat,Math.PI+(rng()-.5)*1.2,curSpeed(S))});S.balls.push(nb);
-    }
     break;}
    case 'soften':for(let i=0;i<S.N;i++)if(S.hp[i]>1){S.hp[i]=1;ev.push({t:'cell',i});}break;
    case 'time':ev.push({t:'time',ms:-3000});break;
