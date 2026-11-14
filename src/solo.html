@@ -158,6 +158,11 @@ body{--hud-life:#ff7a6b}
 #wrap.aiming canvas{cursor:crosshair}
 @media(prefers-reduced-motion:reduce){#crt,#crt::after{animation:none}#toast{transition:none}}
 
+/* Liminal interface: retain the CRT and game animation layers unchanged. */
+#hud{justify-content:flex-end;min-height:0;padding:calc(var(--u)*1.2);border:0;background:transparent;box-shadow:none}
+#hud>#lvl,#hud>#lives,#hud>#tmr,#hud>.sp,#hudBar{display:none!important}
+#hud #hudStatus{display:block;white-space:normal;line-height:1.9;padding:calc(var(--u)*2);font-size:.85em;color:var(--lb-soft);border-bottom:1px solid var(--l-border)}
+#toast{top:16%;border-radius:2px;background:#05080add;color:#ced5ce;font-size:calc(var(--u)*2.1);letter-spacing:.1em;word-break:normal;padding:calc(var(--u)*2)}
 </style>
 </head>
 <body class="vintage">
@@ -169,6 +174,8 @@ body{--hud-life:#ff7a6b}
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
    <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
    <div id="hudMenu" hidden>
+    <div id="hudStatus" role="status"></div>
+    <button id="soundToggle" type="button" aria-pressed="true">SOUND · ON</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
     <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
     <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
@@ -274,12 +281,10 @@ function fit(){
   // Size to the layout viewport: an on-screen keyboard or page zoom only shrinks the visual viewport.
   const vw = Math.max(1, Math.floor(window.innerWidth));
   const vh = Math.max(1, Math.floor(window.innerHeight));
-  const panelOpen = !document.getElementById('panel').hidden;
-  wrap.style.setProperty('--u', stageFit(vw, vh, W, H, panelOpen).unit + 'px');
-  const f = stageFit(vw, vh, W, H, panelOpen, document.getElementById('hud').offsetHeight);
+  const f = stageFit(vw, vh, W, H, false);
   wrap.classList.toggle('sidecar', f.dock);
   wrap.style.width = f.width + 'px'; wrap.style.height = f.height + 'px';
-  wrap.style.marginTop = f.hudOver / 2 + 'px';
+  wrap.style.marginTop = '0px';
   wrap.style.setProperty('--u', f.unit + 'px');
   wrap.style.setProperty('--hud-over', f.hudOver + 'px');
   wrap.style.setProperty('--sidebar-width', f.sidebar + 'px');
@@ -294,8 +299,10 @@ function resize(){
   const pixelScale = Math.min(r.width / W, r.height / H) * density;
   const width = Math.max(1, Math.round(W * pixelScale)), height = Math.max(1, Math.round(H * pixelScale));
   scaleX = width / W; scaleY = height / H;
-  cv.width = bcv.width = gcv.width = width; cv.height = bcv.height = gcv.height = height;
-  if(hp)redrawAll();
+  if(cv.width!==width||cv.height!==height){
+   cv.width = bcv.width = gcv.width = width; cv.height = bcv.height = gcv.height = height;
+   if(hp)redrawAll();
+  }
 }
 window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
@@ -339,18 +346,19 @@ function redrawAll(){
 }
 
 // ---------- audio ----------
-let soundKit=null,notesThisFrame=0;
+let soundKit=null,notesThisFrame=0,soundOn=true;
 const brickMusic=createBrickMusic();
 function audioInit(){
+ if(!soundOn)return;
  if(soundKit){soundKit.resume();return;}
  try{soundKit=createASMR(window);}catch{soundKit=null;}
 }
 function blip(freq,vol,dur,type){
- if(!soundKit||notesThisFrame>5)return;
+ if(!soundOn||!soundKit||notesThisFrame>5)return;
  notesThisFrame++;
  soundKit.blip(freq,vol,dur,type);
 }
-function brickNote(){brickMusic.hit(soundKit);}
+function brickNote(pan=0){if(soundOn)brickMusic.hit(soundKit,pan);}
 
 // ---------- game state: the shared engine (engine.js) ----------
 // The engine owns the rules; these mirrors of its state are refreshed after every step for drawing and input.
@@ -414,7 +422,7 @@ function react(e){
   switch (e.t) {
     case 'break': {
       const i = e.i, c = e.c, r = e.r;
-      brickNote();
+      brickNote(((c+.5)*CS+GX)/W*1.1-.55);
       const fc = col[i] ? (style === 'vapor' ? vPal : palette)[col[i]] : (style === 'vapor' ? vWall : wallCols)[1];
       const by = GY + S.crush.by + r * CS;
       comboPop = 1;
@@ -422,7 +430,7 @@ function react(e){
       if (style !== 'clean' && debris.length < 900) for (let d = 0; d < 2; d++) debris.push({x: GX + c * CS + Math.random() * CS, y: by + Math.random() * CS, vx: (Math.random() - .5) * 60, vy: (Math.random() - .8) * 50, c: fc, t: 1});
       drawCell(i); break;
     }
-    case 'hit': brickNote(); drawCell(e.i); break;
+    case 'hit': brickNote(((e.c+.5)*CS+GX)/W*1.1-.55); drawCell(e.i); break;
     case 'cell': drawCell(e.i); break;
     case 'milestone': floats.push({x: W / 2, y: 300, s: '×' + e.n + ' COMBO!', c: '#fff', t: 1.4, big: 1}); flashW = Math.max(flashW, .35); if (style !== 'clean') shake = Math.max(shake, 6); vib(30); break;
     case 'paddle': if (notesThisFrame < 2) blip(98, 0.15, 0.06, 'sine'); squash = 1; break;
@@ -433,12 +441,12 @@ function react(e){
     case 'power': {
       const d = puDef(e.k);
       if (style !== 'clean') shake = d.bad ? 2 : 4;
-      floats.push({x: Math.max(50, Math.min(W - 50, e.x)), y: PY - 10, s: d.nm + '!', c: d.c, t: 1});
+      // The effect itself, not a power-up name, announces what was collected.
       const base = 262 * Math.pow(2, (e.k - 1) / 12), seq = d.bad ? [12, 8, 5, 0] : [0, 4, 7, 12];
       seq.forEach((s, j) => setTimeout(() => { notesThisFrame = 0; blip(base * Math.pow(2, s / 12), 0.18, 0.15, d.bad ? 'square' : 'triangle'); }, j * 45));
       break;
     }
-    case 'life': vib(60); break;
+    case 'life': vib(60); showToast('−1 LIFE',1100); break;
     case 'end':
       timerOn = false;
       if (e.reason === 'cleared') {
@@ -575,17 +583,6 @@ function render(fs = 1){
     ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.strokeText(d.ic, p.x + .5, p.y + 1);
     ctx.fillStyle = '#fff'; ctx.fillText(d.ic, p.x + .5, p.y + 1);
   }
-  // active effects strip (below the bricks)
-  const act = [];
-  for (const k in fx) if (fx[k] > 0 && PU_BY_ID[k]) act.push([PU_BY_ID[k], fx[k].toFixed(1)]);
-  if (luckyLeft > 0) act.push([PU_BY_ID.lucky, String(luckyLeft)]);
-  if (act.length) {
-    ctx.font = style === 'clean' ? 'bold 7px ui-monospace,monospace' : "5px 'Press Start 2P',monospace"; ctx.textAlign = 'left';
-    let x = GX + 2, y = 566;
-    for (const [d, v] of act) { const t = d.nm + ' ' + v, w = ctx.measureText(t).width + 10; if (x + w > W - 4) { x = GX + 2; y += 10; }
-      ctx.fillStyle = d.c; ctx.fillRect(x, y - 2, 4, 4); ctx.fillText(t, x + 6, y); x += w; }
-    ctx.textAlign = 'center';
-  }
   ctx.font = style === 'clean' ? 'bold 11px ui-monospace,monospace' : "9px 'Press Start 2P',monospace";
   for (let k = floats.length - 1; k >= 0; k--) {
     const f = floats[k]; f.t -= 0.018 * fs; f.y -= 0.5 * fs;
@@ -596,13 +593,6 @@ function render(fs = 1){
   }
   ctx.globalAlpha = 1;
 
-  // combo meter
-  if (combo >= 10) {
-    comboPop *= Math.pow(.85, fs);
-    ctx.font = (style === 'clean' ? 'bold ' + (14 + comboPop * 6) + 'px ui-monospace,monospace' : (10 + comboPop * 5) + "px 'Press Start 2P',monospace");
-    ctx.fillStyle = combo >= 250 ? (V ? '#05ffa1' : '#ffd166') : combo >= 50 ? (V ? '#ff71ce' : '#ff9a5a') : '#fff';
-    ctx.globalAlpha = .85; ctx.fillText('×' + combo, W - 34, GY + 14); ctx.globalAlpha = 1;
-  }
   // big floats (milestones)
   // confetti
   if (conf.length) {
@@ -643,6 +633,7 @@ function render(fs = 1){
   setText(hudLvl, isDaily() ? 'DAILY' : 'SEED ' + seed);
   if (hudLives.shown !== lives) { hudLives.shown = lives; const top = Math.max(MAX_LIVES, lives); let pips = ''; for (let k = 0; k < top; k++) pips += k < lives ? '<i></i>' : '<i class="off"></i>'; hudLives.innerHTML = pips; hudLives.setAttribute('aria-label', lives + ' lives'); }
   setText(hudTmr, fmtTime(runTime));
+  setText(document.getElementById('hudStatus'), 'LIVES '+lives+' · '+fmtTime(runTime)+' · '+seed.toUpperCase()+' · '+(soloMode==='infinite'?'INFINITE':'CLASSIC'));
   const cleared = total ? Math.round(1000 * (1 - remaining / total)) / 1000 : 0;
   if (hudFill.shown !== cleared) { hudFill.shown = cleared; hudFill.style.transform = 'scaleX(' + cleared + ')'; }
 }
@@ -840,7 +831,8 @@ P('pbrag').onclick=()=>{
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));if(opened){for(const k in keys)keys[k]=false;P('hudMenu').querySelector('a,button')?.focus();}};
 function closeMenu(restoreFocus=false){const open=!P('hudMenu').hidden;P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');if(open&&restoreFocus===true)P('hudMenuToggle').focus();}
-P('hudMenu').addEventListener('click',closeMenu);
+P('soundToggle').onclick=()=>{soundOn=!soundOn;P('soundToggle').textContent='SOUND · '+(soundOn?'ON':'OFF');P('soundToggle').setAttribute('aria-pressed',String(soundOn));if(soundOn)audioInit();};
+P('hudMenu').addEventListener('click',e=>{if(e.target.id!=='soundToggle')closeMenu();});
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){if(!P('nameModal').hidden)closeNameModal();else closeMenu(true);}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
