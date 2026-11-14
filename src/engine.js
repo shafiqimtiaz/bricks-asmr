@@ -146,7 +146,7 @@ function brickEngine(rng=Math.random){
  }
 
  let S=null,ev=null;
- function destroyCell(i,owner){if(S.hp[i]>0){S.hp[i]=1;hitCell(i,owner);}}
+ function destroyCell(i,owner){if(S.hp[i]>0&&S.hp[i]!==4){S.hp[i]=1;hitCell(i,owner);}}
  function blast(c,r,rad,owner){for(let y=r-rad;y<=r+rad;y++)for(let x=c-rad;x<=c+rad;x++)if(x>=0&&x<S.COLS&&y>=0&&y<S.ROWS)destroyCell(y*S.COLS+x,owner);}
  // Clears every cell in the grid lines under the world band [lo,hi] ('x' = whole columns, 'y' = whole rows).
  function wipeBand(axis,lo,hi,owner){
@@ -158,12 +158,18 @@ function brickEngine(rng=Math.random){
   ev.push(axis==='row'?{t:'beam',y:rowY(S,k),h:S.CS*S.crush.ky,c:'#50c8ff'}:{t:'beam',x:colX(S,k),w:S.CS*S.crush.kx,c:'#50c8ff'});
  }
  function impact(i,owner){
+  if(S.hp[i]===4){
+   ev.push({t:'hit',i,r:(i/S.COLS)|0,c:i%S.COLS,owner});
+   return true;
+  }
   if(S.fx.bomb>0){blast(i%S.COLS,(i/S.COLS)|0,1,owner);return true;}
   if(S.fx.fire>0){destroyCell(i,owner);return false;}
   hitCell(i,owner);return true;
  }
  let inChain=false;
  function hitCell(i,owner){
+  if(S.hp[i]===4)return;
+  const reactor=S.pu[i]===12;
   S.hp[i]--;
   const c=i%S.COLS,r=(i/S.COLS)|0,p=player(S,owner);
   if(S.hp[i]===0){
@@ -175,15 +181,21 @@ function brickEngine(rng=Math.random){
     if(p.milestone<MILESTONES.length&&p.combo>=MILESTONES[p.milestone])ev.push({t:'milestone',owner,n:MILESTONES[p.milestone++]});
    }
    if(S.pu[i]){
-    const w=cellCentre(S,i),catcher=p&&active(S,p)?p:S.players.find(q=>active(S,q));
-    if(catcher)S.pups.push({x:w.x,y:w.y,k:S.pu[i],c,r,owner:catcher.id});
+    if(!reactor){
+     const w=cellCentre(S,i),catcher=p&&active(S,p)?p:S.players.find(q=>active(S,q));
+     if(catcher)S.pups.push({x:w.x,y:w.y,k:S.pu[i],c,r,owner:catcher.id});
+    }
     S.pu[i]=0;
    }
    if(S.luckyLeft>0&&S.balls.length<S.maxBalls){S.luckyLeft--;const w=cellCentre(S,i),nb={x:w.x,y:w.y,vx:0,vy:0,owner,source:owner};setVel(S,nb,(rng()-.5)*2.4);S.balls.push(nb);}
-   if(S.fx.chain>0&&!inChain&&S.col[i]){
-    inChain=true;const cc=S.col[i],q=[i],seen=new Set(q);let n=0;
-    while(q.length&&n<40){const j=q.shift(),jc=j%S.COLS;
-     for(const k of [jc>0?j-1:-1,jc<S.COLS-1?j+1:-1,j-S.COLS,j+S.COLS])if(k>=0&&k<S.N&&!seen.has(k)&&S.hp[k]>0&&S.col[k]===cc){seen.add(k);q.push(k);destroyCell(k,owner);n++;}}
+   if((reactor||S.fx.chain>0)&&!inChain&&S.col[i]){
+    inChain=true;const cc=S.col[i],q=[i],seen=new Set(q);let n=0,limit=reactor?24:40;
+    while(q.length&&n<limit){const j=q.shift(),jc=j%S.COLS;
+     for(const k of [jc>0?j-1:-1,jc<S.COLS-1?j+1:-1,j-S.COLS,j+S.COLS])
+      if(k>=0&&k<S.N&&!seen.has(k)&&S.hp[k]>0&&S.hp[k]!==4&&S.col[k]===cc){
+       seen.add(k);q.push(k);destroyCell(k,owner);n++;if(n>=limit)break;
+      }
+    }
     inChain=false;
    }
   }else{if(p)p.score+=3;ev.push({t:'hit',i,r,c,owner});}
