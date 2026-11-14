@@ -25,7 +25,7 @@ test("Shared generator reflows both Solo and 2–4-player boards deterministical
     assert.equal(board.colors.length, board.hp.length);
     assert.equal(board.powerups.length, board.hp.length);
     assert.ok(board.total > 0, "arena must have playable bricks");
-    assert.equal(board.total, board.hp.split("").filter(n => n !== "0").length);
+    assert.equal(board.total, board.hp.split("").filter(n => n !== "0" && n !== "4").length);
     assert.equal(board.hp, other.hp);
     assert.equal(board.colors, other.colors);
     assert.ok(board.centerX >= arena.gridX && board.centerX <= arena.width - arena.gridX);

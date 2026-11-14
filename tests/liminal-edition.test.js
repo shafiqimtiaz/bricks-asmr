@@ -13,8 +13,8 @@ const uuid="123e4567-e89b-12d3-a456-426614174000";
 test("Infinite preserves every cell of the complete V4 pattern at its original brick size",()=>{
  for(const [players,arena] of [[1,arenaLayout()],[2,arenaLayout()],[3,squareArena()],[4,squareArena()]]){
   for(let i=0;i<100;i++){
-   const seed="lim"+i,full=bricks(seed,players,arena,4);
-   const opening=infiniteOpeningBoard(seed,arena,4,players);
+   const seed="lim"+i,full=bricks(seed,players,arena);
+   const opening=infiniteOpeningBoard(seed,arena,players);
    assert.deepEqual(opening,full,"Infinite must not crop, shift, or regenerate the level");
    assert.equal(opening.hp.length,arena.cols*arena.rows);
    assert.equal(opening.total,[...opening.hp].filter(x=>x!=="0"&&x!=="4").length);
@@ -30,7 +30,7 @@ test("Infinite preserves every cell of the complete V4 pattern at its original b
 });
 
 test("Infinite still descends on the timer while a held ball waits",()=>{
- const arena=arenaLayout(),board=infiniteOpeningBoard("held",arena,4,1);
+ const arena=arenaLayout(),board=infiniteOpeningBoard("held",arena,1);
  const E=brickEngine(()=>.5),S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",infinite:true,lives:5});
  assert.deepEqual(S.descent,{t:0,rows:0,interval:8});
  for(let k=0;k<483;k++)E.step(S,1/60);
@@ -65,8 +65,8 @@ test("Best Time and Best Score use separate world-ranked tables",async()=>{
   assert.equal(response.status,200);
   const data=await response.json();assert.deepEqual(data.entries,[]);
  }
- assert.ok(sqls.some(s=>s.includes("FROM leaderboard_times ORDER BY best_ms ASC")));
- assert.ok(sqls.some(s=>s.includes("FROM leaderboard_scores ORDER BY best_score DESC")));
+ assert.ok(sqls.some(s=>s.includes("FROM leaderboard_times WHERE board_key GLOB best_ms ASC")));
+ assert.ok(sqls.some(s=>s.includes("FROM leaderboard_scores WHERE board_key GLOB best_score DESC")));
 });
 
 test("score saving records bricks and combo separately without a time",async()=>{
@@ -87,7 +87,7 @@ test("score saving records bricks and combo separately without a time",async()=>
 });
 
 test("score ranking counts only brick breaks and combos, not paddle returns",()=>{
- const arena=arenaLayout(),board=bricks("brick-score",1,arena,4),E=brickEngine(()=>.5);
+ const arena=arenaLayout(),board=bricks("brick-score",1,arena),E=brickEngine(()=>.5);
  const S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",lives:5});
  const me=S.players[0];
  const i=S.hp.findIndex(v=>v===1);
@@ -104,7 +104,7 @@ test("score ranking counts only brick breaks and combos, not paddle returns",()=
 });
 
 test("persisted rounds without new score counters recover on the next brick break",()=>{
- const arena=arenaLayout(),board=bricks("legacy-room",1,arena,4),E=brickEngine(()=>.5);
+ const arena=arenaLayout(),board=bricks("legacy-room",1,arena),E=brickEngine(()=>.5);
  const S=E.create({arena,board,players:[{id:"me",seat:0}],mode:"solo",lives:5});
  const player=S.players[0];
  delete player.brickScore;delete player.bricksBroken;

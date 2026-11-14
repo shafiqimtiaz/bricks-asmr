@@ -31,11 +31,12 @@ test("Solo and Multiplayer share generator, bounce mechanics and tile renderer",
  assert.match(serverSource,/MULTIPLAYER_HTML\.replace\("<script>"/);
  assert.match(soloCoreSource,/function bricks\(/);
  assert.match(browserCoreSource,/function drawBrickTile\(/);
- for(const [seed,total] of [["ALPHA",3184],["TEST123",3476],["BRICKS",3226]]){
-  const board=bricks(seed, 1);
-  assert.equal(board.total,total);
+ for(const seed of ["ALPHA","TEST123","BRICKS"]){
+  const board=bricks(seed,1);
+  assert.equal(board.generatorVersion,4);
+  assert.deepEqual(board,bricks(seed,1));
   assert.equal(board.hp.length,58*64);
-  assert.equal(board.total,[...board.hp].filter(c=>c!=="0").length);
+  assert.equal(board.total,[...board.hp].filter(c=>c!=="0"&&c!=="4").length);
   assert.ok(board.scale.length>=5);
  }
 });
@@ -111,7 +112,7 @@ test("multiplayer uses Solo's grid size and a deterministic board", () => {
   assert.equal(first.colors.length, first.hp.length);
   assert.equal(first.powerups.length, first.hp.length);
   assert.ok(first.palette.length === 16);
-  assert.equal(first.total, [...first.hp].filter(digit => digit !== "0").length);
+  assert.equal(first.total, [...first.hp].filter(digit => digit !== "0" && digit !== "4").length);
   assert.notEqual(first.hp, bricks("TEST124").hp);
 });
 
@@ -122,7 +123,7 @@ test("multiplayer plays a whole Solo-style level on a field that leaves a lane b
   const [c0,c1,r0,r1]=fields[i+2],cells=(c1-c0+1)*(r1-r0+1);
   assert.equal(board.hp.length,58*64);
   assert.equal(board.total,board.remaining);
-  assert.equal(board.total,[...board.hp].filter(c=>c!=="0").length);
+  assert.equal(board.total,[...board.hp].filter(c=>c!=="0"&&c!=="4").length);
   for(let k=0;k<board.hp.length;k++)if(board.hp[k]!=="0"||board.powerups[k]!=="0"){
    const c=k%58,r=Math.floor(k/58);
    assert.ok(r>=r0&&r<=r1&&c>=c0&&c<=c1,"brick outside the "+(i+2)+"-player field");

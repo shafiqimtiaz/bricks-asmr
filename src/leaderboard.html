@@ -130,8 +130,9 @@ P('play').href=game.pathname+game.search+game.hash;
 let playerId='',localBest={};
 try{playerId=localStorage.getItem('brick-asmr-player-id')||'';localBest=JSON.parse(localStorage.getItem('brick-asmr-best')||'{}')||{};}catch{}
 const fmt=ms=>{const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2)};
-const best=Math.min(Infinity,...Object.values(localBest).filter(Number.isFinite));
-const scoreBest=Math.max(0,...Object.values(localScore).filter(Number.isFinite));
+const isV4Key=key=>/^[a-z0-9]{1,16}-v4-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key);
+const best=Math.min(Infinity,...Object.entries(localBest).filter(([key,value])=>isV4Key(key)&&Number.isFinite(value)).map(([,value])=>value));
+const scoreBest=Math.max(0,...Object.entries(localScore).filter(([key,value])=>isV4Key(key)&&Number.isFinite(value)).map(([,value])=>value));
 const metricValue=r=>metric==='score'?Number(r.score||0).toLocaleString():fmt(r.timeMs);
 function updateMetricLabels(){
  P('bestTime').setAttribute('aria-pressed',String(metric==='time'));
@@ -144,10 +145,10 @@ function updateMetricLabels(){
 updateMetricLabels();
 const cell=(cls,text)=>{const n=document.createElement('div');n.className=cls;n.textContent=text;return n};
 function boardLabel(key){
- const m=/^([a-z0-9]+?)(?:-\d+)?(-v[234])?-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
+ const m=/^([a-z0-9]+?)(?:-\d+)?-v4-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/.exec(key||'');
  if(!m)return 'BOARD '+String(key||'').replace(/-(?:clean|vintage|vapor)(?:-a\d{3,4})?$/,'').toUpperCase();
  const label=m[1].startsWith('d20')?'DAILY '+m[1].slice(5):'SEED '+m[1].toUpperCase();
- return label+(m[2]?' · '+m[2].slice(1).toUpperCase():'');
+ return label;
 }
 function empty(title){
  const shell=cell('empty','');

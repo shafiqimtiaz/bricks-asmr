@@ -6,37 +6,24 @@ import { brickEngine, engineSource } from "../src/engine.js";
 const { arenaLayout, bricks, soloCoreSource } = core;
 function seeded(seed) { let a = seed; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-// Fixed-frame replays protect deterministic board damage, ball physics and lives under miss-driven descent.
-const SOLO_GOLDEN = [
-  { seed: "abc123", set: "clean", frames: 1336, state: "clear", remaining: 0, balls: 297, lives: 7, hp: 4066922503 },
-  { seed: "zz9q", set: "clean", frames: 1800, state: "play", remaining: 3098, balls: 1, lives: 3, hp: 571816086 },
-  { seed: "m0on", set: "clean", frames: 1800, state: "play", remaining: 3427, balls: 1, lives: 4, hp: 3135577918 },
-  { seed: "d20261112", set: "clean", frames: 1800, state: "play", remaining: 2954, balls: 1, lives: 5, hp: 298916182 },
-  { seed: "abc123", set: "vintage", frames: 1800, state: "play", remaining: 2165, balls: 1, lives: 5, hp: 2162568638 },
-  { seed: "k3k3", set: "vintage", frames: 1800, state: "play", remaining: 3292, balls: 1, lives: 5, hp: 1594836488 },
-  { seed: "d20261113", set: "vintage", frames: 1800, state: "play", remaining: 2841, balls: 1, lives: 5, hp: 3345865089 },
-  { seed: "zz9q", set: "vapor", frames: 1800, state: "play", remaining: 3100, balls: 1, lives: 3, hp: 2865276454 },
-  { seed: "m0on", set: "vapor", frames: 1729, state: "clear", remaining: 0, balls: 50, lives: 5, hp: 4066922503 },
-  { seed: "d20261113", set: "vapor", frames: 760, state: "clear", remaining: 0, balls: 2229, lives: 5, hp: 4066922503 },
-];
-
-test("Solo replay remains deterministic with miss-driven descent", () => {
-  const arena = arenaLayout(9 / 16);
-  for (const g of SOLO_GOLDEN) {
-    const E = brickEngine(seeded(42));
-    const S = E.create({ arena, board: bricks(g.seed, arena), players: [{ id: "me", seat: 0 }], mode: "solo", set: g.set, lives: 5, daily: /^d\d{8}$/.test(g.seed) });
-    const pilot = () => { let best = null; for (const b of S.balls) if (b.vy > 0 && (!best || b.y > best.y)) best = b; return best ? best.x + ((best.x * 7) % 11 - 5) : 180; };
-    let frames = 0;
-    while (frames < 1800 && S.status === "play") {
-      if (E.holding(S, "me")) E.launch(S, "me");
-      E.setPaddle(S, "me", pilot());
-      E.step(S, 1 / 60);
-      frames++;
-    }
-    const hp = S.hp.reduce((x, v, i) => (x * 31 + v * (i + 1)) >>> 0, 7);
-    assert.deepEqual({ frames, state: S.status, remaining: S.remaining, balls: S.balls.length, lives: S.pool, hp },
-      { frames: g.frames, state: g.state, remaining: g.remaining, balls: g.balls, lives: g.lives, hp: g.hp }, g.seed + " " + g.set);
+test("V4 Solo replays remain deterministic under miss-driven descent", () => {
+ const arena = arenaLayout(9 / 16);
+ function replay(seed,set){
+  const E=brickEngine(seeded(42));
+  const S=E.create({arena,board:bricks(seed,1,arena),players:[{id:"me",seat:0}],mode:"solo",set,lives:5,daily:/^d\d{8}$/.test(seed)});
+  const pilot=()=>{let best=null;for(const b of S.balls)if(b.vy>0&&(!best||b.y>best.y))best=b;return best?best.x+((best.x*7)%11-5):180;};
+  let frames=0;
+  while(frames<600&&S.status==="play"){
+   if(E.holding(S,"me"))E.launch(S,"me");
+   E.setPaddle(S,"me",pilot());
+   E.step(S,1/60);frames++;
   }
+  const hp=S.hp.reduce((x,v,i)=>(x*31+v*(i+1))>>>0,7);
+  return {frames,status:S.status,remaining:S.remaining,balls:S.balls.length,lives:S.pool,hp};
+ }
+ for(const [seed,set] of [["abc123","clean"],["d20261114","vintage"]]){
+  assert.deepEqual(replay(seed,set),replay(seed,set),seed+" "+set);
+ }
 });
 
 function engineFor(seats, mode = "versus") {

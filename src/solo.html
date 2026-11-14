@@ -236,16 +236,15 @@ let BR = CS * .45, PU_R = CS * 1.5;
 const hm = /^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash || '');
 const randomSeed = () => Math.random().toString(36).slice(2, 8);
 let seed = hm ? hm[1].toLowerCase() : randomSeed();
-let generatorVersion = [2,3,4].includes(Number(new URLSearchParams(location.search).get('v'))) ? Number(new URLSearchParams(location.search).get('v')) : hm ? 1 : 4;
 function syncURL(){try{
  const url=new URL(location.href);
- if(generatorVersion>1)url.searchParams.set('v',String(generatorVersion));else url.searchParams.delete('v');
+ url.searchParams.delete('v');
  url.hash=seed;history.replaceState(null,'',url.pathname+url.search+url.hash);
 }catch(e){}}
 window.addEventListener('hashchange',()=>{
  const m=/^#([a-z0-9]+)(?:-\d+)?$/i.exec(location.hash||'');
  if(m&&m[1].toLowerCase()!==seed){
-  seed=m[1].toLowerCase();generatorVersion=[2,3,4].includes(Number(new URLSearchParams(location.search).get('v')))?Number(new URLSearchParams(location.search).get('v')):1;startBoard();
+  seed=m[1].toLowerCase();startBoard();
  }
 });
 
@@ -337,12 +336,12 @@ let quad = false, hp, col, pu, remaining, total, palette, wallCols, vPal, vWall,
 const E = brickEngine();
 const PU_BY_ID = E.PU_BY_ID;
 function puDef(k){ return E.puDef(style, k); }
-const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','organic','spiral','needle','prison','domino','serpent','jackpot','twins','needle','prison','domino','serpent','jackpot','twins'];
+const ARCH_NAMES = ['nested','rings','chambers','lattice','bands','mosaic','organic','spiral'];
 let N = COLS * ROWS;
 
 let board;
 function genBoard(){
- board=soloMode==='infinite'?infiniteOpeningBoard(seed,arena,generatorVersion):bricks(seed,1,arena,generatorVersion);
+ board=soloMode==='infinite'?infiniteOpeningBoard(seed,arena):bricks(seed,1,arena);
  hp=Uint8Array.from(board.hp,c=>c.charCodeAt(0)-48);
  col=Uint8Array.from(board.colors,c=>parseInt(c,16));
  pu=Uint8Array.from(board.powerups,c=>parseInt(c,16));
@@ -411,7 +410,7 @@ function sync(){
   brickMusic.setDepth(S.descent?.rows || 0);
   state = S.status !== 'play' ? S.status : E.holding(S, 'me') ? 'aim' : 'play';
 }
-const newBoard = () => { generatorVersion=4;seed = randomSeed(); startBoard(); };
+const newBoard = () => { seed = randomSeed(); startBoard(); };
 function startBoard(){
   brickMusic.reset(seed);
   syncArena();
@@ -710,7 +709,7 @@ setInterval(() => { const d = (fx.invert > 0 ? -14 : 14) * W / 360; if (keys.arr
 const toast = document.getElementById('toast');
 function showToast(s, ms){ toast.textContent = s; toast.style.opacity = 1; clearTimeout(showToast.t); showToast.t = setTimeout(() => { toast.style.opacity = 0; toast.style.pointerEvents = 'none'; toast.style.userSelect = 'none'; }, ms || 2500); }
 const SHARE_BASE = location.origin + location.pathname;
-const shareURL = () => SHARE_BASE + '?arena=' + W + (generatorVersion>1?'&v='+generatorVersion:'') + '#' + seed;
+const shareURL = () => SHARE_BASE + '?arena=' + W + '#' + seed;
 async function copyText(t, ok){
   try { await navigator.clipboard.writeText(t); showToast(ok); }
   catch(e) { showToast(t, 8000); toast.style.pointerEvents = 'auto'; toast.style.userSelect = 'text'; }
@@ -718,14 +717,14 @@ async function copyText(t, ok){
 document.getElementById('share').onclick = () => { syncURL(); copyText(shareURL(), 'board link copied'); };
 document.getElementById('daily').onclick = () => {
   const d = new Date(), ymd = d.toISOString().slice(0,10).replace(/-/g,'');
-  seed = 'd' + ymd; generatorVersion=4;startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
+  seed = 'd' + ymd; startBoard(); showToast('daily challenge · ' + d.toDateString().slice(4, 10));
 };
 document.getElementById('newb').onclick = () => { newBoard(); showToast('new seed ' + seed); };
 document.getElementById('soloMode').onclick = () => { setSoloMode(soloMode === 'infinite' ? 'solo' : 'infinite'); newBoard(); showToast(soloMode === 'infinite' ? 'INFINITE' : 'CLASSIC'); };
 
 
 function fmtTime(ms){const m=Math.floor(ms/60000),s=(ms-m*60000)/1000;return m+':'+(s<10?'0':'')+s.toFixed(2);}
-const boardId=()=>seed+(generatorVersion>1?'-v'+generatorVersion:'')+'-'+style+(W===360?'':'-a'+W);
+const boardId=()=>seed+'-v4-'+style+(W===360?'':'-a'+W);
 const P=id=>document.getElementById(id);
 let panelMode=null,lastTime=0,lastNote='',boardRows=[],boardKey='',boardStatus='loading',boardSeq=0,localBest={},localHighScores={},myId='',myName='',lastRows=0,lastScore=0,lastBricks=0,lastCombo=0,lastScoreNote='',lastEndReason='';
 try{
@@ -838,9 +837,9 @@ P('nameForm').addEventListener('submit',async e=>{
  if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){P('nameError').textContent='Use 2–24 letters, numbers, spaces, _ . or -';return;}
  myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
  closeNameModal();setLinks();showToast('Leaderboard name saved');
- const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}(?:-v[234])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
+ const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}-v4-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
  if(saved){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:saved[0],playerId:myId,name:myName,timeMs:saved[1]})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world rankings unavailable');}}
- const savedScore=Object.entries(localHighScores).find(([key,score])=>/^[a-z0-9]{1,16}(?:-v[234])?-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(score)&&score>0);
+ const savedScore=Object.entries(localHighScores).find(([key,score])=>/^[a-z0-9]{1,16}-v4-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(score)&&score>0);
  if(savedScore){try{
   const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
    metric:'score',key:savedScore[0],playerId:myId,name:myName,score:savedScore[1],

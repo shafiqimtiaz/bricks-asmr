@@ -25,7 +25,7 @@ test("player renaming uses an in-game modal rather than a browser prompt", () =>
 
 test("the global leaderboard returns every saved score across board keys and pages results", async () => {
   const entries = Array.from({ length: 51 }, (_, i) => ({
-    boardKey: "seed" + i + (i % 2 ? "-clean" : "-vintage"),
+    boardKey: "seed" + i + (i % 2 ? "-v4-clean" : "-v4-vintage"),
     playerId: "player" + i,
     name: "Player " + i,
     timeMs: 10000 + i
@@ -57,7 +57,7 @@ test("the global leaderboard returns every saved score across board keys and pag
     assert.equal(body.totalPlayers, 51);
     assert.equal(body.hasMore, more);
   }
-  assert.ok(queries.every(sql => /FROM leaderboard_times ORDER BY best_ms ASC/.test(sql)));
+  assert.ok(queries.every(sql => /FROM leaderboard_times WHERE board_key GLOB best_ms ASC/.test(sql)));
   assert.ok(queries.every(sql => !/WHERE board_key=/.test(sql)));
 });
 
@@ -76,7 +76,7 @@ test("saving a clear persists the score and updates that player's display name",
   const response = await api(new Request(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ key: "abc123-vintage", playerId: "123e4567-e89b-12d3-a456-426614174000", name: "New Name", timeMs: 12000 })
+    body: JSON.stringify({ key: "abc123-v4-vintage", playerId: "123e4567-e89b-12d3-a456-426614174000", name: "New Name", timeMs: 12000 })
   }), { DB: db }, url);
   assert.equal(response.status, 201);
   assert.equal(calls.length, 2);

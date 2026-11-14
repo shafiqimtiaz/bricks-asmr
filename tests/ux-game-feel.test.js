@@ -18,11 +18,11 @@ test("global scores preserve historical IDs but hide their style suffix",()=>{
  const source=leaderboard.match(/function boardLabel\(key\)\{[\s\S]*?\n\}/)?.[0];
  assert.ok(source,"board label function exists");
  const format=new Function(source+"\nreturn boardLabel;")();
- assert.equal(format("abc123-vintage"),"SEED ABC123");
- assert.equal(format("abc123-clean-a1280"),"SEED ABC123");
- assert.equal(format("abc123-vapor-a360"),"SEED ABC123");
- assert.equal(format("d20261114-vintage"),"DAILY 1114");
- assert.doesNotMatch(format("abc123-vintage"),/vintage|CRT/i);
+ assert.equal(format("abc123-v4-vintage"),"SEED ABC123");
+ assert.equal(format("abc123-v4-clean-a1280"),"SEED ABC123");
+ assert.equal(format("abc123-v4-vapor-a360"),"SEED ABC123");
+ assert.equal(format("d20261114-v4-vintage"),"DAILY 1114");
+ assert.doesNotMatch(format("abc123-v4-vintage"),/vintage|CRT/i);
 });
 
 test("keyboard menus acquire and restore focus without moving the game",()=>{

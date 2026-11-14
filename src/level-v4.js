@@ -1,5 +1,4 @@
 // Seeded symmetric refinements to the original eight geometric families.
-// V1, V2 and V3 remain unchanged for historical shared boards.
 export function buildLevelV4(base, seed, players, arena, hashSeed, randomSeed) {
  const cols=arena.cols, rows=arena.rows, size=cols*rows;
  const hp=Uint8Array.from(base.hp,Number);

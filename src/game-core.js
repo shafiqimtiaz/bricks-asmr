@@ -1,6 +1,4 @@
 import { createBrickMusic } from "./brick-music.js";
-import { buildLevelV2 } from "./level-v2.js";
-import { buildLevelV3 } from "./level-v3.js";
 import { buildLevelV4 } from "./level-v4.js";
 function hash(value){let h=1779033703^value.length;for(let i=0;i<value.length;i++){h=Math.imul(h^value.charCodeAt(i),3432918353);h=h<<13|h>>>19;}h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^h>>>16)>>>0;}
 function random(seed){let a=seed;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -14,7 +12,7 @@ function arenaLayout(aspect=9/16){
 }
 // Rooms of three or four play on a square court: the paddle lines are 488 apart both ways, so every seat's view is the same.
 function squareArena(){return {width:516,height:640,cell:8,cols:62,rows:62,gridX:10,gridY:44,square:true};}
-function bricks(seed,playerCount=2,arena=arenaLayout(),version=1){
+function bricks(seed,playerCount=2,arena=arenaLayout()){
  const GRID_COLS=arena.cols,GRID_ROWS=arena.rows,GRID_SIZE=arena.cell,GRID_Y=arena.gridY,GRID_X=arena.gridX;
  // Multiplayer runs Solo's board generator on a smaller field that leaves a lane in front of every paddle.
  const crowd=playerCount>=4?[13,28,54]:playerCount===3?[11,26,56]:playerCount===2?[7,24,58]:[0,0,63];
@@ -227,7 +225,7 @@ function genLevel(){
   centerY:GRID_Y+(minR+maxR+1)*GRID_SIZE/2,
   total,remaining,arena
  };
- return version===4?buildLevelV4(legacy,seed,playerCount,arena,hash,random):version===3?buildLevelV3(legacy,seed,playerCount,arena,hash,random):version===2?buildLevelV2(legacy,seed,playerCount,arena,hash,random):legacy;
+ return buildLevelV4(legacy,seed,playerCount,arena,hash,random);
 }
 
 // One ball speed for Solo and Multiplayer; wider arenas are a little faster so crossing them takes similar time.
@@ -360,8 +358,8 @@ function createASMR(host){
 
 // Infinite uses the same complete procedural level as Classic.
 // Its timed descent is handled by the engine, never by cropping the board.
-function infiniteOpeningBoard(seed,arena,version=4,players=1){
- return bricks(seed,players,arena,version);
+function infiniteOpeningBoard(seed,arena,players=1){
+ return bricks(seed,players,arena);
 }
 
 // A client's camera: the same world rotated about the court centre so that the given seat is at the bottom.
@@ -397,4 +395,4 @@ function stageFit(vw,vh,stageW,stageH,panelOpen,hudHeight=0){
 export {arenaLayout,squareArena,hash,random,bricks,infiniteOpeningBoard,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity};
 const browserCorePrelude="const __name=(target)=>target;\n";
 export const browserCoreSource=browserCorePrelude+[arenaLayout,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,boardView,viewMatrix,viewPoint,sliderPos,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
-export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV2,buildLevelV3,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
+export const soloCoreSource=browserCorePrelude+[arenaLayout,hash,random,bricks,infiniteOpeningBoard,buildLevelV4,normalizeBallVelocity,drawBrickTile,aimDragAngle,drawAimGuide,soloBrickNote,createASMR,createBrickMusic,stageFit,ballSpeed,aimVelocity].map(fn=>fn.toString()).join("\n");
