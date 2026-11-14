@@ -205,7 +205,7 @@ body{--hud-life:#ff7a6b}
   <div id="toast"></div>
   <div id="panel" hidden="">
     <div id="ptitle"></div>
-    <div class="tabs"><button id="ptabB" class="on">board</button><button id="ptabM">my scores</button></div>
+    
     <div id="lbidentity"><button id="pname" type="button">Player</button><a id="pfull" target="_blank" rel="noopener" href="/leaderboard">World ↗</a></div><div id="ptime"></div>
     <div id="pnote"></div>
     <ol id="plist"></ol>
@@ -754,14 +754,14 @@ try{
 }catch(e){myId=crypto.randomUUID();}
 if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(myName))myName='Brick-'+myId.slice(0,6).toUpperCase();
 function myBest(key){return Number.isFinite(localBest[key])?localBest[key]:undefined;}
-function setLinks(){P('pfull').href='/leaderboard?seed='+encodeURIComponent(seed)+'&arena='+W;P('pname').textContent='Player: '+myName+' ✎';}
+function setLinks(){P('pfull').href='/leaderboard';P('pname').textContent='Player: '+myName+' ✎';}
 async function loadBoard(){
- const key=boardId(),seq=++boardSeq;boardKey=key;boardStatus='loading';boardRows=[];renderPanel();
+ const seq=++boardSeq;boardKey=boardId();boardStatus='loading';boardRows=[];renderPanel();
  try{
-  const res=await fetch('/api/leaderboard?key='+encodeURIComponent(key),{cache:'no-store'});
+  const res=await fetch('/api/leaderboard?scope=world&offset=0',{cache:'no-store'});
   if(!res.ok)throw Error('Failed');
   const body=await res.json();
-  if(seq!==boardSeq||key!==boardId())return;
+  if(seq!==boardSeq)return;
   boardRows=body.entries||[];boardStatus='ready';
  }catch(e){if(seq===boardSeq)boardStatus='error';}
  if(seq===boardSeq)renderPanel();
@@ -784,40 +784,23 @@ function hidePanel(){panelMode=null;P('panel').hidden=true;}
 function emptyBoard(note){const li=document.createElement('li');li.className='empty';li.textContent=note;P('plist').append(li);}
 function renderPanel(){
  if(!panelMode)return;
- const key=boardId(),mine=myBest(key);
- P('ptitle').textContent=(panelMode==='clear'?'CLEARED · ':'')+(isDaily()?'DAILY '+seed.slice(5,7)+'/'+seed.slice(7):'SEED '+seed)+' · '+SNAME[style];
+ const mine=myBest(boardId());
+ P('ptitle').textContent=(panelMode==='clear'?'CLEARED · ':'')+(isDaily()?'DAILY '+seed.slice(5,7)+'/'+seed.slice(7):'SEED '+seed)+' · CRT';
  P('ptime').textContent=panelMode==='clear'?fmtTime(lastTime):(mine!==undefined?fmtTime(mine):'--:--');
- P('pnote').textContent=(panelMode==='clear'?lastNote:(mine!==undefined?'your best time':'clear this board to set a record'))+(boardStatus==='error'?' · global board offline':'');
+ P('pnote').textContent=(panelMode==='clear'?lastNote:(mine!==undefined?'your best time':'clear a board to set a record'))+(boardStatus==='error'?' · global rankings offline':'');
  P('pnext').hidden=panelMode!=='clear';P('pclose').hidden=panelMode==='clear';
- P('pbrag').hidden=panelMode!=='clear';
- P('ptabB').classList.toggle('on',panelTab==='board');P('ptabM').classList.toggle('on',panelTab==='mine');setLinks();
+ P('pbrag').hidden=panelMode!=='clear';setLinks();
  const ol=P('plist');ol.replaceChildren();
- if(panelTab==='mine'){
-  const suffix=W===360?'':'-a'+W,own=k=>suffix?k.endsWith(suffix)?k.slice(0,-suffix.length):'':k;
-  const entries=Object.entries(localBest).filter(([k,v])=>/^[a-z0-9]+-vintage$/.test(own(k))&&Number.isFinite(v)).reverse().slice(0,75);
-  if(!entries.length){emptyBoard('Clear a board to see your times here');return;}
-  for(const [k,time] of entries){
-   const m=/^([a-z0-9]+)-(vintage)$/.exec(own(k)),li=document.createElement('li');li.className='go'+(k===key?' me':'');
-   const name=document.createElement('span');name.className='nm';name.textContent=(m[1].startsWith('d20')?'Daily '+m[1].slice(5):m[1])+' · '+SNAME[m[2]];
-   const t=document.createElement('span');t.textContent=fmtTime(time);li.append(name,t);ol.append(li);
-   li.onclick=()=>{seed=m[1];startBoard();};
-  }
-  return;
- }
- if(boardStatus!=='ready'){emptyBoard(boardStatus==='loading'?'Loading global times…':'Leaderboard unavailable · tap BOARD to retry');return;}
- if(!boardRows.length){emptyBoard('No world records for this board yet · be first!');return;}
- const rows=boardRows.slice(0,10),index=boardRows.findIndex(x=>x.playerId===myId);
- if(index>=10)rows.push(boardRows[index]);
- for(const row of rows){
-  const rank=boardRows.indexOf(row)+1,li=document.createElement('li');if(row.playerId===myId)li.className='me';
-  const a=document.createElement('span');a.className='rk';a.textContent='#'+rank;
+ if(boardStatus!=='ready'){emptyBoard(boardStatus==='loading'?'Loading world scores…':'World leaderboard unavailable');return;}
+ if(!boardRows.length){emptyBoard('No world records yet · be first!');return;}
+ for(const [index,row] of boardRows.slice(0,10).entries()){
+  const li=document.createElement('li');if(row.playerId===myId)li.className='me';
+  const a=document.createElement('span');a.className='rk';a.textContent='#'+(index+1);
   const b=document.createElement('span');b.className='nm';b.textContent=row.playerId===myId?'you':row.name;
   const c=document.createElement('span');c.textContent=fmtTime(row.timeMs);
   li.append(a,b,c);ol.append(li);
  }
 }
-P('ptabB').onclick=()=>{panelTab='board';loadBoard();};
-P('ptabM').onclick=()=>{panelTab='mine';renderPanel();};
 P('pname').onclick=()=>{
  P('nameInput').value=myName;P('nameError').textContent='';P('nameModal').hidden=false;P('nameInput').focus();
 };
@@ -830,14 +813,14 @@ P('nameForm').addEventListener('submit',async e=>{
  if(!/^[\p{L}\p{N} _.-]{2,24}$/u.test(name)){P('nameError').textContent='Use 2–24 letters, numbers, spaces, _ . or -';return;}
  myName=name;try{localStorage.setItem('brick-asmr-player-name',name)}catch(e){}
  closeNameModal();setLinks();showToast('Leaderboard name saved');
- const best=myBest(boardId());
- if(best!==undefined){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:boardId(),playerId:myId,name:myName,timeMs:best})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world board unavailable');}}
+ const saved=Object.entries(localBest).find(([key,time])=>/^[a-z0-9]{1,16}-(clean|vintage|vapor)(?:-a\d{3,4})?$/.test(key)&&Number.isSafeInteger(time)&&time>0);
+ if(saved){try{const res=await fetch('/api/leaderboard',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:saved[0],playerId:myId,name:myName,timeMs:saved[1]})});if(!res.ok)throw Error('Not saved');await loadBoard();}catch(e){showToast('Name saved locally; world rankings unavailable');}}
 });
 P('pnext').onclick=()=>newBoard();
 P('pretry').onclick=()=>startBoard();
 P('pclose').onclick=()=>hidePanel();
 P('pbrag').onclick=()=>{
- const i=boardKey===boardId()?boardRows.findIndex(x=>x.playerId===myId):-1;
+ const i=boardKey===boardId()?boardRows.findIndex(x=>x.boardKey===boardId()&&x.playerId===myId):-1;
  const t='BRICKS ASMR · '+(isDaily()?'Daily '+seed.slice(1):'Seed '+seed)+' · '+SNAME[style]+'\nTime: '+fmtTime(lastTime)+(i>=0?' · World #'+(i+1):'')+'\nBeat me: '+shareURL();
  copyText(t,'Result copied');
 };
