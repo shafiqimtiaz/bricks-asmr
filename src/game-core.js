@@ -360,7 +360,7 @@ function createASMR(host){
 // incoming rows to advance. Multiplayer retains its symmetric shared formation.
 function infiniteOpeningBoard(seed,arena,players=1){
  if(players!==1)return bricks(seed,players,arena);
- const openingRows=Math.max(24,Math.floor(arena.rows*.48));
+ const openingRows=Math.min(arena.rows-4,Math.max(12,Math.floor(arena.rows*.48)));
  const original=bricks(seed,1,{...arena,rows:openingRows});
  const size=arena.cols*arena.rows,pad=value=>value.padEnd(size,"0");
  const first=original.hp.search(/[1-4]/),offset=first<0?0:Math.floor(first/arena.cols)*arena.cols;
