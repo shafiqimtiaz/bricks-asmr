@@ -39,7 +39,7 @@ function startRound(r){
  r.mode=MODES.includes(r.mode)?r.mode:"versus";r.set="vintage";
  r.startedAt=Date.now()+COUNTDOWN*1000;r.finishedAt=0;r.result=null;
  r.arena=arenaFor(r.players.length,r.arena);
- r.board=bricks(r.seed,r.players.length,r.arena,2);r.generatorVersion=2;
+ r.board=bricks(r.seed,r.players.length,r.arena,3);r.generatorVersion=3;
  for(const p of r.players){p.pos=.5;p.lastSeq=-1;p.lastInputAt=0;p.offlineAt=p.online===false?Date.now():0;}
  // Coop shares one pool of lives (3 per player); Versus gives everyone 6.
  const coop=r.mode==="coop",lives=coop?3*r.players.length:6,host=r.players.find(p=>p.id===r.hostId&&p.online!==false)||r.players.find(p=>p.online!==false);
