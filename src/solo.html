@@ -97,51 +97,28 @@ body{--l-accent:#b8eadb;--l-border:#759f9d;--l-surface:#11191c;--l-ink:#f1f4f5}
 #hud #hudMenu{position:absolute;right:calc(var(--u)*2);top:calc(100% + var(--u)*1);z-index:10;display:flex;flex-direction:column;min-width:calc(var(--u)*47);padding:calc(var(--u)*1.5);border:1px solid var(--l-border);border-radius:7px;background:var(--lb-panel);box-shadow:0 12px 28px #0009;pointer-events:auto}
 #hud #hudMenu a,#hud #hudMenu button{display:block;width:100%;box-sizing:border-box;margin:0;padding:calc(var(--u)*2.3);min-height:0;background:transparent!important;border:0!important;border-radius:4px;text-align:left;text-decoration:none;color:var(--l-ink);font:inherit;line-height:1.5}
 #hud #hudMenu a:hover,#hud #hudMenu button:hover{background:#ffffff12!important;color:var(--l-accent)}
-#homeLobby[hidden],#hudMenu[hidden]{display:none!important}
-#homeLobby{position:absolute;z-index:4;left:6%;right:6%;top:13%;max-height:78%;display:flex;flex-direction:column;gap:calc(var(--u)*3);padding:calc(var(--u)*4) calc(var(--u)*3.5);box-sizing:border-box;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;border:1px solid var(--l-border);border-radius:8px;background:var(--lb-panel);color:var(--l-ink);text-align:center;font-size:calc(var(--u)*2.5);line-height:1.6;box-shadow:0 8px 30px #0009}
-#homeLobby::before{content:"";height:3px;display:block;margin:calc(var(--u)*-4) calc(var(--u)*-3.5) 0;background:repeating-linear-gradient(90deg,var(--l-border) 0 8px,#1b2830 8px 12px,#27343a 12px 19px,#13191d 19px 24px)}
-#homeLobby h1,#homeLobby h2,#homeLobby p{margin:0}
-#homeLobby .brickMark{display:flex;justify-content:center;gap:calc(var(--u)*1);margin-bottom:calc(var(--u)*2.7)}
-#homeLobby .brickMark span{display:block;width:calc(var(--u)*8);height:calc(var(--u)*2.2);border:1px solid var(--l-border);background:var(--l-accent);border-radius:2px;opacity:.75}
-#homeLobby .brickMark span:nth-child(even){background:var(--l-border);opacity:.4}
-#homeLobby .lobbyHero h1{font-size:2em;line-height:1.3;letter-spacing:.015em;color:var(--l-ink);white-space:nowrap;text-shadow:0 0 18px #ffffff20}
-#homeLobby .byline{font:italic calc(var(--u)*3.4)/1.4 ui-monospace,monospace;color:var(--l-accent);margin-top:calc(var(--u)*.8)}
-#homeLobby .lobbyIntro h2{font-size:1.2em;letter-spacing:.14em;color:var(--l-accent)}
-#homeLobby .lobbyIntro p{margin-top:calc(var(--u)*1.5);font-size:.77em;color:var(--lb-soft)}
-#homeLobby .modeSwitch{display:grid;grid-template-columns:1fr 1fr;gap:calc(var(--u)*1);padding:calc(var(--u)*1);border:1px solid var(--l-border);border-radius:6px;background:#0004}
-#homeLobby .modeSwitch a,#homeLobby .modeSwitch span{display:flex;align-items:center;justify-content:center;min-width:0;min-height:calc(var(--u)*9);padding:calc(var(--u)*1);border-radius:4px;text-decoration:none;font:inherit;font-size:.72em;line-height:1.5;color:var(--lb-soft)}
-#homeLobby .modeSwitch [aria-current="page"]{background:color-mix(in srgb,var(--l-accent) 18%,transparent);color:var(--l-accent);border:1px solid var(--l-border)}
-#homeLobby .lobbyModes{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--l-border);border-radius:8px;background:#ffffff07;overflow:hidden}
-#homeLobby .lobbyMode{display:flex;flex-direction:column;min-width:0;gap:calc(var(--u)*2);padding:calc(var(--u)*3) calc(var(--u)*2);border:0;background:transparent;color:var(--l-ink);font:inherit;font-size:.83em;line-height:1.5;text-decoration:none;cursor:pointer}
-#homeLobby .lobbyMode+.lobbyMode{border-left:1px solid var(--l-border)}
-#homeLobby .optionIcon{font:normal calc(var(--u)*6)/1 ui-monospace,monospace;color:var(--l-accent)}
-#homeLobby .lobbyMode small{flex:1;color:var(--lb-soft);font-size:.85em}
-#homeLobby .modeCTA{display:block;padding:calc(var(--u)*2.6) calc(var(--u)*.7);border:1px solid var(--l-border);border-radius:5px;background:var(--l-accent);color:#10191a;font-size:.9em}
-#homeLobby .lobbyMode:last-child .modeCTA{background:transparent;color:var(--l-accent)}
-#homeLobby .lobbyFooter{font-size:.7em;color:var(--lb-soft);border-top:1px solid var(--lb-line);padding-top:calc(var(--u)*3)}
-@media(max-height:580px){#homeLobby{top:9%;max-height:85%}}
+#hudMenu[hidden]{display:none!important}
 
 /* Keep the game board proportional while the lobby docks on wide screens. */
 #wrap.sidecar{left:var(--stage-left)!important;top:50%!important;transform:translateY(-50%)!important;overflow:visible!important}
 #wrap.sidecar canvas{border-radius:3px}
-#wrap.sidecar #homeLobby,#wrap.sidecar #panel{
+#wrap.sidecar #panel{
  left:calc(100% + var(--desktop-gap))!important;right:auto!important;
  top:0!important;transform:none!important;width:var(--sidebar-width)!important;
  height:100%!important;max-height:100%!important;box-sizing:border-box;
  overflow-x:hidden!important;overflow-y:auto!important;--u:clamp(3.5px,.43vw,12px)
 }
 #hud button:focus-visible,#hud a:focus-visible,
-#panel button:focus-visible,#panel a:focus-visible,#panel input:focus-visible,
-#homeLobby button:focus-visible,#homeLobby a:focus-visible{
+#panel button:focus-visible,#panel a:focus-visible,#panel input:focus-visible{
  outline:2px solid var(--l-accent,#fff);outline-offset:2px
 }
 @media (max-width:1500px){
- #wrap.sidecar #panel .lobbyOptions,#wrap.sidecar #homeLobby .lobbyModes{grid-template-columns:1fr}
- #wrap.sidecar #panel .roomOption+.roomOption,#wrap.sidecar #homeLobby .lobbyMode+.lobbyMode{border-left:0;border-top:1px solid var(--l-border)}
+ #wrap.sidecar #panel .lobbyOptions{grid-template-columns:1fr}
+ #wrap.sidecar #panel .roomOption+.roomOption{border-left:0;border-top:1px solid var(--l-border)}
 }
 @media (pointer:coarse){
  #hud button,#hud a{min-height:42px;min-width:42px}
- #panel button,#panel input,#homeLobby button,#homeLobby a.lobbyMode{min-height:44px}
+ #panel button,#panel input{min-height:44px}
 }
 /* The HUD owns the top 36 logical pixels of the stage; when it needs more it hangs above the stage instead of covering play. */
 #wrap,#wrap{overflow:visible}
@@ -193,7 +170,6 @@ body{--hud-life:#ff7a6b}
    <button id="hudMenuToggle" type="button" aria-label="Game menu" aria-expanded="false">☰</button>
    <div id="hudBar" aria-hidden="true"><i id="hudFill"></i></div>
    <div id="hudMenu" hidden>
-    <button id="home" type="button">LOBBY</button>
     <a id="multi" href="/multiplayer" title="Multiplayer (2–4 players)" aria-label="Play multiplayer">MULTIPLAYER</a>
     <button id="top" type="button">LEADERBOARD</button><button id="daily" type="button">DAILY CHALLENGE</button>
     <button id="share" type="button">SHARE BOARD</button><button id="newb" type="button">NEW RUN</button>
@@ -215,14 +191,6 @@ body{--hud-life:#ff7a6b}
      <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
      <small id="midiStatus" role="status">LOAD AN INSTRUMENTAL MIDI FILE</small>
     </div>
-   </div>
-  </div>
-  <div id="homeLobby" role="dialog" aria-label="Game lobby">
-   <header class="lobbyHero"><div class="brickMark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><h1>BRICKS ASMR</h1><p class="byline"><em>by Shafiq 😉</em></p></header>
-   <div class="lobbyIntro"><h2>LOBBY</h2><p>Choose how you want to play.</p></div>
-   <div class="lobbyModes">
-    <button id="playSolo" type="button" class="lobbyMode"><span class="optionIcon">◎</span><strong>SINGLE PLAYER</strong><small>Break bricks at your own pace.</small><span class="modeCTA">PLAY SOLO</span></button>
-    <a class="lobbyMode" href="/multiplayer"><span class="optionIcon">↳</span><strong>MULTIPLAYER</strong><small>One board, up to four paddles.</small><span class="modeCTA">OPEN LOBBY</span></a>
    </div>
   </div>
   <div id="toast"></div>
@@ -314,7 +282,7 @@ function fit(){
   // Size to the layout viewport: an on-screen keyboard or page zoom only shrinks the visual viewport.
   const vw = Math.max(1, Math.floor(window.innerWidth));
   const vh = Math.max(1, Math.floor(window.innerHeight));
-  const panelOpen = !document.getElementById('panel').hidden || !document.getElementById('homeLobby').hidden;
+  const panelOpen = !document.getElementById('panel').hidden;
   wrap.style.setProperty('--u', stageFit(vw, vh, W, H, panelOpen).unit + 'px');
   const f = stageFit(vw, vh, W, H, panelOpen, document.getElementById('hud').offsetHeight);
   wrap.classList.toggle('sidecar', f.dock);
@@ -339,14 +307,12 @@ function resize(){
 }
 window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
-let panelWasOpen = !document.getElementById('panel').hidden ||
-  !!(document.getElementById('homeLobby') && !document.getElementById('homeLobby').hidden);
+let panelWasOpen = !document.getElementById('panel').hidden;
 const layoutObserver = new MutationObserver(()=>{
-  const open = !document.getElementById('panel').hidden ||
-    !!(document.getElementById('homeLobby') && !document.getElementById('homeLobby').hidden);
+  const open = !document.getElementById('panel').hidden;
   if(open !== panelWasOpen){panelWasOpen = open;resize();}
 });
-for(const id of ['panel', 'homeLobby']){
+for(const id of ['panel']){
   const element = document.getElementById(id);
   if(element)layoutObserver.observe(element,{attributes:true,attributeFilter:['hidden']});
 }
@@ -694,7 +660,6 @@ function render(fs = 1){
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.033, (now - last) / 1000); last = now;
-  if(!document.getElementById('homeLobby').hidden){render(dt*60);postFX(now);requestAnimationFrame(frame);return;}
   if (timerOn && !(fx.freeze > 0) && (state === 'play' || state === 'aim')) runTime += dt * 1000;
   notesThisFrame = 0;
   update(dt); render(dt * 60); postFX(now);
@@ -741,7 +706,7 @@ wrap.addEventListener('pointerup', endPtr);
 wrap.addEventListener('pointercancel', () => { sliding = false; onBoard = false; });
 const keys = {};
 window.addEventListener('keydown', e => {
-  if(!document.getElementById('homeLobby').hidden||!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
+  if(!document.getElementById('panel').hidden||!document.getElementById('hudMenu').hidden)return;
   audioInit(); keys[e.key.toLowerCase()] = true;
   if (e.key === ' ') { if (state === 'aim') launch(); else if (state === 'clear') newBoard(); else if (state === 'over') startBoard(); }
 });
@@ -850,15 +815,12 @@ P('pbrag').onclick=()=>{
 };
 P('top').onclick=()=>{if(panelMode)hidePanel();else showPanel('top');};
 P('hudMenuToggle').onclick=()=>{const opened=P('hudMenu').hidden;P('hudMenu').hidden=!opened;P('hudMenuToggle').setAttribute('aria-expanded',String(opened));};
-P('home').onclick=()=>{hidePanel();P('homeLobby').hidden=false;};
 function closeMenu(){P('hudMenu').hidden=true;P('hudMenuToggle').setAttribute('aria-expanded','false');}
 P('hudMenu').addEventListener('click',e=>{if(!e.target.closest('.midiPick'))closeMenu();});
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('#hudMenu,#hudMenuToggle'))closeMenu();});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeMenu();if(!P('nameModal').hidden)closeNameModal();}});
 // A mouse click should not leave focus on a HUD button, or Space would trigger it again instead of launching.
 P('hud').addEventListener('click',e=>{if(e.detail>0)e.target.closest('button')?.blur();});
-P('playSolo').onclick=()=>{P('homeLobby').hidden=true;audioInit();};
-if(hm)P('homeLobby').hidden=true;
 resize();startBoard();requestAnimationFrame(frame);
 })();
 </script>

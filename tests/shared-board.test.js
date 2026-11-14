@@ -160,7 +160,7 @@ test("Solo HUD exposes multiplayer without a second homepage", () => {
   const game = soloHtml;
   assert.match(game, /id="multi" href="\/multiplayer"/);
   assert.match(game, /aria-label="Play multiplayer"/);
-  assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,2);
+  assert.equal((game.match(/href="\/multiplayer"/g)||[]).length,1);
   assert.equal((game.match(/id="wrap"/g)||[]).length,1);
 });
 
@@ -313,24 +313,29 @@ test("multiplayer copied invites use path URLs and accept rename routes",()=>{
  assert.match(html,/location\.origin\+"\/multiplayer\/"\+roomCode/);
 });
 
-test("Solo and multiplayer lobby have shared branding and uncluttered menus",()=>{
+test("Solo opens straight into the game; multiplayer lobby keeps shared branding",()=>{
  const game=soloHtml;
- for(const page of [game,html]){
-  assert.match(page,/BRICKS ASMR<\/h1>/);
-  assert.match(page,/<em>by Shafiq 😉<\/em>/);
-  assert.match(page,/>LOBBY<\/h2>/);
-  assert.match(page,/id="hudMenuToggle"/);
-  assert.match(page,/id="hudMenu" hidden/);
- }
- assert.match(game,/id="playSolo"/);
+ // No home screen on Solo: / loads the board directly, no PLAY SOLO click.
+ assert.doesNotMatch(game,/id="homeLobby"/);
+ assert.doesNotMatch(game,/id="playSolo"/);
+ assert.doesNotMatch(game,/id="home"/);
+ assert.match(game,/<title>Bricks ASMR · Single Player<\/title>/);
+ assert.match(game,/id="hudMenuToggle"/);
+ assert.match(game,/id="hudMenu" hidden/);
  assert.match(game,/id="multi" href="\/multiplayer"/);
+ assert.match(game,/#hudMenu\[hidden\]\{display:none!important\}/);
+ // The multiplayer lobby keeps the shared branding.
+ assert.match(html,/BRICKS ASMR<\/h1>/);
+ assert.match(html,/<em>by Shafiq 😉<\/em>/);
+ assert.match(html,/>LOBBY<\/h2>/);
+ assert.match(html,/id="hudMenuToggle"/);
+ assert.match(html,/id="hudMenu" hidden/);
  assert.match(html,/id="create"/);
  assert.match(html,/id="join"/);
  assert.match(html,/id="playerName"/);
  assert.doesNotMatch(html,/>SHARED BOARD</);
  assert.equal((game.match(/id="wrap"/g)||[]).length,1);
  assert.equal((html.match(/id="wrap"/g)||[]).length,1);
- assert.match(game,/#homeLobby\[hidden\],#hudMenu\[hidden\]\{display:none!important\}/);
 });
 
 test("multiplayer lobby maps the current player to the bottom slot",()=>{

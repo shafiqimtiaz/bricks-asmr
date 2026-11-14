@@ -23,8 +23,8 @@ async function waitFor(page, expression) {
 try {
   const soloContext = await browser.newContext({ viewport: { width: 320, height: 720 } });
   const solo = await pageAt(soloContext, "/");
-  await solo.locator("#playSolo").click();
-  await solo.locator("#homeLobby").waitFor({ state: "hidden" });
+  // No home screen: / opens straight into the Solo game.
+  assert.equal(await solo.locator("#homeLobby").count(), 0, "Solo has no home screen");
   assert.equal(await solo.locator("#c").count(), 1, "Solo renders one canvas");
   assert.ok(await solo.locator("canvas:visible").count() > 0, "Solo rendering canvas is visible");
   const soloOverflow = await solo.evaluate(() => document.documentElement.scrollWidth - innerWidth);
